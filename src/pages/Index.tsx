@@ -5,11 +5,10 @@ const INSTAGRAM_URL = "https://instagram.com/gofocus"; // Edite este link
 const Index = () => {
   return (
     <>
-      <head>
-        <title>GoFocus — Fotografia Profissional</title>
-        <meta name="description" content="GoFocus — Capturando momentos. Criando experiências. Agência de fotografia profissional." />
-      </head>
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6">
+      <title>GoFocus — Fotografia Profissional</title>
+      <meta name="description" content="GoFocus — Capturando momentos. Criando experiências. Agência de fotografia profissional." />
+    </>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6">
         <motion.div
           className="flex flex-col items-center gap-8 text-center"
           initial={{ opacity: 0, y: 30 }}
