@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminProjectEdit from "./pages/AdminProjectEdit";
 import ClientPreview from "./pages/ClientPreview";
 import NotFound from "./pages/NotFound";
 
@@ -21,6 +22,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/projeto/:id" element={<AdminProjectEdit />} />
           <Route path="/cliente/:slug" element={<ClientPreview />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
