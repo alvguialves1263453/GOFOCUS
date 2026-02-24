@@ -23,6 +23,7 @@ const App = () => (
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/projeto/:id" element={<AdminProjectEdit />} />
+          <Route path="/projeto/:id" element={<ClientPreview />} />
           <Route path="/cliente/:slug" element={<ClientPreview />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
