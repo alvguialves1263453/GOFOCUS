@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { getProjects, saveProject, deleteProject, generateSlug, fileToBase64, type Project } from "@/lib/storage";
+import { getProjects, saveProject, deleteProject, updateProject, generateSlug, fileToBase64, type Project } from "@/lib/storage";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -30,6 +30,8 @@ const AdminDashboard = () => {
       slug: generateSlug(clientName.trim()),
       photos,
       createdAt: new Date().toISOString(),
+      featured: false,
+      coverIndex: 0,
     };
 
     saveProject(project);
@@ -42,6 +44,11 @@ const AdminDashboard = () => {
 
   const handleDelete = (id: string) => {
     deleteProject(id);
+    setProjects(getProjects());
+  };
+
+  const toggleFeatured = (id: string, current: boolean) => {
+    updateProject(id, { featured: !current });
     setProjects(getProjects());
   };
 
@@ -135,32 +142,54 @@ const AdminDashboard = () => {
             projects.map((project) => (
               <motion.div
                 key={project.id}
-                className="flex items-center justify-between border border-border p-5"
+                className="flex flex-col sm:flex-row sm:items-center justify-between border border-border p-5 gap-4"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
               >
-                <div>
-                  <h3 className="font-display text-lg text-foreground">
-                    {project.clientName}
-                  </h3>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {project.photos.length} foto{project.photos.length > 1 ? "s" : ""} •{" "}
-                    <a
-                      href={`/cliente/${project.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline hover:text-foreground transition-colors"
-                    >
-                      /cliente/{project.slug}
-                    </a>
-                  </p>
+                <div className="flex items-center gap-4">
+                  {/* Cover thumbnail */}
+                  {project.photos[project.coverIndex] && (
+                    <img
+                      src={project.photos[project.coverIndex]}
+                      alt={project.clientName}
+                      className="w-12 h-12 object-cover flex-shrink-0"
+                    />
+                  )}
+                  <div>
+                    <h3 className="font-display text-lg text-foreground">
+                      {project.clientName}
+                    </h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {project.photos.length} foto{project.photos.length > 1 ? "s" : ""} •{" "}
+                      <a
+                        href={`/cliente/${project.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-foreground transition-colors"
+                      >
+                        /cliente/{project.slug}
+                      </a>
+                    </p>
+                  </div>
                 </div>
-                <button
-                  onClick={() => handleDelete(project.id)}
-                  className="text-xs uppercase tracking-[0.2em] text-muted-foreground hover:text-destructive transition-colors"
-                >
-                  Excluir
-                </button>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => toggleFeatured(project.id, project.featured)}
+                    className={`text-xs uppercase tracking-[0.2em] transition-colors ${
+                      project.featured
+                        ? "text-foreground border border-foreground px-3 py-1"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {project.featured ? "★ Destaque" : "☆ Destacar"}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(project.id)}
+                    className="text-xs uppercase tracking-[0.2em] text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    Excluir
+                  </button>
+                </div>
               </motion.div>
             ))
           )}
