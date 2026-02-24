@@ -4,13 +4,21 @@ export interface Project {
   slug: string;
   photos: string[]; // base64 data URLs
   createdAt: string;
+  featured: boolean;
+  coverIndex: number; // which photo to use as cover
 }
 
 const STORAGE_KEY = 'gofocus_projects';
 
 export function getProjects(): Project[] {
   const data = localStorage.getItem(STORAGE_KEY);
-  return data ? JSON.parse(data) : [];
+  if (!data) return [];
+  // migrate old projects without featured field
+  return JSON.parse(data).map((p: any) => ({
+    ...p,
+    featured: p.featured ?? false,
+    coverIndex: p.coverIndex ?? 0,
+  }));
 }
 
 export function saveProject(project: Project): void {
@@ -19,9 +27,20 @@ export function saveProject(project: Project): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
 }
 
+export function updateProject(id: string, updates: Partial<Project>): void {
+  const projects = getProjects().map(p =>
+    p.id === id ? { ...p, ...updates } : p
+  );
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+}
+
 export function deleteProject(id: string): void {
   const projects = getProjects().filter(p => p.id !== id);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+}
+
+export function getFeaturedProjects(): Project[] {
+  return getProjects().filter(p => p.featured);
 }
 
 export function getProjectBySlug(slug: string): Project | undefined {
