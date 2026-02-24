@@ -64,7 +64,9 @@ const AdminProjectEdit = () => {
 
   const handleCopyLink = () => {
     if (!project) return;
-    const url = `${window.location.origin}/cliente/${project.slug}`;
+    // Use the current visible URL (works for both preview and published)
+    const baseUrl = window.location.origin;
+    const url = `${baseUrl}/cliente/${project.slug}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
