@@ -130,11 +130,20 @@ export async function deleteFromCloudinary(publicId: string): Promise<boolean> {
 
         if (!response.ok) {
             const errorData = await response.json();
-            console.error("Cloudinary Delete Error:", errorData);
+            console.error("Cloudinary Delete API Error:", errorData);
             return false;
         }
 
-        return true;
+        const result = await response.json();
+        console.log("Cloudinary Delete API Response:", result);
+
+        if (result.result === "ok") {
+            console.log(`Successfully deleted public_id: ${publicId}`);
+            return true;
+        } else {
+            console.warn(`Cloudinary returned result "${result.result}" for ${publicId}. Full response:`, result);
+            return false;
+        }
     } catch (error) {
         console.error("Cloudinary delete error:", error);
         return false;

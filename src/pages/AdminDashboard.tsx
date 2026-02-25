@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { getProjects, saveProject, deleteProject, generateSlug, type Project } from "@/lib/storage";
+import { getProjects, saveProject, deleteProject, generateSlug, type Project, type ProjectPhoto } from "@/lib/storage";
+import { deleteFromCloudinary } from "@/lib/cloudinary";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
@@ -47,9 +48,26 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleDelete = (e: React.MouseEvent, id: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (!confirm("Tem certeza que deseja excluir este projeto?")) return;
+
+    // Find project to get its photos
+    const projectToDelete = projects.find(p => p.id === id);
+    if (projectToDelete && projectToDelete.photos) {
+      toast.info("Iniciando exclusão das fotos no Cloudinary...");
+      // Delete all photos from Cloudinary
+      for (const photo of projectToDelete.photos) {
+        if (photo.publicId) {
+          try {
+            await deleteFromCloudinary(photo.publicId);
+          } catch (err) {
+            console.error(`Falha ao deletar foto ${photo.publicId}:`, err);
+          }
+        }
+      }
+    }
+
     deleteProject(id);
     toast.success("Projeto excluído");
     loadProjects();
@@ -120,12 +138,12 @@ const AdminDashboard = () => {
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => {
-              const coverUrl = project.photos?.[project.coverIndex || 0];
+              const photo = project.photos?.[project.coverIndex || 0];
               return (
                 <motion.div key={project.id} className="group relative border border-border overflow-hidden cursor-pointer bg-secondary/10 transition-all hover:border-foreground/30 hover:bg-secondary/20" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onClick={() => navigate(`/admin/projeto/${project.id}`)}>
                   <div className="relative aspect-[16/10] bg-secondary/30 overflow-hidden">
-                    {coverUrl ? (
-                      <img src={coverUrl} alt={`Capa - ${project.clientName}`} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                    {photo ? (
+                      <img src={photo.url} alt={`Capa - ${project.clientName}`} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
                     ) : (
                       <div className="flex h-full items-center justify-center"><Image className="h-8 w-8 text-muted-foreground/10" strokeWidth={1} /></div>
                     )}
