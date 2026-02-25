@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchProjectById, getPublicUrl, type Project, type Photo } from "@/lib/supabase-helpers";
+import { getProjects, type Project } from "@/lib/storage";
 import { Loader2, Download, X } from "lucide-react";
 
 const ClientPreview = () => {
@@ -9,17 +9,18 @@ const ClientPreview = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    fetchProjectById(id)
-      .then((data) => {
-        if (data) setProject(data);
-        else setNotFound(true);
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
+    const projects = getProjects();
+    const found = projects.find(p => p.id === id);
+    if (found) {
+      setProject(found);
+    } else {
+      setNotFound(true);
+    }
+    setLoading(false);
   }, [id]);
 
   const handleDownload = async (url: string, index: number) => {
@@ -28,7 +29,7 @@ const ClientPreview = () => {
       const blob = await res.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `${project?.name || "foto"}-${index + 1}.jpg`;
+      a.download = `${project?.clientName || "foto"}-${index + 1}.jpg`;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch {
@@ -53,7 +54,7 @@ const ClientPreview = () => {
   }
 
   const photos = project.photos || [];
-  const selectedIndex = selectedPhoto ? photos.findIndex((p: Photo) => p.id === selectedPhoto.id) : -1;
+  const selectedIndex = selectedPhoto ? photos.indexOf(selectedPhoto) : -1;
 
   return (
     <>
@@ -62,13 +63,13 @@ const ClientPreview = () => {
         <div className="mx-auto max-w-6xl">
           <motion.div className="mb-10 text-center" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">GoFocus</p>
-            <h1 className="font-display text-3xl font-light tracking-[0.1em] text-foreground sm:text-5xl">{project.name}</h1>
+            <h1 className="font-display text-3xl font-light tracking-[0.1em] text-foreground sm:text-5xl">{project.clientName}</h1>
           </motion.div>
 
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-5">
-            {photos.map((photo: Photo, index: number) => (
+            {photos.map((photo, index) => (
               <motion.div
-                key={photo.id}
+                key={`${photo}-${index}`}
                 className="group relative cursor-pointer overflow-hidden"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -76,8 +77,8 @@ const ClientPreview = () => {
                 onClick={() => setSelectedPhoto(photo)}
               >
                 <img
-                  src={getPublicUrl(photo.image_url)}
-                  alt={`${project.name} - Foto ${index + 1}`}
+                  src={photo}
+                  alt={`${project.clientName} - Foto ${index + 1}`}
                   className="w-full aspect-square object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
                 />
@@ -108,13 +109,13 @@ const ClientPreview = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <img
-                src={getPublicUrl(selectedPhoto.image_url)}
+                src={selectedPhoto}
                 alt="Foto ampliada"
                 className="max-h-[85vh] max-w-[90vw] object-contain rounded"
               />
               <div className="absolute top-3 right-3 flex gap-2">
                 <button
-                  onClick={() => handleDownload(getPublicUrl(selectedPhoto.image_url), selectedIndex)}
+                  onClick={() => handleDownload(selectedPhoto, selectedIndex)}
                   className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/40"
                   title="Baixar foto"
                 >

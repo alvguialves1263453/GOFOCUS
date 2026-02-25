@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchProjects, createProject, deleteProject, getPublicUrl, type Project } from "@/lib/supabase-helpers";
+import { getProjects, saveProject, deleteProject, generateSlug, type Project } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, FolderOpen, Trash2, ExternalLink, Image, Loader2, LogOut } from "lucide-react";
+import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 const AdminDashboard = () => {
@@ -13,50 +13,46 @@ const AdminDashboard = () => {
   const [showForm, setShowForm] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);
-  const [loadingProjects, setLoadingProjects] = useState(true);
 
   useEffect(() => {
     if (!authLoading && user) loadProjects();
   }, [user, authLoading]);
 
-  const loadProjects = async () => {
-    try {
-      setLoadingProjects(true);
-      const data = await fetchProjects();
-      setProjects(data);
-    } catch (err: any) {
-      toast.error("Erro ao carregar projetos");
-    } finally {
-      setLoadingProjects(false);
-    }
+  const loadProjects = () => {
+    setProjects(getProjects());
   };
 
   const handleSave = async () => {
     if (!projectName.trim()) return;
     setSaving(true);
     try {
-      await createProject(projectName.trim());
+      const newProject: Project = {
+        id: crypto.randomUUID(),
+        clientName: projectName.trim(),
+        slug: generateSlug(projectName.trim()),
+        photos: [],
+        createdAt: new Date().toISOString(),
+        featured: false,
+        coverIndex: 0
+      };
+      saveProject(newProject);
       toast.success("Projeto criado com sucesso!");
       setProjectName("");
       setShowForm(false);
-      await loadProjects();
+      loadProjects();
     } catch (err: any) {
-      toast.error(err.message || "Erro ao salvar projeto");
+      toast.error("Erro ao salvar projeto");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (!confirm("Tem certeza que deseja excluir este projeto?")) return;
-    try {
-      await deleteProject(id);
-      toast.success("Projeto excluído");
-      await loadProjects();
-    } catch (err: any) {
-      toast.error("Erro ao excluir projeto");
-    }
+    deleteProject(id);
+    toast.success("Projeto excluído");
+    loadProjects();
   };
 
   const handleLogout = async () => {
@@ -64,7 +60,7 @@ const AdminDashboard = () => {
     navigate("/login");
   };
 
-  if (authLoading || loadingProjects) {
+  if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -124,20 +120,19 @@ const AdminDashboard = () => {
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => {
-              const coverPhoto = project.photos?.[0];
-              const coverUrl = coverPhoto ? getPublicUrl(coverPhoto.image_url) : null;
+              const coverUrl = project.photos?.[project.coverIndex || 0];
               return (
                 <motion.div key={project.id} className="group relative border border-border overflow-hidden cursor-pointer bg-secondary/10 transition-all hover:border-foreground/30 hover:bg-secondary/20" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onClick={() => navigate(`/admin/projeto/${project.id}`)}>
                   <div className="relative aspect-[16/10] bg-secondary/30 overflow-hidden">
                     {coverUrl ? (
-                      <img src={coverUrl} alt={project.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                      <img src={coverUrl} alt={project.clientName} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
                     ) : (
                       <div className="flex h-full items-center justify-center"><Image className="h-8 w-8 text-muted-foreground/10" strokeWidth={1} /></div>
                     )}
                   </div>
                   <div className="p-5 flex items-center justify-between">
                     <div>
-                      <h3 className="font-display text-base text-foreground group-hover:text-foreground transition-colors">{project.name}</h3>
+                      <h3 className="font-display text-base text-foreground group-hover:text-foreground transition-colors">{project.clientName}</h3>
                       <p className="mt-1 text-[10px] text-muted-foreground uppercase tracking-wider">
                         {project.photos?.length || 0} foto{(project.photos?.length || 0) !== 1 ? "s" : ""}
                       </p>

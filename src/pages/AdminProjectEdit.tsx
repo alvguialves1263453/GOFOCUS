@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchProjectById, uploadPhotos, deletePhoto, getPublicUrl, updateProject, type Project, type Photo } from "@/lib/supabase-helpers";
+import { getProjects, updateProject, fileToBase64, type Project } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ArrowUpCircle, ExternalLink } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 const AdminProjectEdit = () => {
@@ -20,17 +20,15 @@ const AdminProjectEdit = () => {
     if (id) loadProject();
   }, [id]);
 
-  const loadProject = async () => {
-    try {
-      setLoading(true);
-      const data = await fetchProjectById(id!);
-      if (data) setProject(data);
-      else navigate("/admin/dashboard");
-    } catch {
-      toast.error("Erro ao carregar projeto");
-    } finally {
-      setLoading(false);
+  const loadProject = () => {
+    const projects = getProjects();
+    const found = projects.find(p => p.id === id);
+    if (found) {
+      setProject(found);
+    } else {
+      navigate("/admin/dashboard");
     }
+    setLoading(false);
   };
 
   const handleAddPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,26 +37,25 @@ const AdminProjectEdit = () => {
 
     setAdding(true);
     try {
-      await uploadPhotos(project.id, files);
+      const base64Photos = await Promise.all(files.map(file => fileToBase64(file)));
+      const updatedPhotos = [...(project.photos || []), ...base64Photos];
+      updateProject(project.id, { photos: updatedPhotos });
+      setProject({ ...project, photos: updatedPhotos });
       toast.success(`${files.length} foto(s) adicionada(s)!`);
-      await loadProject();
     } catch (err: any) {
-      toast.error(err.message || "Erro no upload");
+      toast.error("Erro no upload");
     } finally {
       setAdding(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const handleRemovePhoto = async (photo: any) => {
-    if (!confirm("Remover esta foto?")) return;
-    try {
-      await deletePhoto(photo.id, photo.image_url);
-      toast.success("Foto removida");
-      await loadProject();
-    } catch {
-      toast.error("Erro ao remover foto");
-    }
+  const handleRemovePhoto = (index: number) => {
+    if (!project || !confirm("Remover esta foto?")) return;
+    const updatedPhotos = project.photos.filter((_, i) => i !== index);
+    updateProject(project.id, { photos: updatedPhotos });
+    setProject({ ...project, photos: updatedPhotos });
+    toast.success("Foto removida");
   };
 
   const handleCopyLink = () => {
@@ -69,15 +66,11 @@ const AdminProjectEdit = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const updateName = async (newName: string) => {
-    if (!project || newName === project.name) return;
-    try {
-      await updateProject(project.id, { name: newName });
-      setProject({ ...project, name: newName });
-      toast.success("Nome atualizado");
-    } catch {
-      toast.error("Erro ao atualizar nome");
-    }
+  const updateName = (newName: string) => {
+    if (!project || !newName.trim() || newName === project.clientName) return;
+    updateProject(project.id, { clientName: newName.trim() });
+    setProject({ ...project, clientName: newName.trim() });
+    toast.success("Nome atualizado");
   };
 
   if (loading || authLoading) {
@@ -103,14 +96,14 @@ const AdminProjectEdit = () => {
             <div className="space-y-2">
               <input
                 type="text"
-                defaultValue={project.name}
+                defaultValue={project.clientName}
                 onBlur={(e) => updateName(e.target.value)}
                 className="bg-transparent font-display text-4xl font-light tracking-tight text-foreground outline-none border-b border-transparent focus:border-border transition-colors w-full sm:w-[400px]"
               />
               <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center gap-2">
                 <span>{photos.length} fotos</span>
                 <span className="h-1 w-1 rounded-full bg-border" />
-                <span>Criado em {new Date(project.created_at).toLocaleDateString("pt-BR")}</span>
+                <span>Criado em {new Date(project.createdAt).toLocaleDateString("pt-BR")}</span>
               </p>
             </div>
           </div>
@@ -146,11 +139,11 @@ const AdminProjectEdit = () => {
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             <AnimatePresence mode="popLayout">
-              {photos.map((photo: Photo, index: number) => (
-                <motion.div key={photo.id} className="group relative aspect-[3/4] overflow-hidden bg-secondary/20" layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <img src={getPublicUrl(photo.image_url)} alt={`Foto ${index + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+              {photos.map((photo, index) => (
+                <motion.div key={`${photo}-${index}`} className="group relative aspect-[3/4] overflow-hidden bg-secondary/20" layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <img src={photo} alt={`Foto ${index + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
                   <div className="absolute inset-0 bg-background/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button onClick={() => handleRemovePhoto(photo)} className="h-10 w-10 flex items-center justify-center bg-background border border-border text-destructive hover:bg-destructive hover:text-background transition-all hover:scale-110 shadow-lg">
+                    <button onClick={() => handleRemovePhoto(index)} className="h-10 w-10 flex items-center justify-center bg-background border border-border text-destructive hover:bg-destructive hover:text-background transition-all hover:scale-110 shadow-lg">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>

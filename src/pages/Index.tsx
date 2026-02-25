@@ -1,6 +1,6 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
-import { fetchProjects, getPublicUrl, type Project } from "@/lib/supabase-helpers";
+import { getProjects, type Project } from "@/lib/storage";
 import { Camera, Eye, Heart, Award } from "lucide-react";
 import logo from "@/assets/logo.png";
 
@@ -27,7 +27,7 @@ const Index = () => {
   const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
-    fetchProjects().then(setProjects).catch(() => { });
+    setProjects(getProjects());
   }, []);
 
   return (
@@ -122,8 +122,7 @@ const Index = () => {
 function PortfolioCard({ project, index }: { project: Project; index: number }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-40px" });
-  const coverPhoto = project.photos?.[0];
-  const coverUrl = coverPhoto ? getPublicUrl(coverPhoto.image_url) : null;
+  const coverUrl = project.photos?.[project.coverIndex || 0];
 
   if (!coverUrl) return null;
 
@@ -132,7 +131,7 @@ function PortfolioCard({ project, index }: { project: Project; index: number }) 
       <div className="relative aspect-[3/4] overflow-hidden">
         <img src={coverUrl} alt={project.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
         <div className="absolute inset-0 flex flex-col items-center justify-end bg-gradient-to-t from-background/80 via-background/0 to-transparent pb-8 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
-          <span className="font-display text-xl tracking-wide text-foreground">{project.name}</span>
+          <span className="font-display text-xl tracking-wide text-foreground">{project.clientName}</span>
           <span className="mt-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{project.photos?.length || 0} foto{(project.photos?.length || 0) > 1 ? "s" : ""}</span>
         </div>
       </div>
