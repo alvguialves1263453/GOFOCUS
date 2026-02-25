@@ -64,7 +64,7 @@ export async function uploadPhotos(projectId: string, files: File[]): Promise<vo
         const filePath = `${projectId}/${uuid}.${ext}`;
 
         const { error: uploadError } = await supabase.storage
-            .from("project-photos")
+            .from("fotos")
             .upload(filePath, file);
 
         if (uploadError) throw uploadError;
@@ -81,12 +81,12 @@ export async function uploadPhotos(projectId: string, files: File[]): Promise<vo
 }
 
 export function getPublicUrl(imageUrl: string) {
-    return supabase.storage.from("project-photos").getPublicUrl(imageUrl).data.publicUrl;
+    return supabase.storage.from("fotos").getPublicUrl(imageUrl).data.publicUrl;
 }
 
 export async function deletePhoto(photoId: string, imageUrl: string): Promise<void> {
     // Delete from storage
-    await supabase.storage.from("project-photos").remove([imageUrl]);
+    await supabase.storage.from("fotos").remove([imageUrl]);
 
     // Delete from DB
     const { error } = await supabase.from("photos").delete().eq("id", photoId);
