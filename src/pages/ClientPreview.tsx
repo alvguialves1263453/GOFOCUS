@@ -1,25 +1,19 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchProjectById, type Project, type Photo } from "@/lib/supabase-helpers";
 import { Loader2, Download, X } from "lucide-react";
 
 const ClientPreview = () => {
   const { id } = useParams<{ id: string }>();
-  const [project, setProject] = useState<Project | null>(null);
-  const [notFound, setNotFound] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [project, setProject] = useState<any | null>(null);
+  const [notFound, setNotFound] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<any | null>(null);
 
   useEffect(() => {
-    if (!id) return;
-    fetchProjectById(id)
-      .then((data) => {
-        if (data) setProject(data);
-        else setNotFound(true);
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
+    // Project fetching disabled
+    setNotFound(true);
+    setLoading(false);
   }, [id]);
 
   const handleDownload = async (url: string, index: number) => {

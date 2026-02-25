@@ -1,6 +1,5 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
-import { fetchFeaturedProjects, type Project } from "@/lib/supabase-helpers";
 import { Camera, Eye, Heart, Award } from "lucide-react";
 import logo from "@/assets/logo.png";
 
@@ -24,10 +23,10 @@ const reasons = [
 ];
 
 const Index = () => {
-  const [featuredProjects, setFeaturedProjects] = useState<Project[]>([]);
+  const [featuredProjects, setFeaturedProjects] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchFeaturedProjects().then(setFeaturedProjects).catch(() => { });
+    // Projects fetching disabled
   }, []);
 
   return (
@@ -42,7 +41,7 @@ const Index = () => {
           </motion.div>
         </motion.div>
         <motion.div className="absolute bottom-6 flex flex-col items-center gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5, duration: 1 }}>
-          <span className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground">role para baixo</span>
+          <span className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground">ROLE PARA BAIXO</span>
           <motion.div className="h-8 w-px bg-muted-foreground/40" animate={{ scaleY: [1, 0.5, 1] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }} />
         </motion.div>
       </section>
@@ -119,7 +118,7 @@ const Index = () => {
   );
 };
 
-function PortfolioCard({ project, index }: { project: Project; index: number }) {
+function PortfolioCard({ project, index }: { project: any; index: number }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-40px" });
   const coverPhoto = project.cover_image || project.photos?.[0]?.image_url;

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchProjects, createProject, deleteProject, updateProject, uploadPhotos, type Project } from "@/lib/supabase-helpers";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, FolderOpen, Star, Trash2, ExternalLink, Image, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -9,73 +8,36 @@ import { toast } from "sonner";
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [clientName, setClientName] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
-  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [loadingProjects, setLoadingProjects] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/admin");
       return;
     }
-    if (user) loadProjects();
+    setLoadingProjects(false);
   }, [user, authLoading, navigate]);
 
   const loadProjects = async () => {
-    try {
-      setLoadingProjects(true);
-      const data = await fetchProjects();
-      setProjects(data);
-    } catch (err: any) {
-      toast.error("Erro ao carregar projetos");
-    } finally {
-      setLoadingProjects(false);
-    }
+    setProjects([]);
   };
 
   const handleSave = async () => {
-    if (!clientName.trim() || files.length === 0 || !user) return;
-    setSaving(true);
-    try {
-      const project = await createProject(clientName.trim(), user.id);
-      const photos = await uploadPhotos(project.id, files);
-      if (photos.length > 0) {
-        await updateProject(project.id, { cover_image: photos[0].image_url });
-      }
-      toast.success("Projeto criado com sucesso!");
-      setClientName("");
-      setFiles([]);
-      setShowForm(false);
-      await loadProjects();
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao salvar projeto");
-    } finally {
-      setSaving(false);
-    }
+    toast.info("Ações de banco de dados desativadas");
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este projeto?")) return;
-    try {
-      await deleteProject(id);
-      toast.success("Projeto excluído");
-      await loadProjects();
-    } catch (err: any) {
-      toast.error("Erro ao excluir projeto");
-    }
+    toast.info("Ações de banco de dados desativadas");
   };
 
   const toggleFeatured = async (e: React.MouseEvent, id: string, current: boolean) => {
     e.stopPropagation();
-    try {
-      await updateProject(id, { featured: !current });
-      await loadProjects();
-    } catch {
-      toast.error("Erro ao atualizar destaque");
-    }
+    toast.info("Ações de banco de dados desativadas");
   };
 
   const handleLogout = async () => {
@@ -83,8 +45,9 @@ const AdminDashboard = () => {
     navigate("/admin");
   };
 
-  const totalPhotos = projects.reduce((sum, p) => sum + (p.photos?.length || 0), 0);
-  const featuredCount = projects.filter((p) => p.featured).length;
+  const totalPhotos = 0;
+  const featuredCount = 0;
+  // ... (rest of the file remains similar but uses mock data)
 
   if (authLoading || loadingProjects) {
     return (
