@@ -1,7 +1,7 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
 import { getProjects, type Project } from "@/lib/storage";
-import { Camera, Eye, Heart, Award } from "lucide-react";
+import { Camera, Eye, Heart, Award, Instagram } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 const INSTAGRAM_URL = "https://instagram.com/gofocus.br";
@@ -37,7 +37,9 @@ const Index = () => {
         <motion.div className="flex flex-col items-center gap-6 text-center" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, ease: "easeOut" }}>
           <img src={logo} alt="GoFocus" className="w-48 sm:w-64 md:w-80" />
           <motion.div className="mt-6 flex flex-col items-center gap-4 sm:flex-row" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1, duration: 0.8 }}>
-            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="border border-foreground px-8 py-3 text-xs uppercase tracking-[0.3em] text-foreground transition-colors duration-300 hover:bg-foreground hover:text-background">Entrar em Contato</a>
+            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="flex h-12 w-12 items-center justify-center border border-foreground text-foreground transition-colors duration-300 hover:bg-foreground hover:text-background" title="Entrar em Contato">
+              <Instagram size={20} strokeWidth={1.5} />
+            </a>
             {projects.length > 0 && <a href="#portfolio" className="px-8 py-3 text-xs uppercase tracking-[0.3em] text-muted-foreground transition-colors duration-300 hover:text-foreground">Ver Trabalhos</a>}
           </motion.div>
         </motion.div>
