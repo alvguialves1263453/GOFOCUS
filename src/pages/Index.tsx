@@ -1,6 +1,6 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
-import { fetchProjects, getPublicUrl } from "@/lib/supabase-helpers";
+import { fetchProjects, getPublicUrl, type Project } from "@/lib/supabase-helpers";
 import { Camera, Eye, Heart, Award } from "lucide-react";
 import logo from "@/assets/logo.png";
 
@@ -24,7 +24,7 @@ const reasons = [
 ];
 
 const Index = () => {
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
     fetchProjects().then(setProjects).catch(() => { });
@@ -119,7 +119,7 @@ const Index = () => {
   );
 };
 
-function PortfolioCard({ project, index }: { project: any; index: number }) {
+function PortfolioCard({ project, index }: { project: Project; index: number }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-40px" });
   const coverPhoto = project.photos?.[0];

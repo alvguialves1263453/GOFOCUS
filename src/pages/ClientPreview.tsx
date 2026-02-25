@@ -1,15 +1,15 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchProjectById, getPublicUrl } from "@/lib/supabase-helpers";
+import { fetchProjectById, getPublicUrl, type Project, type Photo } from "@/lib/supabase-helpers";
 import { Loader2, Download, X } from "lucide-react";
 
 const ClientPreview = () => {
   const { id } = useParams<{ id: string }>();
-  const [project, setProject] = useState<any | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [selectedPhoto, setSelectedPhoto] = useState<any | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -53,7 +53,7 @@ const ClientPreview = () => {
   }
 
   const photos = project.photos || [];
-  const selectedIndex = selectedPhoto ? photos.findIndex((p: any) => p.id === selectedPhoto.id) : -1;
+  const selectedIndex = selectedPhoto ? photos.findIndex((p: Photo) => p.id === selectedPhoto.id) : -1;
 
   return (
     <>
@@ -66,7 +66,7 @@ const ClientPreview = () => {
           </motion.div>
 
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-5">
-            {photos.map((photo: any, index: number) => (
+            {photos.map((photo: Photo, index: number) => (
               <motion.div
                 key={photo.id}
                 className="group relative cursor-pointer overflow-hidden"

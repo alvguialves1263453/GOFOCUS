@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchProjects, createProject, deleteProject, getPublicUrl } from "@/lib/supabase-helpers";
+import { fetchProjects, createProject, deleteProject, getPublicUrl, type Project } from "@/lib/supabase-helpers";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, FolderOpen, Trash2, ExternalLink, Image, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
@@ -9,7 +9,7 @@ import { toast } from "sonner";
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);

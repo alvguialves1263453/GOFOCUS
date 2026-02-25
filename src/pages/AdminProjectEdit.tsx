@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchProjectById, uploadPhotos, deletePhoto, getPublicUrl, updateProject } from "@/lib/supabase-helpers";
+import { fetchProjectById, uploadPhotos, deletePhoto, getPublicUrl, updateProject, type Project, type Photo } from "@/lib/supabase-helpers";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ArrowUpCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ const AdminProjectEdit = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user, loading: authLoading } = useAuth();
-  const [project, setProject] = useState<any | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -146,7 +146,7 @@ const AdminProjectEdit = () => {
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             <AnimatePresence mode="popLayout">
-              {photos.map((photo: any, index: number) => (
+              {photos.map((photo: Photo, index: number) => (
                 <motion.div key={photo.id} className="group relative aspect-[3/4] overflow-hidden bg-secondary/20" layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                   <img src={getPublicUrl(photo.file_path)} alt={`Foto ${index + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
                   <div className="absolute inset-0 bg-background/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
