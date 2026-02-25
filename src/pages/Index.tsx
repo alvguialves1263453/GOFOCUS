@@ -37,8 +37,8 @@ const Index = () => {
         <motion.div className="flex flex-col items-center gap-6 text-center" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, ease: "easeOut" }}>
           <img src={logo} alt="GoFocus" className="w-48 sm:w-64 md:w-80" />
           <motion.div className="mt-6 flex flex-col items-center gap-4 sm:flex-row" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1, duration: 0.8 }}>
-            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="flex h-12 w-12 items-center justify-center border border-foreground text-foreground transition-colors duration-300 hover:bg-foreground hover:text-background" title="Entrar em Contato">
-              <Instagram size={20} strokeWidth={1.5} />
+            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="flex h-12 items-center justify-center border border-foreground px-8 text-xs uppercase tracking-[0.3em] text-foreground transition-colors duration-300 hover:bg-foreground hover:text-background">
+              entrar em contato
             </a>
             {projects.length > 0 && <a href="#portfolio" className="px-8 py-3 text-xs uppercase tracking-[0.3em] text-muted-foreground transition-colors duration-300 hover:text-foreground">Ver Trabalhos</a>}
           </motion.div>
@@ -102,7 +102,7 @@ const Index = () => {
             <div className="mt-10 flex flex-col items-center gap-4">
               <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 border border-foreground px-10 py-4 text-xs uppercase tracking-[0.3em] text-foreground transition-colors duration-300 hover:bg-foreground hover:text-background">
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>
-                Siga-nos no Instagram
+                entrar em contato
               </a>
               <span className="text-xs text-muted-foreground">@gofocus.br</span>
             </div>
@@ -124,14 +124,15 @@ const Index = () => {
 function PortfolioCard({ project, index }: { project: Project; index: number }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-40px" });
-  const coverUrl = project.photos?.[project.coverIndex || 0];
+  const cover = project.photos?.[project.coverIndex || 0];
+  const coverUrl = cover?.url;
 
   if (!coverUrl) return null;
 
   return (
     <motion.a ref={ref} href={`/projeto/${project.id}`} className="group relative overflow-hidden cursor-pointer block" initial={{ opacity: 0, y: 30 }} animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }} transition={{ duration: 0.7, delay: index * 0.1 }}>
       <div className="relative aspect-[3/4] overflow-hidden">
-        <img src={coverUrl} alt={project.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+        <img src={coverUrl} alt={project.clientName} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
         <div className="absolute inset-0 flex flex-col items-center justify-end bg-gradient-to-t from-background/80 via-background/0 to-transparent pb-8 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
           <span className="font-display text-xl tracking-wide text-foreground">{project.clientName}</span>
           <span className="mt-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{project.photos?.length || 0} foto{(project.photos?.length || 0) > 1 ? "s" : ""}</span>
