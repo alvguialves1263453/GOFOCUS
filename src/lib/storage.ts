@@ -20,17 +20,22 @@ const STORAGE_KEY = 'gofocus_projects';
 // --- SUPABASE ASYNC FUNCTIONS ---
 
 export async function getProjectsAsync(): Promise<Project[]> {
-  const { data, error } = await supabase
-    .from('projects')
-    .select('*')
-    .order('createdAt', { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .order('createdAt', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching projects from Supabase:', error);
-    return getProjectsLocal(); // Fallback to local
+    if (error) {
+      console.error('Error fetching projects from Supabase:', error);
+      return getProjectsLocal(); // Fallback to local
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('Critical failure in getProjectsAsync:', err);
+    return getProjectsLocal();
   }
-
-  return data || [];
 }
 
 export async function saveProjectAsync(project: Project): Promise<void> {
@@ -66,20 +71,25 @@ export async function deleteProjectAsync(id: string): Promise<void> {
 }
 
 export async function getProjectBySlugAsync(slug: string): Promise<Project | null> {
-  const { data, error } = await supabase
-    .from('projects')
-    .select('*')
-    .eq('slug', slug)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('slug', slug)
+      .single();
 
-  if (error) {
-    if (error.code !== 'PGRST116') {
-      console.error('Error fetching project by slug:', error);
+    if (error) {
+      if (error.code !== 'PGRST116') {
+        console.error('Error fetching project by slug:', error);
+      }
+      return getProjectBySlugLocal(slug);
     }
+
+    return data;
+  } catch (err) {
+    console.error('Critical failure in getProjectBySlugAsync:', err);
     return getProjectBySlugLocal(slug);
   }
-
-  return data;
 }
 
 // --- LOCAL STORAGE BACKUP / FALLBACK (LEGACY) ---
