@@ -125,7 +125,7 @@ const AdminDashboard = () => {
                 <motion.div key={project.id} className="group relative border border-border overflow-hidden cursor-pointer bg-secondary/10 transition-all hover:border-foreground/30 hover:bg-secondary/20" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onClick={() => navigate(`/admin/projeto/${project.id}`)}>
                   <div className="relative aspect-[16/10] bg-secondary/30 overflow-hidden">
                     {coverUrl ? (
-                      <img src={coverUrl} alt={project.clientName} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                      <img src={coverUrl} alt={`Capa - ${project.clientName}`} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
                     ) : (
                       <div className="flex h-full items-center justify-center"><Image className="h-8 w-8 text-muted-foreground/10" strokeWidth={1} /></div>
                     )}

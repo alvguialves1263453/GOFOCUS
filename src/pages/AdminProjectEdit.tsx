@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { getProjects, updateProject, fileToBase64, type Project } from "@/lib/storage";
+import { getProjects, updateProject, type Project } from "@/lib/storage";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
@@ -37,13 +38,13 @@ const AdminProjectEdit = () => {
 
     setAdding(true);
     try {
-      const base64Photos = await Promise.all(files.map(file => fileToBase64(file)));
-      const updatedPhotos = [...(project.photos || []), ...base64Photos];
+      const uploadedUrls = await Promise.all(files.map(file => uploadToCloudinary(file)));
+      const updatedPhotos = [...(project.photos || []), ...uploadedUrls];
       updateProject(project.id, { photos: updatedPhotos });
       setProject({ ...project, photos: updatedPhotos });
       toast.success(`${files.length} foto(s) adicionada(s)!`);
     } catch (err: any) {
-      toast.error("Erro no upload");
+      toast.error(err.message || "Erro no upload para Cloudinary");
     } finally {
       setAdding(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

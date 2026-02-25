@@ -2,7 +2,7 @@ export interface Project {
   id: string;
   clientName: string;
   slug: string;
-  photos: string[]; // base64 data URLs
+  photos: string[]; // Hosted URLs (Cloudinary)
   createdAt: string;
   featured: boolean;
   coverIndex: number; // which photo to use as cover
