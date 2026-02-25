@@ -10,7 +10,7 @@ export interface Project {
 export interface Photo {
     id: string;
     project_id: string;
-    file_path: string;
+    image_url: string;
     created_at: string;
 }
 
@@ -61,10 +61,10 @@ export async function uploadPhotos(projectId: string, files: File[]): Promise<vo
     for (const file of files) {
         const uuid = crypto.randomUUID();
         const ext = "jpg"; // Requirement says .jpg, but we could detect from file.name
-        const filePath = `fotos/${projectId}/${uuid}.${ext}`;
+        const filePath = `${projectId}/${uuid}.${ext}`;
 
         const { error: uploadError } = await supabase.storage
-            .from("fotos")
+            .from("project-photos")
             .upload(filePath, file);
 
         if (uploadError) throw uploadError;
@@ -73,20 +73,20 @@ export async function uploadPhotos(projectId: string, files: File[]): Promise<vo
             .from("photos")
             .insert({
                 project_id: projectId,
-                file_path: filePath
+                image_url: filePath
             });
 
         if (dbError) throw dbError;
     }
 }
 
-export function getPublicUrl(filePath: string) {
-    return supabase.storage.from("fotos").getPublicUrl(filePath).data.publicUrl;
+export function getPublicUrl(imageUrl: string) {
+    return supabase.storage.from("project-photos").getPublicUrl(imageUrl).data.publicUrl;
 }
 
-export async function deletePhoto(photoId: string, filePath: string): Promise<void> {
+export async function deletePhoto(photoId: string, imageUrl: string): Promise<void> {
     // Delete from storage
-    await supabase.storage.from("fotos").remove([filePath]);
+    await supabase.storage.from("project-photos").remove([imageUrl]);
 
     // Delete from DB
     const { error } = await supabase.from("photos").delete().eq("id", photoId);

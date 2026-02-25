@@ -123,7 +123,7 @@ function PortfolioCard({ project, index }: { project: any; index: number }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-40px" });
   const coverPhoto = project.photos?.[0];
-  const coverUrl = coverPhoto ? getPublicUrl(coverPhoto.file_path) : null;
+  const coverUrl = coverPhoto ? getPublicUrl(coverPhoto.image_url) : null;
 
   if (!coverUrl) return null;
 
