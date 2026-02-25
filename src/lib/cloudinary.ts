@@ -95,8 +95,12 @@ export async function uploadToCloudinary(file: File, folder: string = "gofocus")
 /**
  * Generates a SHA-1 signature for Cloudinary requests.
  */
-async function generateSignature(publicId: string, timestamp: number): Promise<string> {
-    const stringToSign = `public_id=${publicId}&timestamp=${timestamp}${API_SECRET}`;
+async function generateSignature(params: Record<string, any>): Promise<string> {
+    const sortedKeys = Object.keys(params).sort();
+    const stringToSign = sortedKeys
+        .map(key => `${key}=${params[key]}`)
+        .join("&") + API_SECRET;
+
     const encoder = new TextEncoder();
     const data = encoder.encode(stringToSign);
     const hashBuffer = await crypto.subtle.digest("SHA-1", data);
@@ -111,7 +115,11 @@ export async function deleteFromCloudinary(publicId: string): Promise<boolean> {
     if (!publicId) return false;
 
     const timestamp = Math.round(new Date().getTime() / 1000);
-    const signature = await generateSignature(publicId, timestamp);
+    const params = {
+        public_id: publicId,
+        timestamp: timestamp
+    };
+    const signature = await generateSignature(params);
 
     const formData = new FormData();
     formData.append("public_id", publicId);
@@ -146,6 +154,50 @@ export async function deleteFromCloudinary(publicId: string): Promise<boolean> {
         }
     } catch (error) {
         console.error("Cloudinary delete error:", error);
+        return false;
+    }
+}
+
+/**
+ * Deletes a folder from Cloudinary.
+ * Note: Folders can only be deleted if they are already empty.
+ */
+export async function deleteFolderFromCloudinary(folderPath: string): Promise<boolean> {
+    if (!folderPath) return false;
+
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const params = {
+        folder: folderPath,
+        timestamp: timestamp
+    };
+    const signature = await generateSignature(params);
+
+    const formData = new FormData();
+    formData.append("folder", folderPath);
+    formData.append("api_key", API_KEY);
+    formData.append("timestamp", timestamp.toString());
+    formData.append("signature", signature);
+
+    try {
+        const response = await fetch(
+            `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/folders/${folderPath}`,
+            {
+                method: "DELETE",
+                body: formData,
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Cloudinary Delete Folder API Error:", errorData);
+            return false;
+        }
+
+        const result = await response.json();
+        console.log("Cloudinary Delete Folder API Response:", result);
+        return result.deleted?.length > 0;
+    } catch (error) {
+        console.error("Cloudinary delete folder error:", error);
         return false;
     }
 }

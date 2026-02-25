@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { getProjects, saveProject, deleteProject, generateSlug, type Project, type ProjectPhoto } from "@/lib/storage";
-import { deleteFromCloudinary } from "@/lib/cloudinary";
+import { deleteFromCloudinary, deleteFolderFromCloudinary } from "@/lib/cloudinary";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -66,6 +66,13 @@ const AdminDashboard = () => {
             console.error(`Falha ao deletar foto ${photo.publicId}:`, err);
           }
         }
+      }
+
+      // Attempt to delete the folder itself
+      try {
+        await deleteFolderFromCloudinary(`gofocus/${projectToDelete.slug}`);
+      } catch (err) {
+        console.error(`Falha ao deletar pasta gofocus/${projectToDelete.slug}:`, err);
       }
     }
 
