@@ -10,7 +10,6 @@ import { toast } from "sonner";
 const AdminProjectEdit = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { user, loading: authLoading } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -74,7 +73,7 @@ const AdminProjectEdit = () => {
     toast.success("Nome atualizado");
   };
 
-  if (loading || authLoading) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

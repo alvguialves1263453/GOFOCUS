@@ -32,11 +32,7 @@ const App = () => (
           />
           <Route
             path="/admin/projeto/:id"
-            element={
-              <ProtectedRoute>
-                <AdminProjectEdit />
-              </ProtectedRoute>
-            }
+            element={<AdminProjectEdit />}
           />
           <Route path="/projeto/:id" element={<ClientPreview />} />
           <Route path="/cliente/:slug" element={<ClientPreview />} />

@@ -22,7 +22,12 @@ export async function uploadToCloudinary(file: File): Promise<string> {
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error?.message || "Erro no upload para Cloudinary");
+            console.error("Cloudinary Error Data:", errorData);
+            const message = errorData.error?.message || "Erro no upload para Cloudinary";
+            if (message.includes("upload_preset")) {
+                throw new Error(`Cloudinary Error: ${message}. Certifique-se que o preset '${UPLOAD_PRESET}' está como 'Unsigned' no seu painel da Cloudinary.`);
+            }
+            throw new Error(message);
         }
 
         const data = await response.json();
