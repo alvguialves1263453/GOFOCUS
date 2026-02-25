@@ -53,7 +53,7 @@ const AdminProjectEdit = () => {
   const handleRemovePhoto = async (photo: any) => {
     if (!confirm("Remover esta foto?")) return;
     try {
-      await deletePhoto(photo.id, photo.file_path);
+      await deletePhoto(photo.id, photo.image_url);
       toast.success("Foto removida");
       await loadProject();
     } catch {
@@ -148,7 +148,7 @@ const AdminProjectEdit = () => {
             <AnimatePresence mode="popLayout">
               {photos.map((photo: any, index: number) => (
                 <motion.div key={photo.id} className="group relative aspect-[3/4] overflow-hidden bg-secondary/20" layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <img src={getPublicUrl(photo.file_path)} alt={`Foto ${index + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                  <img src={getPublicUrl(photo.image_url)} alt={`Foto ${index + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
                   <div className="absolute inset-0 bg-background/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <button onClick={() => handleRemovePhoto(photo)} className="h-10 w-10 flex items-center justify-center bg-background border border-border text-destructive hover:bg-destructive hover:text-background transition-all hover:scale-110 shadow-lg">
                       <Trash2 className="h-4 w-4" />
