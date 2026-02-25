@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { getProjects, updateProject, type Project } from "@/lib/storage";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { getProjects, updateProject, type Project, type ProjectPhoto } from "@/lib/storage";
+import { uploadToCloudinary, deleteFromCloudinary } from "@/lib/cloudinary";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
@@ -37,8 +37,8 @@ const AdminProjectEdit = () => {
 
     setAdding(true);
     try {
-      const uploadedUrls = await Promise.all(files.map(file => uploadToCloudinary(file)));
-      const updatedPhotos = [...(project.photos || []), ...uploadedUrls];
+      const uploadedPhotos = await Promise.all(files.map(file => uploadToCloudinary(file)));
+      const updatedPhotos = [...(project.photos || []), ...uploadedPhotos];
       updateProject(project.id, { photos: updatedPhotos });
       setProject({ ...project, photos: updatedPhotos });
       toast.success(`${files.length} foto(s) adicionada(s)!`);
@@ -50,12 +50,25 @@ const AdminProjectEdit = () => {
     }
   };
 
-  const handleRemovePhoto = (index: number) => {
+  const handleRemovePhoto = async (index: number) => {
     if (!project || !confirm("Remover esta foto?")) return;
+
+    const photoToRemove = project.photos[index];
     const updatedPhotos = project.photos.filter((_, i) => i !== index);
+
+    // Optimistic update
     updateProject(project.id, { photos: updatedPhotos });
     setProject({ ...project, photos: updatedPhotos });
     toast.success("Foto removida");
+
+    // Async deletion from Cloudinary
+    if (photoToRemove.publicId) {
+      try {
+        await deleteFromCloudinary(photoToRemove.publicId);
+      } catch (err) {
+        console.error("Failed to delete from Cloudinary:", err);
+      }
+    }
   };
 
   const handleCopyLink = () => {
@@ -140,8 +153,8 @@ const AdminProjectEdit = () => {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             <AnimatePresence mode="popLayout">
               {photos.map((photo, index) => (
-                <motion.div key={`${photo}-${index}`} className="group relative aspect-[3/4] overflow-hidden bg-secondary/20" layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <img src={photo} alt={`Foto ${index + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                <motion.div key={`${photo.url}-${index}`} className="group relative aspect-[3/4] overflow-hidden bg-secondary/20" layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <img src={photo.url} alt={`Foto ${index + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
                   <div className="absolute inset-0 bg-background/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <button onClick={() => handleRemovePhoto(index)} className="h-10 w-10 flex items-center justify-center bg-background border border-border text-destructive hover:bg-destructive hover:text-background transition-all hover:scale-110 shadow-lg">
                       <Trash2 className="h-4 w-4" />

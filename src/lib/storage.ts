@@ -1,8 +1,13 @@
+export interface ProjectPhoto {
+  url: string;
+  publicId: string;
+}
+
 export interface Project {
   id: string;
   clientName: string;
   slug: string;
-  photos: string[]; // Hosted URLs (Cloudinary)
+  photos: ProjectPhoto[]; // Hosted URLs (Cloudinary)
   createdAt: string;
   featured: boolean;
   coverIndex: number; // which photo to use as cover
@@ -18,6 +23,9 @@ export function getProjects(): Project[] {
     ...p,
     featured: p.featured ?? false,
     coverIndex: p.coverIndex ?? 0,
+    photos: (p.photos || []).map((photo: any) =>
+      typeof photo === 'string' ? { url: photo, publicId: "" } : photo
+    )
   }));
 }
 

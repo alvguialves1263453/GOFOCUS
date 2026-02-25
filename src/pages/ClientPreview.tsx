@@ -60,7 +60,7 @@ const ClientPreview = () => {
   }
 
   const photos = project.photos || [];
-  const selectedIndex = selectedPhoto ? photos.indexOf(selectedPhoto) : -1;
+  const selectedIndex = selectedPhoto ? photos.findIndex(p => p.url === selectedPhoto) : -1;
 
   return (
     <>
@@ -75,15 +75,15 @@ const ClientPreview = () => {
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-5">
             {photos.map((photo, index) => (
               <motion.div
-                key={`${photo}-${index}`}
+                key={`${photo.url}-${index}`}
                 className="group relative cursor-pointer overflow-hidden"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05, duration: 0.4 }}
-                onClick={() => setSelectedPhoto(photo)}
+                onClick={() => setSelectedPhoto(photo.url)}
               >
                 <img
-                  src={photo}
+                  src={photo.url}
                   alt={`${project.clientName} - Foto ${index + 1}`}
                   className="w-full aspect-square object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"

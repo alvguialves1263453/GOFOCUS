@@ -1,5 +1,7 @@
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dhhims97u";
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "ml_default";
+const API_KEY = import.meta.env.VITE_CLOUDINARY_API_KEY || "";
+const API_SECRET = import.meta.env.VITE_CLOUDINARY_API_SECRET || "";
 
 /**
  * Compresses an image before upload.
@@ -55,9 +57,9 @@ async function compressImage(file: File): Promise<Blob> {
 
 /**
  * Uploads a file to Cloudinary in the 'gofocus' folder.
- * Returns the secure URL of the uploaded image.
+ * Returns the secure URL and public_id of the uploaded image.
  */
-export async function uploadToCloudinary(file: File): Promise<string> {
+export async function uploadToCloudinary(file: File): Promise<{ url: string; publicId: string }> {
     const compressedBlob = await compressImage(file);
     const formData = new FormData();
     formData.append("file", compressedBlob, file.name);
@@ -84,9 +86,57 @@ export async function uploadToCloudinary(file: File): Promise<string> {
         }
 
         const data = await response.json();
-        return data.secure_url;
+        return { url: data.secure_url, publicId: data.public_id };
     } catch (error) {
         console.error("Cloudinary upload error:", error);
         throw error;
+    }
+}
+/**
+ * Generates a SHA-1 signature for Cloudinary requests.
+ */
+async function generateSignature(publicId: string, timestamp: number): Promise<string> {
+    const stringToSign = `public_id=${publicId}&timestamp=${timestamp}${API_SECRET}`;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(stringToSign);
+    const hashBuffer = await crypto.subtle.digest("SHA-1", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Deletes an image from Cloudinary using its public_id.
+ */
+export async function deleteFromCloudinary(publicId: string): Promise<boolean> {
+    if (!publicId) return false;
+
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const signature = await generateSignature(publicId, timestamp);
+
+    const formData = new FormData();
+    formData.append("public_id", publicId);
+    formData.append("api_key", API_KEY);
+    formData.append("timestamp", timestamp.toString());
+    formData.append("signature", signature);
+
+    try {
+        const response = await fetch(
+            `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/destroy`,
+            {
+                method: "POST",
+                body: formData,
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Cloudinary Delete Error:", errorData);
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error("Cloudinary delete error:", error);
+        return false;
     }
 }
