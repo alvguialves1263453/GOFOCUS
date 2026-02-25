@@ -42,7 +42,7 @@ const Index = () => {
           </motion.div>
         </motion.div>
         <motion.div className="absolute bottom-10 flex flex-col items-center gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5, duration: 1 }}>
-          <span className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground">Scroll</span>
+          <span className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground">Role para baixo</span>
           <motion.div className="h-8 w-px bg-muted-foreground/40" animate={{ scaleY: [1, 0.5, 1] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }} />
         </motion.div>
       </section>
