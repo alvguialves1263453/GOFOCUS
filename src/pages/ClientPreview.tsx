@@ -15,14 +15,15 @@ const ClientPreview = () => {
     const projects = getProjects();
     let found;
 
-    if (id) {
-      found = projects.find(p => p.id === id || p.slug === id);
-    } else if (slug) {
+    if (slug) {
       found = projects.find(p => p.slug === slug);
+    } else if (id) {
+      found = projects.find(p => p.id === id);
     }
 
     if (found) {
       setProject(found);
+      setNotFound(false);
     } else {
       setNotFound(true);
     }
