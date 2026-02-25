@@ -74,7 +74,7 @@ const AdminProjectEdit = () => {
 
   const handleCopyLink = () => {
     if (!project) return;
-    const url = `${window.location.origin}/projeto/${project.id}`;
+    const url = `${window.location.origin}/cliente/${project.slug}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -126,7 +126,7 @@ const AdminProjectEdit = () => {
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               {copied ? "Copiado!" : "Copiar Link Público"}
             </button>
-            <a href={`/projeto/${project.id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 border border-foreground bg-foreground px-5 py-3 text-[9px] uppercase tracking-[0.2em] text-background transition-all hover:bg-transparent hover:text-foreground">
+            <a href={`/cliente/${project.slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 border border-foreground bg-foreground px-5 py-3 text-[9px] uppercase tracking-[0.2em] text-background transition-all hover:bg-transparent hover:text-foreground">
               <ExternalLink className="h-3.5 w-3.5" />
               Ver Prévia
             </a>

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getProjects, saveProject, deleteProject, generateSlug, type Project, type ProjectPhoto } from "@/lib/storage";
 import { deleteFromCloudinary } from "@/lib/cloudinary";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut } from "lucide-react";
+import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check } from "lucide-react";
 import { toast } from "sonner";
 
 const AdminDashboard = () => {
@@ -14,6 +14,7 @@ const AdminDashboard = () => {
   const [showForm, setShowForm] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && user) loadProjects();
@@ -71,6 +72,15 @@ const AdminDashboard = () => {
     deleteProject(id);
     toast.success("Projeto excluído");
     loadProjects();
+  };
+
+  const handleCopyLink = (e: React.MouseEvent, slug: string, id: string) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/cliente/${slug}`;
+    navigator.clipboard.writeText(url);
+    setCopiedId(id);
+    toast.success("Link copiado!");
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleLogout = async () => {
@@ -156,6 +166,9 @@ const AdminDashboard = () => {
                       </p>
                     </div>
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={(e) => handleCopyLink(e, project.slug, project.id)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-foreground hover:text-foreground transition-colors" title="Copiar link de compartilhamento">
+                        {copiedId === project.id ? <Check className="h-3.5 w-3.5" /> : <LinkIcon className="h-3.5 w-3.5" />}
+                      </button>
                       <button onClick={(e) => handleDelete(e, project.id)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-destructive hover:text-destructive transition-colors">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
