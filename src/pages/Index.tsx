@@ -2,8 +2,9 @@ import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
 import { fetchFeaturedProjects, type Project } from "@/lib/supabase-helpers";
 import { Camera, Eye, Heart, Award } from "lucide-react";
+import logo from "@/assets/logo.png";
 
-const INSTAGRAM_URL = "https://instagram.com/gofocus";
+const INSTAGRAM_URL = "https://instagram.com/gofocus.br";
 
 function AnimatedSection({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const ref = useRef(null);
@@ -34,9 +35,7 @@ const Index = () => {
       {/* ───── HERO ───── */}
       <section className="relative flex min-h-screen flex-col items-center justify-center px-6">
         <motion.div className="flex flex-col items-center gap-6 text-center" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, ease: "easeOut" }}>
-          <motion.span className="text-[10px] uppercase tracking-[0.4em] text-muted-foreground" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3, duration: 0.8 }}>Fotografia Profissional</motion.span>
-          <h1 className="font-display text-6xl font-light tracking-[0.2em] text-foreground sm:text-8xl md:text-9xl">GoFocus</h1>
-          <motion.p className="max-w-md font-display text-lg font-light italic tracking-wide text-muted-foreground sm:text-xl md:text-2xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5, duration: 1 }}>Capturando momentos. Criando experiências.</motion.p>
+          <img src={logo} alt="GoFocus" className="w-48 sm:w-64 md:w-80" />
           <motion.div className="mt-6 flex flex-col items-center gap-4 sm:flex-row" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1, duration: 0.8 }}>
             <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="border border-foreground px-8 py-3 text-xs uppercase tracking-[0.3em] text-foreground transition-colors duration-300 hover:bg-foreground hover:text-background">Entrar em Contato</a>
             {featuredProjects.length > 0 && <a href="#portfolio" className="px-8 py-3 text-xs uppercase tracking-[0.3em] text-muted-foreground transition-colors duration-300 hover:text-foreground">Ver Trabalhos</a>}
@@ -103,7 +102,7 @@ const Index = () => {
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>
                 Siga-nos no Instagram
               </a>
-              <span className="text-xs text-muted-foreground">@gofocus</span>
+              <span className="text-xs text-muted-foreground">@gofocus.br</span>
             </div>
           </AnimatedSection>
         </div>
