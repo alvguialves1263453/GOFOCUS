@@ -1,6 +1,6 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
-import { getProjects, type Project } from "@/lib/storage";
+import { getProjectsAsync, type Project } from "@/lib/storage";
 import { Camera, Eye, Heart, Award, Instagram } from "lucide-react";
 import logo from "@/assets/logo.png";
 
@@ -27,7 +27,11 @@ const Index = () => {
   const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
-    setProjects(getProjects());
+    async function loadProjects() {
+      const data = await getProjectsAsync();
+      setProjects(data);
+    }
+    loadProjects();
   }, []);
 
   return (

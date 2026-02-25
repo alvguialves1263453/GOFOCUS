@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getProjects, type Project } from "@/lib/storage";
+import { getProjectBySlugAsync, getProjectsAsync, type Project } from "@/lib/storage";
 import { Loader2, Download, X } from "lucide-react";
 
 const ClientPreview = () => {
@@ -12,22 +12,36 @@ const ClientPreview = () => {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   useEffect(() => {
-    const projects = getProjects();
-    let found;
+    async function loadProject() {
+      setLoading(true);
+      let found = null;
 
-    if (slug) {
-      found = projects.find(p => p.slug === slug);
-    } else if (id) {
-      found = projects.find(p => p.id === id);
+      try {
+        if (slug) {
+          found = await getProjectBySlugAsync(slug);
+        } else if (id) {
+          // getProjectBySlugAsync handles both id and slug in our refactored storage
+          // But here we can specifically fetch if we had an id function
+          // For now, let's use a general fetch
+          const projects = await getProjectsAsync();
+          found = projects.find(p => p.id === id);
+        }
+
+        if (found) {
+          setProject(found);
+          setNotFound(false);
+        } else {
+          setNotFound(true);
+        }
+      } catch (err) {
+        console.error("Failed to load project:", err);
+        setNotFound(true);
+      } finally {
+        setLoading(false);
+      }
     }
 
-    if (found) {
-      setProject(found);
-      setNotFound(false);
-    } else {
-      setNotFound(true);
-    }
-    setLoading(false);
+    loadProject();
   }, [id, slug]);
 
   const handleDownload = async (url: string, index: number) => {

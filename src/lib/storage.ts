@@ -1,3 +1,5 @@
+import { supabase } from './supabase';
+
 export interface ProjectPhoto {
   url: string;
   publicId: string;
@@ -15,10 +17,76 @@ export interface Project {
 
 const STORAGE_KEY = 'gofocus_projects';
 
-export function getProjects(): Project[] {
+// --- SUPABASE ASYNC FUNCTIONS ---
+
+export async function getProjectsAsync(): Promise<Project[]> {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('*')
+    .order('createdAt', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching projects from Supabase:', error);
+    return getProjectsLocal(); // Fallback to local
+  }
+
+  return data || [];
+}
+
+export async function saveProjectAsync(project: Project): Promise<void> {
+  const { error } = await supabase.from('projects').insert([project]);
+  if (error) throw error;
+
+  // Also save locally for backup
+  saveProjectLocal(project);
+}
+
+export async function updateProjectAsync(id: string, updates: Partial<Project>): Promise<void> {
+  const { error } = await supabase
+    .from('projects')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) throw error;
+
+  // Also update locally for backup
+  updateProjectLocal(id, updates);
+}
+
+export async function deleteProjectAsync(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('projects')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+
+  // Also delete locally for backup
+  deleteProjectLocal(id);
+}
+
+export async function getProjectBySlugAsync(slug: string): Promise<Project | null> {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('*')
+    .eq('slug', slug)
+    .single();
+
+  if (error) {
+    if (error.code !== 'PGRST116') {
+      console.error('Error fetching project by slug:', error);
+    }
+    return getProjectBySlugLocal(slug);
+  }
+
+  return data;
+}
+
+// --- LOCAL STORAGE BACKUP / FALLBACK (LEGACY) ---
+
+function getProjectsLocal(): Project[] {
   const data = localStorage.getItem(STORAGE_KEY);
   if (!data) return [];
-  // migrate old projects without featured field
   return JSON.parse(data).map((p: any) => ({
     ...p,
     featured: p.featured ?? false,
@@ -29,31 +97,51 @@ export function getProjects(): Project[] {
   }));
 }
 
-export function saveProject(project: Project): void {
-  const projects = getProjects();
+function saveProjectLocal(project: Project): void {
+  const projects = getProjectsLocal();
   projects.push(project);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
 }
 
-export function updateProject(id: string, updates: Partial<Project>): void {
-  const projects = getProjects().map(p =>
+function updateProjectLocal(id: string, updates: Partial<Project>): void {
+  const projects = getProjectsLocal().map(p =>
     p.id === id ? { ...p, ...updates } : p
   );
   localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
 }
 
-export function deleteProject(id: string): void {
-  const projects = getProjects().filter(p => p.id !== id);
+function deleteProjectLocal(id: string): void {
+  const projects = getProjectsLocal().filter(p => p.id !== id);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
 }
 
-export function getFeaturedProjects(): Project[] {
-  return getProjects().filter(p => p.featured);
+function getProjectBySlugLocal(slug: string): Project | null {
+  return getProjectsLocal().find(p => p.slug === slug) || null;
 }
 
-export function getProjectBySlug(slug: string): Project | undefined {
-  return getProjects().find(p => p.slug === slug);
+// --- LEGACY SYNC EXPORTS (Keep for temporary compatibility) ---
+
+/** @deprecated Use getProjectsAsync */
+export function getProjects(): Project[] {
+  return getProjectsLocal();
 }
+
+/** @deprecated Use saveProjectAsync */
+export function saveProject(project: Project): void {
+  saveProjectLocal(project);
+}
+
+/** @deprecated Use updateProjectAsync */
+export function updateProject(id: string, updates: Partial<Project>): void {
+  updateProjectLocal(id, updates);
+}
+
+/** @deprecated Use deleteProjectAsync */
+export function deleteProject(id: string): void {
+  deleteProjectLocal(id);
+}
+
+// --- UTILITIES ---
 
 export function generateSlug(name: string): string {
   return name

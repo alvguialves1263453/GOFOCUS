@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { getProjects, updateProject, type Project, type ProjectPhoto } from "@/lib/storage";
+import { getProjectsAsync, updateProjectAsync, type Project, type ProjectPhoto } from "@/lib/storage";
 import { uploadToCloudinary, deleteFromCloudinary } from "@/lib/cloudinary";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ExternalLink } from "lucide-react";
@@ -20,15 +20,21 @@ const AdminProjectEdit = () => {
     if (id) loadProject();
   }, [id]);
 
-  const loadProject = () => {
-    const projects = getProjects();
-    const found = projects.find(p => p.id === id);
-    if (found) {
-      setProject(found);
-    } else {
+  const loadProject = async () => {
+    try {
+      const projects = await getProjectsAsync();
+      const found = projects.find(p => p.id === id);
+      if (found) {
+        setProject(found);
+      } else {
+        navigate("/admin/dashboard");
+      }
+    } catch (err) {
+      console.error("Failed to load project:", err);
       navigate("/admin/dashboard");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleAddPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,7 +46,7 @@ const AdminProjectEdit = () => {
       const folderPath = `gofocus/${project.slug}`;
       const uploadedPhotos = await Promise.all(files.map(file => uploadToCloudinary(file, folderPath)));
       const updatedPhotos = [...(project.photos || []), ...uploadedPhotos];
-      updateProject(project.id, { photos: updatedPhotos });
+      await updateProjectAsync(project.id, { photos: updatedPhotos });
       setProject({ ...project, photos: updatedPhotos });
       toast.success(`${files.length} foto(s) adicionada(s)!`);
     } catch (err: any) {
@@ -57,18 +63,19 @@ const AdminProjectEdit = () => {
     const photoToRemove = project.photos[index];
     const updatedPhotos = project.photos.filter((_, i) => i !== index);
 
-    // Optimistic update
-    updateProject(project.id, { photos: updatedPhotos });
-    setProject({ ...project, photos: updatedPhotos });
-    toast.success("Foto removida");
+    try {
+      await updateProjectAsync(project.id, { photos: updatedPhotos });
+      setProject({ ...project, photos: updatedPhotos });
+      toast.success("Foto removida");
 
-    // Async deletion from Cloudinary
-    if (photoToRemove.publicId) {
-      try {
-        await deleteFromCloudinary(photoToRemove.publicId);
-      } catch (err) {
-        console.error("Failed to delete from Cloudinary:", err);
+      // Async deletion from Cloudinary
+      if (photoToRemove.publicId) {
+        deleteFromCloudinary(photoToRemove.publicId).catch(err =>
+          console.error("Failed to delete from Cloudinary:", err)
+        );
       }
+    } catch (err) {
+      toast.error("Erro ao remover foto");
     }
   };
 
@@ -80,11 +87,15 @@ const AdminProjectEdit = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const updateName = (newName: string) => {
+  const updateName = async (newName: string) => {
     if (!project || !newName.trim() || newName === project.clientName) return;
-    updateProject(project.id, { clientName: newName.trim() });
-    setProject({ ...project, clientName: newName.trim() });
-    toast.success("Nome atualizado");
+    try {
+      await updateProjectAsync(project.id, { clientName: newName.trim() });
+      setProject({ ...project, clientName: newName.trim() });
+      toast.success("Nome atualizado");
+    } catch (err) {
+      toast.error("Erro ao atualizar nome");
+    }
   };
 
   if (loading) {

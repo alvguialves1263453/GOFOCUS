@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { getProjects, saveProject, deleteProject, generateSlug, type Project, type ProjectPhoto } from "@/lib/storage";
-import { deleteFromCloudinary, deleteFolderFromCloudinary } from "@/lib/cloudinary";
+import { getProjectsAsync, saveProjectAsync, deleteProjectAsync, generateSlug, type Project, type ProjectPhoto } from "@/lib/storage";
+import { deleteFromCloudinary } from "@/lib/cloudinary";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -20,8 +20,9 @@ const AdminDashboard = () => {
     if (!authLoading && user) loadProjects();
   }, [user, authLoading]);
 
-  const loadProjects = () => {
-    setProjects(getProjects());
+  const loadProjects = async () => {
+    const data = await getProjectsAsync();
+    setProjects(data);
   };
 
   const handleSave = async () => {
@@ -37,7 +38,7 @@ const AdminDashboard = () => {
         featured: false,
         coverIndex: 0
       };
-      saveProject(newProject);
+      await saveProjectAsync(newProject);
       toast.success("Projeto criado com sucesso!");
       setProjectName("");
       setShowForm(false);
@@ -67,16 +68,9 @@ const AdminDashboard = () => {
           }
         }
       }
-
-      // Attempt to delete the folder itself
-      try {
-        await deleteFolderFromCloudinary(`gofocus/${projectToDelete.slug}`);
-      } catch (err) {
-        console.error(`Falha ao deletar pasta gofocus/${projectToDelete.slug}:`, err);
-      }
     }
 
-    deleteProject(id);
+    await deleteProjectAsync(id);
     toast.success("Projeto excluído");
     loadProjects();
   };
