@@ -45,15 +45,35 @@ const ClientPreview = () => {
   }, [id, slug]);
 
   const handleDownload = async (url: string, index: number) => {
+    const fileName = `${project?.clientName || "foto"}-${index + 1}.jpg`;
+
     try {
       const res = await fetch(url);
       const blob = await res.blob();
+      const file = new File([blob], fileName, { type: "image/jpeg" });
+
+      // Support for Web Share API (Mobile devices)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: fileName,
+          });
+          return; // Success, no need for fallback
+        } catch (shareError) {
+          // If user cancels or share fails, we continue to standard download
+          console.log("Share failed or cancelled, falling back to download");
+        }
+      }
+
+      // Fallback: Standard browser download (often goes to "Files" on iOS)
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `${project?.clientName || "foto"}-${index + 1}.jpg`;
+      a.download = fileName;
       a.click();
       URL.revokeObjectURL(a.href);
-    } catch {
+    } catch (err) {
+      console.error("Falha ao baixar imagem:", err);
       window.open(url, "_blank");
     }
   };
