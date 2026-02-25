@@ -56,15 +56,15 @@ async function compressImage(file: File): Promise<Blob> {
 }
 
 /**
- * Uploads a file to Cloudinary in the 'gofocus' folder.
+ * Uploads a file to Cloudinary.
  * Returns the secure URL and public_id of the uploaded image.
  */
-export async function uploadToCloudinary(file: File): Promise<{ url: string; publicId: string }> {
+export async function uploadToCloudinary(file: File, folder: string = "gofocus"): Promise<{ url: string; publicId: string }> {
     const compressedBlob = await compressImage(file);
     const formData = new FormData();
     formData.append("file", compressedBlob, file.name);
     formData.append("upload_preset", UPLOAD_PRESET);
-    formData.append("folder", "gofocus");
+    formData.append("folder", folder);
 
     try {
         const response = await fetch(

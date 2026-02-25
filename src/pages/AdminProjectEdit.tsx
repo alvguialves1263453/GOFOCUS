@@ -37,7 +37,8 @@ const AdminProjectEdit = () => {
 
     setAdding(true);
     try {
-      const uploadedPhotos = await Promise.all(files.map(file => uploadToCloudinary(file)));
+      const folderPath = `gofocus/${project.slug}`;
+      const uploadedPhotos = await Promise.all(files.map(file => uploadToCloudinary(file, folderPath)));
       const updatedPhotos = [...(project.photos || []), ...uploadedPhotos];
       updateProject(project.id, { photos: updatedPhotos });
       setProject({ ...project, photos: updatedPhotos });
