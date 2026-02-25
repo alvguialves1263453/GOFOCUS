@@ -125,7 +125,7 @@ const AdminDashboard = () => {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => {
               const coverPhoto = project.photos?.[0];
-              const coverUrl = coverPhoto ? getPublicUrl(coverPhoto.file_path) : null;
+              const coverUrl = coverPhoto ? getPublicUrl(coverPhoto.image_url) : null;
               return (
                 <motion.div key={project.id} className="group relative border border-border overflow-hidden cursor-pointer bg-secondary/10 transition-all hover:border-foreground/30 hover:bg-secondary/20" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onClick={() => navigate(`/admin/projeto/${project.id}`)}>
                   <div className="relative aspect-[16/10] bg-secondary/30 overflow-hidden">

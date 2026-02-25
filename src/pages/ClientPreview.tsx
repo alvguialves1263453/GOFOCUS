@@ -76,7 +76,7 @@ const ClientPreview = () => {
                 onClick={() => setSelectedPhoto(photo)}
               >
                 <img
-                  src={getPublicUrl(photo.file_path)}
+                  src={getPublicUrl(photo.image_url)}
                   alt={`${project.name} - Foto ${index + 1}`}
                   className="w-full aspect-square object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
@@ -108,13 +108,13 @@ const ClientPreview = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <img
-                src={getPublicUrl(selectedPhoto.file_path)}
+                src={getPublicUrl(selectedPhoto.image_url)}
                 alt="Foto ampliada"
                 className="max-h-[85vh] max-w-[90vw] object-contain rounded"
               />
               <div className="absolute top-3 right-3 flex gap-2">
                 <button
-                  onClick={() => handleDownload(getPublicUrl(selectedPhoto.file_path), selectedIndex)}
+                  onClick={() => handleDownload(getPublicUrl(selectedPhoto.image_url), selectedIndex)}
                   className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/40"
                   title="Baixar foto"
                 >
