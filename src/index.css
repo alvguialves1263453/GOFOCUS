@@ -65,4 +65,23 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
   }
+
+  /* Remove Lovable / GPT-Engineer branding and badges */
+  [data-lovable-tag],
+  [data-gpt-engineer-id],
+  .lovable-badge,
+  #lovable-badge,
+  .gpt-engineer-badge,
+  #gpt-engineer-badge,
+  iframe[src*="lovable"],
+  iframe[src*="gpt-engineer"],
+  div[style*="z-index: 9999"],
+  div[style*="z-index: 2147483647"] {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
 }

@@ -1,4 +1,4 @@
-# Welcome to your Lovable project
+# GoFocus - Fotografia Profissional
 
 ## Project info
 

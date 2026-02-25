@@ -5,23 +5,29 @@ import { getProjects, type Project } from "@/lib/storage";
 import { Loader2, Download, X } from "lucide-react";
 
 const ClientPreview = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, slug } = useParams<{ id?: string; slug?: string }>();
   const [project, setProject] = useState<Project | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
     const projects = getProjects();
-    const found = projects.find(p => p.id === id);
+    let found;
+
+    if (id) {
+      found = projects.find(p => p.id === id || p.slug === id);
+    } else if (slug) {
+      found = projects.find(p => p.slug === slug);
+    }
+
     if (found) {
       setProject(found);
     } else {
       setNotFound(true);
     }
     setLoading(false);
-  }, [id]);
+  }, [id, slug]);
 
   const handleDownload = async (url: string, index: number) => {
     try {
