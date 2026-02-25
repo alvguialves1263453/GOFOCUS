@@ -1,5 +1,6 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
+import { fetchProjects, getPublicUrl } from "@/lib/supabase-helpers";
 import { Camera, Eye, Heart, Award } from "lucide-react";
 import logo from "@/assets/logo.png";
 
@@ -23,10 +24,10 @@ const reasons = [
 ];
 
 const Index = () => {
-  const [featuredProjects, setFeaturedProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
 
   useEffect(() => {
-    // Projects fetching disabled
+    fetchProjects().then(setProjects).catch(() => { });
   }, []);
 
   return (
@@ -37,7 +38,7 @@ const Index = () => {
           <img src={logo} alt="GoFocus" className="w-48 sm:w-64 md:w-80" />
           <motion.div className="mt-6 flex flex-col items-center gap-4 sm:flex-row" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1, duration: 0.8 }}>
             <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="border border-foreground px-8 py-3 text-xs uppercase tracking-[0.3em] text-foreground transition-colors duration-300 hover:bg-foreground hover:text-background">Entrar em Contato</a>
-            {featuredProjects.length > 0 && <a href="#portfolio" className="px-8 py-3 text-xs uppercase tracking-[0.3em] text-muted-foreground transition-colors duration-300 hover:text-foreground">Ver Trabalhos</a>}
+            {projects.length > 0 && <a href="#portfolio" className="px-8 py-3 text-xs uppercase tracking-[0.3em] text-muted-foreground transition-colors duration-300 hover:text-foreground">Ver Trabalhos</a>}
           </motion.div>
         </motion.div>
         <motion.div className="absolute bottom-6 flex flex-col items-center gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5, duration: 1 }}>
@@ -47,7 +48,7 @@ const Index = () => {
       </section>
 
       {/* ───── PORTFOLIO ───── */}
-      {featuredProjects.length > 0 && (
+      {projects.length > 0 && (
         <section id="portfolio" className="px-6 py-24 md:py-32">
           <div className="mx-auto max-w-6xl">
             <AnimatedSection className="mb-16 text-center">
@@ -56,7 +57,7 @@ const Index = () => {
               <p className="mt-4 text-sm text-muted-foreground max-w-lg mx-auto">Cada projeto conta uma história. Explore alguns dos nossos trabalhos mais recentes.</p>
             </AnimatedSection>
             <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
-              {featuredProjects.map((project, i) => (
+              {projects.map((project, i) => (
                 <PortfolioCard key={project.id} project={project} index={i} />
               ))}
             </div>
@@ -121,16 +122,17 @@ const Index = () => {
 function PortfolioCard({ project, index }: { project: any; index: number }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-40px" });
-  const coverPhoto = project.cover_image || project.photos?.[0]?.image_url;
+  const coverPhoto = project.photos?.[0];
+  const coverUrl = coverPhoto ? getPublicUrl(coverPhoto.file_path) : null;
 
-  if (!coverPhoto) return null;
+  if (!coverUrl) return null;
 
   return (
     <motion.a ref={ref} href={`/projeto/${project.id}`} className="group relative overflow-hidden cursor-pointer block" initial={{ opacity: 0, y: 30 }} animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }} transition={{ duration: 0.7, delay: index * 0.1 }}>
       <div className="relative aspect-[3/4] overflow-hidden">
-        <img src={coverPhoto} alt={project.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+        <img src={coverUrl} alt={project.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
         <div className="absolute inset-0 flex flex-col items-center justify-end bg-gradient-to-t from-background/80 via-background/0 to-transparent pb-8 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
-          <span className="font-display text-xl tracking-wide text-foreground">{project.title}</span>
+          <span className="font-display text-xl tracking-wide text-foreground">{project.name}</span>
           <span className="mt-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{project.photos?.length || 0} foto{(project.photos?.length || 0) > 1 ? "s" : ""}</span>
         </div>
       </div>

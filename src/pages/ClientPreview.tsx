@@ -1,19 +1,25 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { fetchProjectById, getPublicUrl } from "@/lib/supabase-helpers";
 import { Loader2, Download, X } from "lucide-react";
 
 const ClientPreview = () => {
   const { id } = useParams<{ id: string }>();
   const [project, setProject] = useState<any | null>(null);
-  const [notFound, setNotFound] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<any | null>(null);
 
   useEffect(() => {
-    // Project fetching disabled
-    setNotFound(true);
-    setLoading(false);
+    if (!id) return;
+    fetchProjectById(id)
+      .then((data) => {
+        if (data) setProject(data);
+        else setNotFound(true);
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
   }, [id]);
 
   const handleDownload = async (url: string, index: number) => {
@@ -22,7 +28,7 @@ const ClientPreview = () => {
       const blob = await res.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `${project?.title || "foto"}-${index + 1}.jpg`;
+      a.download = `${project?.name || "foto"}-${index + 1}.jpg`;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch {
@@ -47,7 +53,7 @@ const ClientPreview = () => {
   }
 
   const photos = project.photos || [];
-  const selectedIndex = selectedPhoto ? photos.findIndex(p => p.id === selectedPhoto.id) : -1;
+  const selectedIndex = selectedPhoto ? photos.findIndex((p: any) => p.id === selectedPhoto.id) : -1;
 
   return (
     <>
@@ -56,11 +62,11 @@ const ClientPreview = () => {
         <div className="mx-auto max-w-6xl">
           <motion.div className="mb-10 text-center" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">GoFocus</p>
-            <h1 className="font-display text-3xl font-light tracking-[0.1em] text-foreground sm:text-5xl">{project.title}</h1>
+            <h1 className="font-display text-3xl font-light tracking-[0.1em] text-foreground sm:text-5xl">{project.name}</h1>
           </motion.div>
 
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-5">
-            {photos.map((photo, index) => (
+            {photos.map((photo: any, index: number) => (
               <motion.div
                 key={photo.id}
                 className="group relative cursor-pointer overflow-hidden"
@@ -70,8 +76,8 @@ const ClientPreview = () => {
                 onClick={() => setSelectedPhoto(photo)}
               >
                 <img
-                  src={photo.image_url}
-                  alt={`${project.title} - Foto ${index + 1}`}
+                  src={getPublicUrl(photo.file_path)}
+                  alt={`${project.name} - Foto ${index + 1}`}
                   className="w-full aspect-square object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
                 />
@@ -85,7 +91,6 @@ const ClientPreview = () => {
         </div>
       </div>
 
-      {/* Lightbox */}
       <AnimatePresence>
         {selectedPhoto && (
           <motion.div
@@ -103,13 +108,13 @@ const ClientPreview = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <img
-                src={selectedPhoto.image_url}
+                src={getPublicUrl(selectedPhoto.file_path)}
                 alt="Foto ampliada"
                 className="max-h-[85vh] max-w-[90vw] object-contain rounded"
               />
               <div className="absolute top-3 right-3 flex gap-2">
                 <button
-                  onClick={() => handleDownload(selectedPhoto.image_url, selectedIndex)}
+                  onClick={() => handleDownload(getPublicUrl(selectedPhoto.file_path), selectedIndex)}
                   className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/40"
                   title="Baixar foto"
                 >

@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { fetchProjects, createProject, deleteProject, getPublicUrl } from "@/lib/supabase-helpers";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, FolderOpen, Star, Trash2, ExternalLink, Image, Loader2 } from "lucide-react";
+import { Plus, FolderOpen, Trash2, ExternalLink, Image, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 const AdminDashboard = () => {
@@ -10,44 +11,58 @@ const AdminDashboard = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const [projects, setProjects] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [clientName, setClientName] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);
-  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [loadingProjects, setLoadingProjects] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/admin");
-      return;
-    }
-    setLoadingProjects(false);
-  }, [user, authLoading, navigate]);
+    if (!authLoading && user) loadProjects();
+  }, [user, authLoading]);
 
   const loadProjects = async () => {
-    setProjects([]);
+    try {
+      setLoadingProjects(true);
+      const data = await fetchProjects();
+      setProjects(data);
+    } catch (err: any) {
+      toast.error("Erro ao carregar projetos");
+    } finally {
+      setLoadingProjects(false);
+    }
   };
 
   const handleSave = async () => {
-    toast.info("Ações de banco de dados desativadas");
+    if (!projectName.trim()) return;
+    setSaving(true);
+    try {
+      await createProject(projectName.trim());
+      toast.success("Projeto criado com sucesso!");
+      setProjectName("");
+      setShowForm(false);
+      await loadProjects();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao salvar projeto");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = async (id: string) => {
-    toast.info("Ações de banco de dados desativadas");
-  };
-
-  const toggleFeatured = async (e: React.MouseEvent, id: string, current: boolean) => {
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    toast.info("Ações de banco de dados desativadas");
+    if (!confirm("Tem certeza que deseja excluir este projeto?")) return;
+    try {
+      await deleteProject(id);
+      toast.success("Projeto excluído");
+      await loadProjects();
+    } catch (err: any) {
+      toast.error("Erro ao excluir projeto");
+    }
   };
 
   const handleLogout = async () => {
     await signOut();
-    navigate("/admin");
+    navigate("/login");
   };
-
-  const totalPhotos = 0;
-  const featuredCount = 0;
-  // ... (rest of the file remains similar but uses mock data)
 
   if (authLoading || loadingProjects) {
     return (
@@ -59,57 +74,40 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top bar */}
-      <header className="border-b border-border px-6 py-5">
+      <header className="border-b border-border/50 px-6 py-5 backdrop-blur-sm sticky top-0 z-10 bg-background/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="font-display text-xl font-light tracking-[0.15em] text-foreground">GoFocus</h1>
             <span className="hidden sm:inline text-[10px] uppercase tracking-[0.3em] text-muted-foreground border-l border-border pl-4">Admin</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
             <a href="/" target="_blank" rel="noopener noreferrer" className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors">Ver Site</a>
-            <button onClick={handleLogout} className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors">Sair</button>
+            <button onClick={handleLogout} className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors">
+              <LogOut className="h-3 w-3" />
+              Sair
+            </button>
           </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-6xl px-6 py-10">
-        {/* Stats */}
-        <div className="mb-10 grid grid-cols-3 gap-4">
-          {[
-            { label: "Projetos", value: projects.length, icon: FolderOpen },
-            { label: "Fotos", value: totalPhotos, icon: Image },
-            { label: "Destaques", value: featuredCount, icon: Star },
-          ].map((stat) => (
-            <div key={stat.label} className="border border-border p-5">
-              <stat.icon className="h-4 w-4 text-muted-foreground mb-3" strokeWidth={1.5} />
-              <p className="font-display text-2xl font-light text-foreground">{stat.value}</p>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Actions */}
         <div className="mb-8 flex items-center justify-between">
           <h2 className="font-display text-lg font-light tracking-wide text-foreground">Projetos</h2>
-          <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center gap-2 border border-foreground px-5 py-2.5 text-[10px] uppercase tracking-[0.3em] text-foreground transition-colors duration-300 hover:bg-foreground hover:text-background">
+          <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center gap-2 border border-foreground bg-foreground px-5 py-2.5 text-[10px] uppercase tracking-[0.3em] text-background transition-all duration-300 hover:bg-transparent hover:text-foreground">
             <Plus className="h-3.5 w-3.5" />
             {showForm ? "Cancelar" : "Novo Projeto"}
           </button>
         </div>
 
-        {/* New Project Form */}
         <AnimatePresence>
           {showForm && (
-            <motion.div className="mb-10 border border-border p-8" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3 }}>
-              <div className="flex flex-col gap-5">
-                <input type="text" placeholder="Nome do Cliente" value={clientName} onChange={(e) => setClientName(e.target.value)} className="border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground transition-colors" />
-                <div>
-                  <label className="block mb-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Fotos</label>
-                  <input type="file" multiple accept="image/*" onChange={(e) => setFiles(Array.from(e.target.files || []))} className="text-sm text-muted-foreground file:mr-4 file:border file:border-border file:bg-background file:px-4 file:py-2 file:text-[10px] file:uppercase file:tracking-widest file:text-foreground file:cursor-pointer hover:file:bg-foreground hover:file:text-background file:transition-colors" />
-                  {files.length > 0 && <p className="mt-2 text-xs text-muted-foreground">{files.length} foto{files.length > 1 ? "s" : ""} selecionada{files.length > 1 ? "s" : ""}</p>}
+            <motion.div className="mb-10 border border-border p-8 bg-secondary/20" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}>
+              <div className="flex flex-col gap-5 max-w-md">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Nome do Projeto</label>
+                  <input type="text" placeholder="Ex: Casamento Maria e João" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="w-full border border-border bg-background px-4 py-3 text-sm text-foreground focus:outline-none focus:border-foreground transition-colors" />
                 </div>
-                <button onClick={handleSave} disabled={saving || !clientName.trim() || files.length === 0} className="inline-flex items-center justify-center gap-2 border border-foreground px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-foreground transition-colors duration-300 hover:bg-foreground hover:text-background disabled:opacity-30 disabled:cursor-not-allowed">
+                <button onClick={handleSave} disabled={saving || !projectName.trim()} className="inline-flex items-center justify-center gap-2 border border-foreground bg-foreground px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-background transition-all duration-300 hover:bg-transparent hover:text-foreground disabled:opacity-30">
                   {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   {saving ? "Salvando..." : "Salvar Projeto"}
                 </button>
@@ -118,47 +116,34 @@ const AdminDashboard = () => {
           )}
         </AnimatePresence>
 
-        {/* Projects Grid */}
         {projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center border border-dashed border-border py-20">
-            <FolderOpen className="h-8 w-8 text-muted-foreground/40 mb-4" strokeWidth={1} />
+          <div className="flex flex-col items-center justify-center border border-dashed border-border py-24">
+            <FolderOpen className="h-8 w-8 text-muted-foreground/20 mb-4" strokeWidth={1} />
             <p className="text-sm text-muted-foreground">Nenhum projeto criado ainda.</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Novo Projeto" para começar.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => {
-              const coverUrl = project.cover_image || project.photos?.[0]?.image_url;
+              const coverPhoto = project.photos?.[0];
+              const coverUrl = coverPhoto ? getPublicUrl(coverPhoto.file_path) : null;
               return (
-                <motion.div key={project.id} className="group relative border border-border overflow-hidden cursor-pointer transition-colors hover:border-foreground/30" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onClick={() => navigate(`/admin/projeto/${project.id}`)}>
-                  <div className="relative aspect-[4/3] bg-secondary overflow-hidden">
+                <motion.div key={project.id} className="group relative border border-border overflow-hidden cursor-pointer bg-secondary/10 transition-all hover:border-foreground/30 hover:bg-secondary/20" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onClick={() => navigate(`/admin/projeto/${project.id}`)}>
+                  <div className="relative aspect-[16/10] bg-secondary/30 overflow-hidden">
                     {coverUrl ? (
-                      <img src={coverUrl} alt={project.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <img src={coverUrl} alt={project.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
                     ) : (
-                      <div className="flex h-full items-center justify-center"><Image className="h-8 w-8 text-muted-foreground/30" strokeWidth={1} /></div>
-                    )}
-                    {project.featured && (
-                      <div className="absolute top-3 left-3 bg-foreground px-2 py-1 text-[9px] uppercase tracking-widest text-background">Destaque</div>
+                      <div className="flex h-full items-center justify-center"><Image className="h-8 w-8 text-muted-foreground/10" strokeWidth={1} /></div>
                     )}
                   </div>
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="font-display text-base text-foreground">{project.title}</h3>
-                        <p className="mt-1 text-[10px] text-muted-foreground">
-                          {project.photos?.length || 0} foto{(project.photos?.length || 0) !== 1 ? "s" : ""} • {new Date(project.created_at).toLocaleDateString("pt-BR")}
-                        </p>
-                      </div>
+                  <div className="p-5 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-display text-base text-foreground group-hover:text-foreground transition-colors">{project.name}</h3>
+                      <p className="mt-1 text-[10px] text-muted-foreground uppercase tracking-wider">
+                        {project.photos?.length || 0} foto{(project.photos?.length || 0) !== 1 ? "s" : ""}
+                      </p>
                     </div>
-                    <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
-                      <button onClick={(e) => toggleFeatured(e, project.id, project.featured)} className={`flex h-8 w-8 items-center justify-center border transition-colors ${project.featured ? "border-foreground text-foreground" : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"}`} title={project.featured ? "Remover destaque" : "Destacar"}>
-                        <Star className="h-3.5 w-3.5" fill={project.featured ? "currentColor" : "none"} />
-                      </button>
-                      <a href={`/projeto/${project.id}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground transition-colors hover:border-foreground hover:text-foreground" title="Ver prévia">
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                      <div className="flex-1" />
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(project.id); }} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground transition-colors hover:border-destructive hover:text-destructive" title="Excluir projeto">
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={(e) => handleDelete(e, project.id)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-destructive hover:text-destructive transition-colors">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>

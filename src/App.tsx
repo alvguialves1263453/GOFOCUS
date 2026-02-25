@@ -4,11 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
-import Admin from "./pages/Admin";
+import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminProjectEdit from "./pages/AdminProjectEdit";
 import ClientPreview from "./pages/ClientPreview";
 import NotFound from "./pages/NotFound";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -20,9 +21,23 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/projeto/:id" element={<AdminProjectEdit />} />
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/projeto/:id"
+            element={
+              <ProtectedRoute>
+                <AdminProjectEdit />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/projeto/:id" element={<ClientPreview />} />
           <Route path="/cliente/:slug" element={<ClientPreview />} />
           <Route path="*" element={<NotFound />} />
