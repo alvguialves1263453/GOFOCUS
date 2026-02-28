@@ -1,9 +1,10 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getProjectBySlugAsync, getProjectsAsync, incrementLikesAsync, type Project } from "@/lib/storage";
+import { getProjectBySlugAsync, getProjectsAsync, incrementLikesAsync, checkIfLikedAsync, type Project } from "@/lib/storage";
 import { Loader2, Download, X, Heart } from "lucide-react";
 import { toast } from "sonner";
+import { v4 as uuidv4 } from 'uuid';
 
 const ClientPreview = () => {
   const { id, slug } = useParams<{ id?: string; slug?: string }>();
@@ -24,9 +25,6 @@ const ClientPreview = () => {
         if (slug) {
           found = await getProjectBySlugAsync(slug);
         } else if (id) {
-          // getProjectBySlugAsync handles both id and slug in our refactored storage
-          // But here we can specifically fetch if we had an id function
-          // For now, let's use a general fetch
           const projects = await getProjectsAsync();
           found = projects.find(p => p.id === id);
         }
@@ -36,9 +34,24 @@ const ClientPreview = () => {
           setLikeCount(found.likes || 0);
           setNotFound(false);
 
-          // Check if already liked
-          const hasLiked = localStorage.getItem(`liked_${found.id}`);
-          if (hasLiked) setLiked(true);
+          // Get or generate visitor ID
+          let visitorId = localStorage.getItem('gofocus_visitor_id');
+          if (!visitorId) {
+            visitorId = uuidv4();
+            localStorage.setItem('gofocus_visitor_id', visitorId);
+          }
+
+          // Check if already liked (Server side + Local fallback)
+          const hasLikedLocal = localStorage.getItem(`liked_${found.id}`);
+          if (hasLikedLocal) {
+            setLiked(true);
+          } else {
+            const hasLikedServer = await checkIfLikedAsync(found.id, visitorId);
+            if (hasLikedServer) {
+              setLiked(true);
+              localStorage.setItem(`liked_${found.id}`, "true");
+            }
+          }
         } else {
           setNotFound(true);
         }
@@ -57,7 +70,12 @@ const ClientPreview = () => {
     if (liked || !project) return;
 
     try {
-      const newCount = await incrementLikesAsync(project.id);
+      const visitorId = localStorage.getItem('gofocus_visitor_id') || uuidv4();
+      if (!localStorage.getItem('gofocus_visitor_id')) {
+        localStorage.setItem('gofocus_visitor_id', visitorId);
+      }
+
+      const newCount = await incrementLikesAsync(project.id, visitorId);
       setLikeCount(newCount);
       setLiked(true);
       setShowThanks(true);

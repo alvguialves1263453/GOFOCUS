@@ -79,7 +79,20 @@ returns void as $$
 update projects set likes = likes + 1 where id = project_id;
 $$ language sql;
 */
-export async function incrementLikesAsync(id: string): Promise<number> {
+export async function incrementLikesAsync(id: string, visitorId?: string): Promise<number> {
+  // If no visitorId, we fallback to simple increment (legacy or unknown)
+  if (visitorId) {
+    // 1. Record the individual like
+    const { error: likeError } = await supabase
+      .from('project_likes')
+      .insert({ project_id: id, visitor_id: visitorId });
+
+    if (likeError && likeError.code !== '23505') { // 23505 is unique violation (already liked)
+      throw likeError;
+    }
+  }
+
+  // 2. Get current likes
   const { data, error } = await supabase
     .from('projects')
     .select('likes')
@@ -90,6 +103,7 @@ export async function incrementLikesAsync(id: string): Promise<number> {
 
   const newLikes = (data.likes || 0) + 1;
 
+  // 3. Update the counter
   const { error: updateError } = await supabase
     .from('projects')
     .update({ likes: newLikes })
@@ -98,6 +112,22 @@ export async function incrementLikesAsync(id: string): Promise<number> {
   if (updateError) throw updateError;
 
   return newLikes;
+}
+
+export async function checkIfLikedAsync(projectId: string, visitorId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('project_likes')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('visitor_id', visitorId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error checking if liked:', error);
+    return false;
+  }
+
+  return !!data;
 }
 
 export async function getProjectBySlugAsync(slug: string): Promise<Project | null> {
