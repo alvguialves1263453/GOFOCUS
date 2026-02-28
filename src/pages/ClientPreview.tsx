@@ -133,33 +133,46 @@ const ClientPreview = () => {
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">GoFocus</p>
             <h1 className="font-display text-3xl font-light tracking-[0.1em] text-foreground sm:text-5xl">{project.clientName}</h1>
 
-            <div className="mt-8 flex flex-col items-center gap-4">
+            <div className="mt-12 flex flex-col items-center gap-6">
               <button
                 onClick={handleLike}
                 disabled={liked}
-                className={`group relative flex items-center gap-3 overflow-hidden border px-10 py-4 text-xs uppercase tracking-[0.3em] transition-all duration-500 ${liked
-                    ? "border-primary/20 bg-primary/5 text-primary/40 cursor-default"
-                    : "border-foreground bg-foreground text-background hover:bg-transparent hover:text-foreground active:scale-95"
+                className={`group relative flex items-center gap-4 overflow-hidden px-12 py-5 text-sm uppercase font-medium tracking-[0.4em] transition-all duration-700 ${liked
+                  ? "border border-primary/10 bg-primary/5 text-primary/30 cursor-default scale-95"
+                  : "bg-white text-black hover:bg-transparent hover:text-white border border-white hover:border-white shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] active:scale-95"
                   }`}
               >
-                <Heart className={`h-4 w-4 transition-transform duration-500 ${liked ? "fill-primary text-primary scale-110" : "group-hover:scale-125"}`} />
-                {liked ? "Curtiu" : "Curtir"}
+                <Heart className={`h-5 w-5 transition-all duration-500 ${liked ? "fill-primary text-primary scale-110" : "group-hover:scale-125 group-hover:fill-black/10"}`} />
+                <span>{liked ? "Projeto Curtido" : "Curtir este Projeto"}</span>
                 {likeCount > 0 && (
-                  <span className={`ml-2 border-l pl-3 ${liked ? "border-primary/20" : "border-background/30 group-hover:border-foreground/30"}`}>
+                  <span className={`ml-4 flex h-6 items-center justify-center border-l pl-4 font-display text-lg ${liked ? "border-primary/10" : "border-black/20 group-hover:border-white/20"}`}>
                     {likeCount}
                   </span>
                 )}
+
+                {/* Subtle shine effect */}
+                {!liked && <motion.div
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full"
+                  animate={{ translateX: ["100%", "-100%"] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "linear", repeatDelay: 1 }}
+                />}
               </button>
 
               <AnimatePresence>
                 {showThanks && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.5, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.8, y: -10 }}
-                    className="text-[10px] uppercase font-medium tracking-[0.4em] text-primary"
+                    initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -20, scale: 0.8 }}
+                    className="flex flex-col items-center gap-2"
                   >
-                    Obrigado por curtir! ✨
+                    <span className="text-xs uppercase font-light tracking-[0.5em] text-white">✨ Obrigado por curtir! ✨</span>
+                    <motion.div
+                      className="h-px w-24 bg-gradient-to-r from-transparent via-white/50 to-transparent"
+                      initial={{ width: 0 }}
+                      animate={{ width: 120 }}
+                      transition={{ duration: 1 }}
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>

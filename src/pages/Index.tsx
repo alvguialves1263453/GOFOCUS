@@ -142,9 +142,9 @@ function PortfolioCard({ project, index }: { project: Project; index: number }) 
           <div className="mt-1 flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
             <span>{project.photos?.length || 0} foto{(project.photos?.length || 0) > 1 ? "s" : ""}</span>
             {project.likes && project.likes > 0 && (
-              <span className="flex items-center gap-1.5 border-l border-muted-foreground/30 pl-3">
-                <Heart className="h-3 w-3 fill-muted-foreground/20" />
-                {project.likes}
+              <span className="flex items-center gap-1.5 border-l border-white/20 pl-3">
+                <Heart className="h-3 w-3 fill-white text-white" />
+                <span className="font-medium text-white">{project.likes}</span>
               </span>
             )}
           </div>
