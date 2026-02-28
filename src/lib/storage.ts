@@ -13,6 +13,7 @@ export interface Project {
   createdAt: string;
   featured: boolean;
   coverIndex: number; // which photo to use as cover
+  likes?: number;
 }
 
 const STORAGE_KEY = 'gofocus_projects';
@@ -68,6 +69,35 @@ export async function deleteProjectAsync(id: string): Promise<void> {
 
   // Also delete locally for backup
   deleteProjectLocal(id);
+}
+/* 
+NOTE: To increment likes safely, we use an RPC or a raw query. 
+Since we don't have an RPC setup yet, we catch the current count and increment.
+Ideal production: create a postgres function as follows:
+create function increment_likes(project_id uuid) 
+returns void as $$
+update projects set likes = likes + 1 where id = project_id;
+$$ language sql;
+*/
+export async function incrementLikesAsync(id: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('likes')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+
+  const newLikes = (data.likes || 0) + 1;
+
+  const { error: updateError } = await supabase
+    .from('projects')
+    .update({ likes: newLikes })
+    .eq('id', id);
+
+  if (updateError) throw updateError;
+
+  return newLikes;
 }
 
 export async function getProjectBySlugAsync(slug: string): Promise<Project | null> {

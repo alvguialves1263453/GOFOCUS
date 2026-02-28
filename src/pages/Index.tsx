@@ -139,7 +139,15 @@ function PortfolioCard({ project, index }: { project: Project; index: number }) 
         <img src={coverUrl} alt={project.clientName} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
         <div className="absolute inset-0 flex flex-col items-center justify-end bg-gradient-to-t from-background/80 via-background/0 to-transparent pb-8 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
           <span className="font-display text-xl tracking-wide text-foreground">{project.clientName}</span>
-          <span className="mt-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{project.photos?.length || 0} foto{(project.photos?.length || 0) > 1 ? "s" : ""}</span>
+          <div className="mt-1 flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+            <span>{project.photos?.length || 0} foto{(project.photos?.length || 0) > 1 ? "s" : ""}</span>
+            {project.likes && project.likes > 0 && (
+              <span className="flex items-center gap-1.5 border-l border-muted-foreground/30 pl-3">
+                <Heart className="h-3 w-3 fill-muted-foreground/20" />
+                {project.likes}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </motion.a>

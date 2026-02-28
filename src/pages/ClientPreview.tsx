@@ -1,8 +1,9 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getProjectBySlugAsync, getProjectsAsync, type Project } from "@/lib/storage";
-import { Loader2, Download, X } from "lucide-react";
+import { getProjectBySlugAsync, getProjectsAsync, incrementLikesAsync, type Project } from "@/lib/storage";
+import { Loader2, Download, X, Heart } from "lucide-react";
+import { toast } from "sonner";
 
 const ClientPreview = () => {
   const { id, slug } = useParams<{ id?: string; slug?: string }>();
@@ -10,6 +11,9 @@ const ClientPreview = () => {
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [liked, setLiked] = useState(false);
+  const [showThanks, setShowThanks] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
 
   useEffect(() => {
     async function loadProject() {
@@ -29,7 +33,12 @@ const ClientPreview = () => {
 
         if (found) {
           setProject(found);
+          setLikeCount(found.likes || 0);
           setNotFound(false);
+
+          // Check if already liked
+          const hasLiked = localStorage.getItem(`liked_${found.id}`);
+          if (hasLiked) setLiked(true);
         } else {
           setNotFound(true);
         }
@@ -43,6 +52,24 @@ const ClientPreview = () => {
 
     loadProject();
   }, [id, slug]);
+
+  const handleLike = async () => {
+    if (liked || !project) return;
+
+    try {
+      const newCount = await incrementLikesAsync(project.id);
+      setLikeCount(newCount);
+      setLiked(true);
+      setShowThanks(true);
+      localStorage.setItem(`liked_${project.id}`, "true");
+
+      // Hide thanks after some time
+      setTimeout(() => setShowThanks(false), 3000);
+    } catch (err) {
+      console.error("Erro ao curtir:", err);
+      toast.error("Não foi possível curtir agora");
+    }
+  };
 
   const handleDownload = async (url: string, index: number) => {
     const fileName = `${project?.clientName || "foto"}-${index + 1}.jpg`;
@@ -105,6 +132,38 @@ const ClientPreview = () => {
           <motion.div className="mb-10 text-center" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">GoFocus</p>
             <h1 className="font-display text-3xl font-light tracking-[0.1em] text-foreground sm:text-5xl">{project.clientName}</h1>
+
+            <div className="mt-8 flex flex-col items-center gap-4">
+              <button
+                onClick={handleLike}
+                disabled={liked}
+                className={`group relative flex items-center gap-3 overflow-hidden border px-10 py-4 text-xs uppercase tracking-[0.3em] transition-all duration-500 ${liked
+                    ? "border-primary/20 bg-primary/5 text-primary/40 cursor-default"
+                    : "border-foreground bg-foreground text-background hover:bg-transparent hover:text-foreground active:scale-95"
+                  }`}
+              >
+                <Heart className={`h-4 w-4 transition-transform duration-500 ${liked ? "fill-primary text-primary scale-110" : "group-hover:scale-125"}`} />
+                {liked ? "Curtiu" : "Curtir"}
+                {likeCount > 0 && (
+                  <span className={`ml-2 border-l pl-3 ${liked ? "border-primary/20" : "border-background/30 group-hover:border-foreground/30"}`}>
+                    {likeCount}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showThanks && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.5, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, y: -10 }}
+                    className="text-[10px] uppercase font-medium tracking-[0.4em] text-primary"
+                  >
+                    Obrigado por curtir! ✨
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </motion.div>
 
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-5">

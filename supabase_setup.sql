@@ -6,7 +6,8 @@ create table projects (
   photos jsonb default '[]'::jsonb,
   "createdAt" timestamp with time zone default now(),
   featured boolean default false,
-  "coverIndex" integer default 0
+  "coverIndex" integer default 0,
+  likes integer default 0
 );
 
 -- Habilitar segurança de linha (Row Level Security)
