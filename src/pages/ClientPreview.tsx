@@ -81,12 +81,40 @@ const ClientPreview = () => {
       setShowThanks(true);
       localStorage.setItem(`liked_${project.id}`, "true");
 
+      // Add floating hearts animation
+      spawnHearts();
+
       // Hide thanks after some time
       setTimeout(() => setShowThanks(false), 3000);
-    } catch (err) {
-      console.error("Erro ao curtir:", err);
-      toast.error("Não foi possível curtir agora");
+    } catch (err: any) {
+      console.error("Erro completo ao curtir:", err);
+
+      let message = "Não foi possível curtir agora.";
+
+      if (err.message && err.message.includes("relation") && err.message.includes("does not exist")) {
+        message = "Erro no banco: Mesa 'project_likes' não encontrada no Supabase.";
+      } else if (err.code === "42501" || (err.message && err.message.includes("permission denied"))) {
+        message = "Erro de permissão: Você precisa desativar o RLS ou criar uma política de segurança no Supabase.";
+      } else if (err.code) {
+        message = `Erro ${err.code}: ${err.message || "Falha na comunicação com o banco"}`;
+      }
+
+      toast.error(message);
     }
+  };
+
+  // --- Animation Helpers ---
+  const [activeHearts, setActiveHearts] = useState<{ id: number; x: number; y: number; size: number }[]>([]);
+
+  const spawnHearts = () => {
+    const newHearts = Array.from({ length: 8 }).map((_, i) => ({
+      id: Date.now() + i,
+      x: (Math.random() - 0.5) * 200, // Spread horizontally
+      y: (Math.random() - 0.5) * 100 - 50, // Initial burst
+      size: Math.random() * 20 + 10
+    }));
+    setActiveHearts(newHearts);
+    setTimeout(() => setActiveHearts([]), 1500); // Cleanup
   };
 
   const handleDownload = async (url: string, index: number) => {
@@ -167,6 +195,30 @@ const ClientPreview = () => {
                     {likeCount}
                   </span>
                 )}
+
+                {/* Floating Hearts Animation */}
+                <div className="absolute inset-0 pointer-events-none overflow-visible">
+                  {activeHearts.map((h) => (
+                    <motion.div
+                      key={h.id}
+                      initial={{ opacity: 1, scale: 0, x: 0, y: 0 }}
+                      animate={{
+                        opacity: 0,
+                        scale: [0, 1.5, 1],
+                        x: h.x,
+                        y: h.y - 150, // Float up
+                        rotate: h.x / 2
+                      }}
+                      transition={{ duration: 1.2, ease: "easeOut" }}
+                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                    >
+                      <Heart
+                        className="fill-primary text-primary"
+                        style={{ width: h.size, height: h.size }}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
 
                 {/* Subtle shine effect */}
                 {!liked && <motion.div

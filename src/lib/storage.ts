@@ -82,13 +82,23 @@ $$ language sql;
 export async function incrementLikesAsync(id: string, visitorId?: string): Promise<number> {
   // If no visitorId, we fallback to simple increment (legacy or unknown)
   if (visitorId) {
-    // 1. Record the individual like
-    const { error: likeError } = await supabase
-      .from('project_likes')
-      .insert({ project_id: id, visitor_id: visitorId });
+    try {
+      // 1. Record the individual like
+      const { error: likeError } = await supabase
+        .from('project_likes')
+        .insert({ project_id: id, visitor_id: visitorId });
 
-    if (likeError && likeError.code !== '23505') { // 23505 is unique violation (already liked)
-      throw likeError;
+      if (likeError) {
+        // 23505 is unique violation (already liked), we can safely ignore it and just count
+        if (likeError.code !== '23505') {
+          console.error('Error inserting like:', likeError);
+          // If RLS is enabled but no policy exists, Supabase might return a 403 or empty error
+          throw likeError;
+        }
+      }
+    } catch (err) {
+      console.error('Catch block error in incrementLikesAsync (like insertion):', err);
+      throw err;
     }
   }
 
@@ -99,7 +109,10 @@ export async function incrementLikesAsync(id: string, visitorId?: string): Promi
     .eq('id', id)
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching project likes count:', error);
+    throw error;
+  }
 
   const newLikes = (data.likes || 0) + 1;
 
@@ -109,7 +122,10 @@ export async function incrementLikesAsync(id: string, visitorId?: string): Promi
     .update({ likes: newLikes })
     .eq('id', id);
 
-  if (updateError) throw updateError;
+  if (updateError) {
+    console.error('Error updating project likes counter:', updateError);
+    throw updateError;
+  }
 
   return newLikes;
 }
