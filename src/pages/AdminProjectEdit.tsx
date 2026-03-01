@@ -14,6 +14,11 @@ const AdminProjectEdit = () => {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<{ total: number; current: number; isUploading: boolean }>({
+    total: 0,
+    current: 0,
+    isUploading: false
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -41,9 +46,29 @@ const AdminProjectEdit = () => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0 || !project) return;
 
-    setAdding(true);
+    setUploadStatus({ total: files.length, current: 0, isUploading: true });
+
     try {
-      const uploadedPhotos = await Promise.all(files.map(file => uploadToImageKit(file)));
+      const MAX_SIZE = 25 * 1024 * 1024; // 25MB limit for ImageKit free tier
+      const oversizedFiles = files.filter(f => f.size > MAX_SIZE);
+
+      if (oversizedFiles.length > 0) {
+        toast.error(`Arquivo(s) muito grandes: ${oversizedFiles.map(f => f.name).join(", ")}. O limite é 25MB.`);
+        setUploadStatus({ total: 0, current: 0, isUploading: false });
+        return;
+      }
+
+      const uploadedPhotos: ProjectPhoto[] = [];
+
+      // Upload sequentially to show progress or use Promise.all and update in batches
+      // For better UX, we can do them in sequence to see the counter go up
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const uploaded = await uploadToImageKit(file);
+        uploadedPhotos.push(uploaded);
+        setUploadStatus(prev => ({ ...prev, current: i + 1 }));
+      }
+
       const updatedPhotos = [...(project.photos || []), ...uploadedPhotos];
       await updateProjectAsync(project.id, { photos: updatedPhotos });
       setProject({ ...project, photos: updatedPhotos });
@@ -51,7 +76,9 @@ const AdminProjectEdit = () => {
     } catch (err: any) {
       toast.error(err.message || "Erro no upload para ImageKit");
     } finally {
-      setAdding(false);
+      setTimeout(() => {
+        setUploadStatus({ total: 0, current: 0, isUploading: false });
+      }, 2000);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -136,17 +163,28 @@ const AdminProjectEdit = () => {
           </div>
         </div>
 
-        <div className="mb-12 p-10 border border-dashed border-border/60 bg-secondary/5 text-center transition-all hover:border-border hover:bg-secondary/10 relative">
-          <input ref={fileInputRef} type="file" multiple accept="image/*" onChange={handleAddPhotos} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled={adding} />
-          <div className="flex flex-col items-center gap-4">
-            <div className="h-12 w-12 rounded-full border border-border flex items-center justify-center bg-background group-hover:bg-foreground group-hover:text-background transition-colors">
-              {adding ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" strokeWidth={1.5} />}
+        <div className="mb-12 p-10 border border-dashed border-border/60 bg-secondary/5 text-center transition-all hover:border-border hover:bg-secondary/10 relative overflow-hidden group">
+          <input ref={fileInputRef} type="file" multiple accept="image/*" onChange={handleAddPhotos} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={uploadStatus.isUploading} />
+          <motion.div
+            className="flex flex-col items-center gap-4 py-4"
+            animate={uploadStatus.isUploading ? { scale: 0.95, opacity: 0.5 } : { scale: 1, opacity: 1 }}
+          >
+            <div className="h-14 w-14 rounded-full border border-border flex items-center justify-center bg-background group-hover:bg-foreground group-hover:text-background transition-all duration-500 shadow-sm">
+              {uploadStatus.isUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Plus className="h-6 w-6" strokeWidth={1} />}
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-foreground font-medium">{adding ? "Enviando fotos..." : "Clique ou arraste para enviar fotos"}</p>
-              <p className="text-xs text-muted-foreground">Apenas arquivos de imagem são aceitos</p>
+              <p className="text-sm text-foreground font-medium tracking-wide">{uploadStatus.isUploading ? `Enviando ${uploadStatus.current}/${uploadStatus.total}...` : "Clique ou arraste para enviar novas fotos"}</p>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Otimização automática ativada</p>
             </div>
-          </div>
+          </motion.div>
+          {uploadStatus.isUploading && (
+            <motion.div
+              className="absolute bottom-0 left-0 h-1 bg-foreground"
+              initial={{ width: 0 }}
+              animate={{ width: `${(uploadStatus.current / uploadStatus.total) * 100}%` }}
+              transition={{ type: "spring", bounce: 0, duration: 0.5 }}
+            />
+          )}
         </div>
 
         {photos.length === 0 ? (
@@ -157,7 +195,24 @@ const AdminProjectEdit = () => {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             <AnimatePresence mode="popLayout">
               {photos.map((photo, index) => (
-                <motion.div key={`${photo.url}-${index}`} className="group relative aspect-[3/4] overflow-hidden bg-secondary/20" layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.div
+                  key={`${photo.url}-${index}`}
+                  className="group relative aspect-[3/4] overflow-hidden bg-secondary/10"
+                  layout
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{
+                    opacity: 1,
+                    scale: 1,
+                    y: 0,
+                    transition: {
+                      type: "spring",
+                      duration: 0.6,
+                      delay: index * 0.05
+                    }
+                  }}
+                  exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+                  whileHover={{ y: -5 }}
+                >
                   <img
                     src={getOptimizedUrl(photo.url, 400)}
                     alt={`Foto ${index + 1}`}
@@ -178,6 +233,34 @@ const AdminProjectEdit = () => {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {uploadStatus.isUploading && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-foreground text-background px-8 py-4 rounded-full shadow-2xl flex items-center gap-6 min-w-[300px]"
+          >
+            <div className="relative h-10 w-10 flex items-center justify-center">
+              <svg className="absolute inset-0 h-full w-full -rotate-90">
+                <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-20" />
+                <motion.circle
+                  cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="2"
+                  strokeDasharray="113.1"
+                  animate={{ strokeDashoffset: 113.1 * (1 - uploadStatus.current / uploadStatus.total) }}
+                />
+              </svg>
+              <span className="text-[10px] font-bold">{Math.round((uploadStatus.current / uploadStatus.total) * 100)}%</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] uppercase tracking-widest font-bold opacity-70 mb-1">Enviando Galeria</p>
+              <p className="text-xs">{uploadStatus.current} de {uploadStatus.total} arquivos</p>
+            </div>
+            <Loader2 className="h-4 w-4 animate-spin opacity-50" />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
