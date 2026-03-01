@@ -6,8 +6,38 @@ import { Loader2, Download, X, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
 
+const ImageWithLoader = ({ src, alt, className, onClick }: { src: string; alt: string; className?: string; onClick?: () => void }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  return (
+    <div className={`relative overflow-hidden ${className}`} onClick={onClick}>
+      <AnimatePresence>
+        {!isLoaded && (
+          <motion.div
+            key="loader"
+            className="absolute inset-0 animate-shimmer"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+          />
+        )}
+      </AnimatePresence>
+      <motion.img
+        src={src}
+        alt={alt}
+        className={`h-full w-full object-cover ${className} ${!isLoaded ? "opacity-0" : "opacity-100"}`}
+        onLoad={() => setIsLoaded(true)}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isLoaded ? 1 : 0 }}
+        transition={{ duration: 0.8 }}
+      />
+    </div>
+  );
+};
+
 const ClientPreview = () => {
   const { id, slug } = useParams<{ id?: string; slug?: string }>();
+  // ... existing states ...
   const [project, setProject] = useState<Project | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -16,11 +46,11 @@ const ClientPreview = () => {
   const [showThanks, setShowThanks] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
 
+  // ... (rest of the component logic until the grid starts around line 250)
   useEffect(() => {
     async function loadProject() {
       setLoading(true);
       let found = null;
-
       try {
         if (slug) {
           found = await getProjectBySlugAsync(slug);
@@ -28,20 +58,15 @@ const ClientPreview = () => {
           const projects = await getProjectsAsync();
           found = projects.find(p => p.id === id);
         }
-
         if (found) {
           setProject(found);
           setLikeCount(found.likes || 0);
           setNotFound(false);
-
-          // Get or generate visitor ID
           let visitorId = localStorage.getItem('gofocus_visitor_id');
           if (!visitorId) {
             visitorId = uuidv4();
             localStorage.setItem('gofocus_visitor_id', visitorId);
           }
-
-          // Check if already liked (Server side + Local fallback)
           const hasLikedLocal = localStorage.getItem(`liked_${found.id}`);
           if (hasLikedLocal) {
             setLiked(true);
@@ -62,35 +87,26 @@ const ClientPreview = () => {
         setLoading(false);
       }
     }
-
     loadProject();
   }, [id, slug]);
 
   const handleLike = async () => {
     if (liked || !project) return;
-
     try {
       const visitorId = localStorage.getItem('gofocus_visitor_id') || uuidv4();
       if (!localStorage.getItem('gofocus_visitor_id')) {
         localStorage.setItem('gofocus_visitor_id', visitorId);
       }
-
       const newCount = await incrementLikesAsync(project.id, visitorId);
       setLikeCount(newCount);
       setLiked(true);
       setShowThanks(true);
       localStorage.setItem(`liked_${project.id}`, "true");
-
-      // Add floating hearts animation
       spawnHearts();
-
-      // Hide thanks after some time
       setTimeout(() => setShowThanks(false), 3000);
     } catch (err: any) {
       console.error("Erro completo ao curtir:", err);
-
       let message = "Não foi possível curtir agora.";
-
       if (err.message && err.message.includes("relation") && err.message.includes("does not exist")) {
         message = "Erro no banco: Mesa 'project_likes' não encontrada no Supabase.";
       } else if (err.code === "42501" || (err.message && err.message.includes("permission denied"))) {
@@ -98,48 +114,39 @@ const ClientPreview = () => {
       } else if (err.code) {
         message = `Erro ${err.code}: ${err.message || "Falha na comunicação com o banco"}`;
       }
-
       toast.error(message);
     }
   };
 
-  // --- Animation Helpers ---
   const [activeHearts, setActiveHearts] = useState<{ id: number; x: number; y: number; size: number }[]>([]);
-
   const spawnHearts = () => {
     const newHearts = Array.from({ length: 8 }).map((_, i) => ({
       id: Date.now() + i,
-      x: (Math.random() - 0.5) * 200, // Spread horizontally
-      y: (Math.random() - 0.5) * 100 - 50, // Initial burst
+      x: (Math.random() - 0.5) * 200,
+      y: (Math.random() - 0.5) * 100 - 50,
       size: Math.random() * 20 + 10
     }));
     setActiveHearts(newHearts);
-    setTimeout(() => setActiveHearts([]), 1500); // Cleanup
+    setTimeout(() => setActiveHearts([]), 1500);
   };
 
   const handleDownload = async (url: string, index: number) => {
     const fileName = `${project?.clientName || "foto"}-${index + 1}.jpg`;
-
     try {
       const res = await fetch(url);
       const blob = await res.blob();
       const file = new File([blob], fileName, { type: "image/jpeg" });
-
-      // Support for Web Share API (Mobile devices)
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({
             files: [file],
             title: fileName,
           });
-          return; // Success, no need for fallback
+          return;
         } catch (shareError) {
-          // If user cancels or share fails, we continue to standard download
           console.log("Share failed or cancelled, falling back to download");
         }
       }
-
-      // Fallback: Standard browser download (often goes to "Files" on iOS)
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = fileName;
@@ -196,7 +203,6 @@ const ClientPreview = () => {
                   </span>
                 )}
 
-                {/* Floating Hearts Animation */}
                 <div className="absolute inset-0 pointer-events-none overflow-visible">
                   {activeHearts.map((h) => (
                     <motion.div
@@ -206,7 +212,7 @@ const ClientPreview = () => {
                         opacity: 0,
                         scale: [0, 1.5, 1],
                         x: h.x,
-                        y: h.y - 150, // Float up
+                        y: h.y - 150,
                         rotate: h.x / 2
                       }}
                       transition={{ duration: 1.2, ease: "easeOut" }}
@@ -220,7 +226,6 @@ const ClientPreview = () => {
                   ))}
                 </div>
 
-                {/* Subtle shine effect */}
                 {!liked && <motion.div
                   className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full"
                   animate={{ translateX: ["100%", "-100%"] }}
@@ -257,13 +262,12 @@ const ClientPreview = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05, duration: 0.4 }}
-                onClick={() => setSelectedPhoto(photo.url)}
               >
-                <img
+                <ImageWithLoader
                   src={photo.url}
                   alt={`${project.clientName} - Foto ${index + 1}`}
-                  className="w-full aspect-square object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
+                  className="w-full aspect-square transition-transform duration-500 group-hover:scale-105"
+                  onClick={() => setSelectedPhoto(photo.url)}
                 />
               </motion.div>
             ))}
@@ -291,7 +295,7 @@ const ClientPreview = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <img
+              <ImageWithLoader
                 src={selectedPhoto}
                 alt="Foto ampliada"
                 className="max-h-[85vh] max-w-[90vw] object-contain rounded"

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { getProjectsAsync, saveProjectAsync, deleteProjectAsync, generateSlug, type Project, type ProjectPhoto } from "@/lib/storage";
+import { deleteFromImageKit } from "@/lib/imagekit";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -53,9 +54,24 @@ const AdminDashboard = () => {
     e.stopPropagation();
     if (!confirm("Tem certeza que deseja excluir este projeto?")) return;
 
-    await deleteProjectAsync(id);
-    toast.success("Projeto excluído");
-    loadProjects();
+    const projectToDelete = projects.find(p => p.id === id);
+
+    try {
+      if (projectToDelete && projectToDelete.photos) {
+        // Delete all photos from ImageKit
+        await Promise.all(
+          projectToDelete.photos
+            .filter(p => !!p.publicId)
+            .map(p => deleteFromImageKit(p.publicId))
+        );
+      }
+
+      await deleteProjectAsync(id);
+      toast.success("Projeto excluído");
+      loadProjects();
+    } catch (err) {
+      toast.error("Erro ao excluir projeto");
+    }
   };
 
   const handleCopyLink = (e: React.MouseEvent, slug: string, id: string) => {

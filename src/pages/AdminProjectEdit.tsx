@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { getProjectsAsync, updateProjectAsync, type Project, type ProjectPhoto } from "@/lib/storage";
-import { uploadToImageKit, getOptimizedUrl } from "@/lib/imagekit";
+import { uploadToImageKit, getOptimizedUrl, deleteFromImageKit } from "@/lib/imagekit";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
@@ -64,7 +64,7 @@ const AdminProjectEdit = () => {
       // For better UX, we can do them in sequence to see the counter go up
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const uploaded = await uploadToImageKit(file);
+        const uploaded = await uploadToImageKit(file, `gofocus/${project.slug}`);
         uploadedPhotos.push(uploaded);
         setUploadStatus(prev => ({ ...prev, current: i + 1 }));
       }
@@ -90,6 +90,11 @@ const AdminProjectEdit = () => {
     const updatedPhotos = project.photos.filter((_, i) => i !== index);
 
     try {
+      // First delete from ImageKit
+      if (photoToRemove.publicId) {
+        await deleteFromImageKit(photoToRemove.publicId);
+      }
+
       await updateProjectAsync(project.id, { photos: updatedPhotos });
       setProject({ ...project, photos: updatedPhotos });
       toast.success("Foto removida");
