@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { getProjectsAsync, updateProjectAsync, type Project, type ProjectPhoto } from "@/lib/storage";
-import { uploadToImgBB } from "@/lib/imgbb";
+import { uploadToImageKit, getOptimizedUrl } from "@/lib/imagekit";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
@@ -43,13 +43,13 @@ const AdminProjectEdit = () => {
 
     setAdding(true);
     try {
-      const uploadedPhotos = await Promise.all(files.map(file => uploadToImgBB(file)));
+      const uploadedPhotos = await Promise.all(files.map(file => uploadToImageKit(file)));
       const updatedPhotos = [...(project.photos || []), ...uploadedPhotos];
       await updateProjectAsync(project.id, { photos: updatedPhotos });
       setProject({ ...project, photos: updatedPhotos });
       toast.success(`${files.length} foto(s) adicionada(s)!`);
     } catch (err: any) {
-      toast.error(err.message || "Erro no upload para ImgBB");
+      toast.error(err.message || "Erro no upload para ImageKit");
     } finally {
       setAdding(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -158,7 +158,12 @@ const AdminProjectEdit = () => {
             <AnimatePresence mode="popLayout">
               {photos.map((photo, index) => (
                 <motion.div key={`${photo.url}-${index}`} className="group relative aspect-[3/4] overflow-hidden bg-secondary/20" layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <img src={photo.url} alt={`Foto ${index + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                  <img
+                    src={getOptimizedUrl(photo.url, 400)}
+                    alt={`Foto ${index + 1}`}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                  />
                   <div className="absolute inset-0 bg-background/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <button onClick={() => handleRemovePhoto(index)} className="h-10 w-10 flex items-center justify-center bg-background border border-border text-destructive hover:bg-destructive hover:text-background transition-all hover:scale-110 shadow-lg">
                       <Trash2 className="h-4 w-4" />
