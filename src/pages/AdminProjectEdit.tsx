@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { getProjectsAsync, updateProjectAsync, type Project, type ProjectPhoto } from "@/lib/storage";
-import { uploadToCloudinary, deleteFromCloudinary } from "@/lib/cloudinary";
+import { uploadToImgBB } from "@/lib/imgbb";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
@@ -43,14 +43,13 @@ const AdminProjectEdit = () => {
 
     setAdding(true);
     try {
-      const folderPath = `gofocus/${project.slug}`;
-      const uploadedPhotos = await Promise.all(files.map(file => uploadToCloudinary(file, folderPath)));
+      const uploadedPhotos = await Promise.all(files.map(file => uploadToImgBB(file)));
       const updatedPhotos = [...(project.photos || []), ...uploadedPhotos];
       await updateProjectAsync(project.id, { photos: updatedPhotos });
       setProject({ ...project, photos: updatedPhotos });
       toast.success(`${files.length} foto(s) adicionada(s)!`);
     } catch (err: any) {
-      toast.error(err.message || "Erro no upload para Cloudinary");
+      toast.error(err.message || "Erro no upload para ImgBB");
     } finally {
       setAdding(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -67,13 +66,6 @@ const AdminProjectEdit = () => {
       await updateProjectAsync(project.id, { photos: updatedPhotos });
       setProject({ ...project, photos: updatedPhotos });
       toast.success("Foto removida");
-
-      // Async deletion from Cloudinary
-      if (photoToRemove.publicId) {
-        deleteFromCloudinary(photoToRemove.publicId).catch(err =>
-          console.error("Failed to delete from Cloudinary:", err)
-        );
-      }
     } catch (err) {
       toast.error("Erro ao remover foto");
     }

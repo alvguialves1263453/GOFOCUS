@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { getProjectsAsync, saveProjectAsync, deleteProjectAsync, generateSlug, type Project, type ProjectPhoto } from "@/lib/storage";
-import { deleteFromCloudinary } from "@/lib/cloudinary";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -53,22 +52,6 @@ const AdminDashboard = () => {
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (!confirm("Tem certeza que deseja excluir este projeto?")) return;
-
-    // Find project to get its photos
-    const projectToDelete = projects.find(p => p.id === id);
-    if (projectToDelete && projectToDelete.photos) {
-      toast.info("Iniciando exclusão das fotos no Cloudinary...");
-      // Delete all photos from Cloudinary
-      for (const photo of projectToDelete.photos) {
-        if (photo.publicId) {
-          try {
-            await deleteFromCloudinary(photo.publicId);
-          } catch (err) {
-            console.error(`Falha ao deletar foto ${photo.publicId}:`, err);
-          }
-        }
-      }
-    }
 
     await deleteProjectAsync(id);
     toast.success("Projeto excluído");
