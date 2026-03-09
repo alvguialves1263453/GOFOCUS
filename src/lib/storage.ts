@@ -84,7 +84,8 @@ export async function saveProjectAsync(project: Project): Promise<{ remote: bool
     created_at: project.createdAt || new Date().toISOString(),
     featured: project.featured || false,
     cover_index: project.coverIndex || 0,
-    category_id: project.categoryId || null
+    category_id: project.categoryId || null,
+    likes: project.likes || 0
   };
 
   let remoteSuccess = false;
