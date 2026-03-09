@@ -34,7 +34,7 @@ export async function getProjectsAsync(): Promise<Project[]> {
     const { data, error } = await supabase
       .from('projects')
       .select('*')
-      .order('createdAt', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching projects from Supabase:', error);
@@ -43,9 +43,15 @@ export async function getProjectsAsync(): Promise<Project[]> {
 
     // Map snake_case from DB to camelCase for UI
     const remoteProjects = (data || []).map((p: any) => ({
-      ...p,
-      clientName: p.client_name || p.clientName,
-      categoryId: p.category_id
+      id: p.id,
+      clientName: p.client_name || p.clientName || "",
+      slug: p.slug || "",
+      photos: p.photos || [],
+      createdAt: p.created_at || p.createdAt || new Date().toISOString(),
+      featured: p.featured || false,
+      coverIndex: p.cover_index !== undefined ? p.cover_index : (p.coverIndex || 0),
+      likes: p.likes || 0,
+      categoryId: p.category_id || p.categoryId
     }));
 
     // Merge with local projects for resilience
@@ -70,13 +76,15 @@ export async function saveProjectAsync(project: Project): Promise<{ remote: bool
   const clientName = project.clientName.trim();
   const slug = project.slug || generateSlug(clientName);
 
-  const { categoryId, ...rest } = project;
   const dbProject = {
-    ...rest,
     id,
     client_name: clientName,
     slug,
-    category_id: categoryId
+    photos: project.photos || [],
+    created_at: project.createdAt || new Date().toISOString(),
+    featured: project.featured || false,
+    cover_index: project.coverIndex || 0,
+    category_id: project.categoryId || null
   };
 
   let remoteSuccess = false;
@@ -97,11 +105,15 @@ export async function saveProjectAsync(project: Project): Promise<{ remote: bool
 }
 
 export async function updateProjectAsync(id: string, updates: Partial<Project>): Promise<void> {
-  const { categoryId, ...rest } = updates;
-  const dbUpdates = {
-    ...rest,
-    ...(categoryId !== undefined && { category_id: categoryId })
-  };
+  const dbUpdates: any = {};
+  if (updates.clientName !== undefined) dbUpdates.client_name = updates.clientName;
+  if (updates.slug !== undefined) dbUpdates.slug = updates.slug;
+  if (updates.photos !== undefined) dbUpdates.photos = updates.photos;
+  if (updates.createdAt !== undefined) dbUpdates.created_at = updates.createdAt;
+  if (updates.featured !== undefined) dbUpdates.featured = updates.featured;
+  if (updates.coverIndex !== undefined) dbUpdates.cover_index = updates.coverIndex;
+  if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId;
+  if (updates.likes !== undefined) dbUpdates.likes = updates.likes;
 
   const { error } = await supabase
     .from('projects')
