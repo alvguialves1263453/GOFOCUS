@@ -217,8 +217,15 @@ export async function getCategoriesAsync(): Promise<Category[]> {
 }
 
 export async function saveCategoryAsync(category: Category): Promise<void> {
-  const { error } = await supabase.from('categories').insert([category]);
-  if (error) throw error;
+  // Ensure we only send fields that exist in the DB
+  const { id, name, slug } = category;
+  const { error } = await supabase.from('categories').insert([{ id, name, slug }]);
+
+  if (error) {
+    console.error('Supabase Error saving category:', error);
+    throw error;
+  }
+
   saveCategoryLocal(category);
 }
 
