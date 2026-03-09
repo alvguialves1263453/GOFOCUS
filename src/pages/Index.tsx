@@ -1,7 +1,7 @@
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
 import { getProjectsAsync, getCategoriesAsync, type Project, type Category } from "@/lib/storage";
-import { Heart, Instagram, ChevronDown, Sparkles, LayoutGrid, Camera, Eye, Award } from "lucide-react";
+import { Heart, Instagram, ChevronDown, Sparkles, LayoutGrid, Camera, Eye, Award, Loader2, Plus, FolderOpen, QrCode, MoveHorizontal } from "lucide-react";
 import logo from "@/assets/logo.png";
 import LiquidBackground from "@/components/LiquidBackground";
 
@@ -126,13 +126,13 @@ const Index = () => {
 
           {/* CATEGORY DOCK */}
           {categories.length > 0 && (
-            <div className="sticky top-12 z-50 flex justify-center mb-24 lg:mb-32">
-              <div className="glass-dark p-2 rounded-full flex gap-1 items-center max-w-[95vw] overflow-x-auto ios-scroll-hide shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-white/10 no-scrollbar">
+            <div className="sticky top-12 z-50 flex flex-col items-center mb-24 lg:mb-32">
+              <div className="glass-dark p-2 rounded-full flex gap-1 items-center max-w-[95vw] overflow-x-auto ios-scroll-hide shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-white/10 no-scrollbar relative group">
                 <button
                   onClick={() => setSelectedCategoryId(null)}
                   className={`px-8 py-3.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all duration-500 whitespace-nowrap ${selectedCategoryId === null
-                      ? "bg-white text-black shadow-xl glow-border"
-                      : "text-white/40 hover:text-white hover:bg-white/5"
+                    ? "bg-white text-black shadow-xl glow-border"
+                    : "text-white/40 hover:text-white hover:bg-white/5"
                     }`}
                 >
                   Todos
@@ -142,14 +142,30 @@ const Index = () => {
                     key={category.id}
                     onClick={() => setSelectedCategoryId(category.id)}
                     className={`px-8 py-3.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all duration-500 whitespace-nowrap ${selectedCategoryId === category.id
-                        ? "bg-white text-black shadow-xl glow-border"
-                        : "text-white/40 hover:text-white hover:bg-white/5"
+                      ? "bg-white text-black shadow-xl glow-border"
+                      : "text-white/40 hover:text-white hover:bg-white/5"
                       }`}
                   >
                     {category.name}
                   </button>
                 ))}
               </div>
+
+              {/* SCROLL HINT */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: [0.4, 0.8, 0.4], y: 0 }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="mt-8 flex items-center gap-3 md:hidden pointer-events-none px-6 py-2.5 rounded-full glass-liquid border border-white/5 shadow-2xl"
+              >
+                <span className="text-[8px] uppercase tracking-[0.3em] text-white/50 font-bold">Arraste para ver mais categorias</span>
+                <motion.div
+                  animate={{ x: [0, 5, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <MoveHorizontal className="h-3.5 w-3.5 text-white/50" />
+                </motion.div>
+              </motion.div>
             </div>
           )}
 
