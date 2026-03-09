@@ -8,13 +8,14 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     if (loading) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-background">
-                <p className="text-sm text-muted-foreground">Carregando...</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-[0.4em] animate-pulse font-bold">Autenticando...</p>
             </div>
         );
     }
 
     if (!user) {
-        return <Navigate to="/login" state={{ from: location }} replace />;
+        const isAdminRoute = location.pathname.startsWith("/admin");
+        return <Navigate to={isAdminRoute ? "/admin" : "/login"} state={{ from: location }} replace />;
     }
 
     return <>{children}</>;
