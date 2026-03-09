@@ -4,7 +4,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getProjectsAsync, saveProjectAsync, deleteProjectAsync, generateSlug, type Project, type ProjectPhoto } from "@/lib/storage";
 import { deleteFromImageKit } from "@/lib/imagekit";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check } from "lucide-react";
+import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check, QrCode } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 const AdminDashboard = () => {
@@ -15,6 +21,7 @@ const AdminDashboard = () => {
   const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [qrProject, setQrProject] = useState<{ name: string; url: string } | null>(null);
 
   useEffect(() => {
     if (!authLoading && user) loadProjects();
@@ -81,6 +88,12 @@ const AdminDashboard = () => {
     setCopiedId(id);
     toast.success("Link copiado!");
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleShowQr = (e: React.MouseEvent, name: string, slug: string) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/cliente/${slug}`;
+    setQrProject({ name, url });
   };
 
   const handleLogout = async () => {
@@ -169,6 +182,9 @@ const AdminDashboard = () => {
                       <button onClick={(e) => handleCopyLink(e, project.slug, project.id)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-foreground hover:text-foreground transition-colors" title="Copiar link de compartilhamento">
                         {copiedId === project.id ? <Check className="h-3.5 w-3.5" /> : <LinkIcon className="h-3.5 w-3.5" />}
                       </button>
+                      <button onClick={(e) => handleShowQr(e, project.clientName, project.slug)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-foreground hover:text-foreground transition-colors" title="Ver QR Code">
+                        <QrCode className="h-3.5 w-3.5" />
+                      </button>
                       <button onClick={(e) => handleDelete(e, project.id)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-destructive hover:text-destructive transition-colors">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -179,6 +195,29 @@ const AdminDashboard = () => {
             })}
           </div>
         )}
+
+        <Dialog open={!!qrProject} onOpenChange={(open) => !open && setQrProject(null)}>
+          <DialogContent className="sm:max-w-md bg-background border-border">
+            <DialogHeader>
+              <DialogTitle className="font-display text-xl font-light tracking-widest text-center uppercase">QR Code do Projeto</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center justify-center space-y-6 py-6">
+              <span className="text-[10px] uppercase font-light tracking-[0.2em] text-white/70">{qrProject?.name}</span>
+              <div className="bg-white p-4 rounded-xl shadow-2xl">
+                {qrProject && (
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrProject.url)}`}
+                    alt="QR Code"
+                    className="w-[200px] h-[200px] sm:w-[250px] sm:h-[250px]"
+                  />
+                )}
+              </div>
+              <p className="text-[10px] text-center uppercase tracking-[0.2em] text-muted-foreground px-4">
+                Escaneie para abrir este projeto em outro dispositivo
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

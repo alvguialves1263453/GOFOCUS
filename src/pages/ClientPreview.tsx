@@ -2,9 +2,16 @@ import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getProjectBySlugAsync, getProjectsAsync, incrementLikesAsync, checkIfLikedAsync, type Project } from "@/lib/storage";
-import { Loader2, Download, X, Heart } from "lucide-react";
+import { Loader2, Download, X, Heart, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const ImageWithLoader = ({ src, alt, className, onClick }: { src: string; alt: string; className?: string; onClick?: () => void }) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -45,6 +52,7 @@ const ClientPreview = () => {
   const [liked, setLiked] = useState(false);
   const [showThanks, setShowThanks] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
+  const [isQrOpen, setIsQrOpen] = useState(false);
 
   // ... (rest of the component logic until the grid starts around line 250)
   useEffect(() => {
@@ -251,6 +259,34 @@ const ClientPreview = () => {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
+                <DialogTrigger asChild>
+                  <button
+                    className="flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground transition-colors duration-300"
+                  >
+                    <QrCode className="h-4 w-4" />
+                    Gerar QR Code
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md bg-background border-border">
+                  <DialogHeader>
+                    <DialogTitle className="font-display text-xl font-light tracking-widest text-center uppercase">QR Code do Projeto</DialogTitle>
+                  </DialogHeader>
+                  <div className="flex flex-col items-center justify-center space-y-6 py-6">
+                    <div className="bg-white p-4 rounded-xl shadow-2xl">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.href)}`}
+                        alt="QR Code"
+                        className="w-[200px] h-[200px] sm:w-[250px] sm:h-[250px]"
+                      />
+                    </div>
+                    <p className="text-[10px] text-center uppercase tracking-[0.2em] text-muted-foreground px-4">
+                      Escaneie para abrir este projeto em outro dispositivo
+                    </p>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </motion.div>
 
