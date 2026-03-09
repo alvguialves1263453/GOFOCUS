@@ -1,35 +1,64 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { getProjectsAsync, saveProjectAsync, deleteProjectAsync, generateSlug, type Project, type ProjectPhoto } from "@/lib/storage";
+import {
+  getProjectsAsync,
+  saveProjectAsync,
+  deleteProjectAsync,
+  generateSlug,
+  getCategoriesAsync,
+  saveCategoryAsync,
+  deleteCategoryAsync,
+  type Project,
+  type ProjectPhoto,
+  type Category
+} from "@/lib/storage";
 import { deleteFromImageKit } from "@/lib/imagekit";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check, QrCode } from "lucide-react";
+import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check, QrCode, Tag } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [projectName, setProjectName] = useState("");
+  const [categoryName, setCategoryName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [categorySaving, setCategorySaving] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [qrProject, setQrProject] = useState<{ name: string; url: string } | null>(null);
 
   useEffect(() => {
-    if (!authLoading && user) loadProjects();
+    if (!authLoading && user) {
+      loadProjects();
+      loadCategories();
+    }
   }, [user, authLoading]);
 
   const loadProjects = async () => {
     const data = await getProjectsAsync();
     setProjects(data);
+  };
+
+  const loadCategories = async () => {
+    const data = await getCategoriesAsync();
+    setCategories(data);
   };
 
   const handleSave = async () => {
@@ -54,6 +83,38 @@ const AdminDashboard = () => {
       toast.error("Erro ao salvar projeto");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveCategory = async () => {
+    if (!categoryName.trim()) return;
+    setCategorySaving(true);
+    try {
+      const newCategory: Category = {
+        id: crypto.randomUUID(),
+        name: categoryName.trim(),
+        slug: generateSlug(categoryName.trim())
+      };
+      await saveCategoryAsync(newCategory);
+      toast.success("Categoria criada com sucesso!");
+      setCategoryName("");
+      setShowCategoryForm(false);
+      loadCategories();
+    } catch (err: any) {
+      toast.error("Erro ao salvar categoria");
+    } finally {
+      setCategorySaving(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta categoria? Os projetos associados não serão excluídos, mas ficarão sem categoria.")) return;
+    try {
+      await deleteCategoryAsync(id);
+      toast.success("Categoria excluída");
+      loadCategories();
+    } catch (err) {
+      toast.error("Erro ao excluir categoria");
     }
   };
 
@@ -128,73 +189,138 @@ const AdminDashboard = () => {
       </header>
 
       <div className="mx-auto max-w-6xl px-6 py-10">
-        <div className="mb-8 flex items-center justify-between">
-          <h2 className="font-display text-lg font-light tracking-wide text-foreground">Projetos</h2>
-          <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center gap-2 border border-foreground bg-foreground px-5 py-2.5 text-[10px] uppercase tracking-[0.3em] text-background transition-all duration-300 hover:bg-transparent hover:text-foreground">
-            <Plus className="h-3.5 w-3.5" />
-            {showForm ? "Cancelar" : "Novo Projeto"}
-          </button>
-        </div>
-
-        <AnimatePresence>
-          {showForm && (
-            <motion.div className="mb-10 border border-border p-8 bg-secondary/20" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}>
-              <div className="flex flex-col gap-5 max-w-md">
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Nome do Projeto</label>
-                  <input type="text" placeholder="Ex: Casamento Maria e João" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="w-full border border-border bg-background px-4 py-3 text-sm text-foreground focus:outline-none focus:border-foreground transition-colors" />
-                </div>
-                <button onClick={handleSave} disabled={saving || !projectName.trim()} className="inline-flex items-center justify-center gap-2 border border-foreground bg-foreground px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-background transition-all duration-300 hover:bg-transparent hover:text-foreground disabled:opacity-30">
-                  {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  {saving ? "Salvando..." : "Salvar Projeto"}
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center border border-dashed border-border py-24">
-            <FolderOpen className="h-8 w-8 text-muted-foreground/20 mb-4" strokeWidth={1} />
-            <p className="text-sm text-muted-foreground">Nenhum projeto criado ainda.</p>
+        <Tabs defaultValue="projects" className="w-full">
+          <div className="mb-8 flex items-center justify-between">
+            <h2 className="font-display text-lg font-light tracking-wide text-foreground">Dashboard</h2>
+            <TabsList className="bg-secondary/20 border border-border">
+              <TabsTrigger value="projects" className="text-[10px] uppercase tracking-widest px-6 data-[state=active]:bg-foreground data-[state=active]:text-background">Projetos</TabsTrigger>
+              <TabsTrigger value="categories" className="text-[10px] uppercase tracking-widest px-6 data-[state=active]:bg-foreground data-[state=active]:text-background">Categorias</TabsTrigger>
+            </TabsList>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map((project) => {
-              const photo = project.photos?.[project.coverIndex || 0];
-              return (
-                <motion.div key={project.id} className="group relative border border-border overflow-hidden cursor-pointer bg-secondary/10 transition-all hover:border-foreground/30 hover:bg-secondary/20" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onClick={() => navigate(`/admin/projeto/${project.id}`)}>
-                  <div className="relative aspect-[16/10] bg-secondary/30 overflow-hidden">
-                    {photo ? (
-                      <img src={photo.url} alt={`Capa - ${project.clientName}`} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center"><Image className="h-8 w-8 text-muted-foreground/10" strokeWidth={1} /></div>
-                    )}
-                  </div>
-                  <div className="p-5 flex items-center justify-between">
-                    <div>
-                      <h3 className="font-display text-base text-foreground group-hover:text-foreground transition-colors">{project.clientName}</h3>
-                      <p className="mt-1 text-[10px] text-muted-foreground uppercase tracking-wider">
-                        {project.photos?.length || 0} foto{(project.photos?.length || 0) !== 1 ? "s" : ""}
-                      </p>
+
+          <TabsContent value="projects">
+            <div className="mb-8 flex items-center justify-between">
+              <h3 className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Gerenciar Projetos</h3>
+              <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center gap-2 border border-foreground bg-foreground px-5 py-2.5 text-[10px] uppercase tracking-[0.3em] text-background transition-all duration-300 hover:bg-transparent hover:text-foreground">
+                <Plus className="h-3.5 w-3.5" />
+                {showForm ? "Cancelar" : "Novo Projeto"}
+              </button>
+            </div>
+
+            <AnimatePresence>
+              {showForm && (
+                <motion.div className="mb-10 border border-border p-8 bg-secondary/20" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}>
+                  <div className="flex flex-col gap-5 max-w-md">
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Nome do Projeto</label>
+                      <input type="text" placeholder="Ex: Casamento Maria e João" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="w-full border border-border bg-background px-4 py-3 text-sm text-foreground focus:outline-none focus:border-foreground transition-colors" />
                     </div>
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e) => handleCopyLink(e, project.slug, project.id)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-foreground hover:text-foreground transition-colors" title="Copiar link de compartilhamento">
-                        {copiedId === project.id ? <Check className="h-3.5 w-3.5" /> : <LinkIcon className="h-3.5 w-3.5" />}
-                      </button>
-                      <button onClick={(e) => handleShowQr(e, project.clientName, project.slug)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-foreground hover:text-foreground transition-colors" title="Ver QR Code">
-                        <QrCode className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={(e) => handleDelete(e, project.id)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-destructive hover:text-destructive transition-colors">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                    <button onClick={handleSave} disabled={saving || !projectName.trim()} className="inline-flex items-center justify-center gap-2 border border-foreground bg-foreground px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-background transition-all duration-300 hover:bg-transparent hover:text-foreground disabled:opacity-30">
+                      {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      {saving ? "Salvando..." : "Salvar Projeto"}
+                    </button>
                   </div>
                 </motion.div>
-              );
-            })}
-          </div>
-        )}
+              )}
+            </AnimatePresence>
+
+            {projects.length === 0 ? (
+              <div className="flex flex-col items-center justify-center border border-dashed border-border py-24">
+                <FolderOpen className="h-8 w-8 text-muted-foreground/20 mb-4" strokeWidth={1} />
+                <p className="text-sm text-muted-foreground">Nenhum projeto criado ainda.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {projects.map((project) => {
+                  const photo = project.photos?.[project.coverIndex || 0];
+                  return (
+                    <motion.div key={project.id} className="group relative border border-border overflow-hidden cursor-pointer bg-secondary/10 transition-all hover:border-foreground/30 hover:bg-secondary/20" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onClick={() => navigate(`/admin/projeto/${project.id}`)}>
+                      <div className="relative aspect-[16/10] bg-secondary/30 overflow-hidden">
+                        {photo ? (
+                          <img src={photo.url} alt={`Capa - ${project.clientName}`} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center"><Image className="h-8 w-8 text-muted-foreground/10" strokeWidth={1} /></div>
+                        )}
+                        {project.categoryId && categories.find(c => c.id === project.categoryId) && (
+                          <div className="absolute top-3 left-3 bg-background/80 backdrop-blur-sm border border-border px-2 py-1 text-[8px] uppercase tracking-widest text-foreground">
+                            {categories.find(c => c.id === project.categoryId)?.name}
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-5 flex items-center justify-between">
+                        <div>
+                          <h3 className="font-display text-base text-foreground group-hover:text-foreground transition-colors">{project.clientName}</h3>
+                          <p className="mt-1 text-[10px] text-muted-foreground uppercase tracking-wider">
+                            {project.photos?.length || 0} foto{(project.photos?.length || 0) !== 1 ? "s" : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={(e) => handleCopyLink(e, project.slug, project.id)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-foreground hover:text-foreground transition-colors" title="Copiar link de compartilhamento">
+                            {copiedId === project.id ? <Check className="h-3.5 w-3.5" /> : <LinkIcon className="h-3.5 w-3.5" />}
+                          </button>
+                          <button onClick={(e) => handleShowQr(e, project.clientName, project.slug)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-foreground hover:text-foreground transition-colors" title="Ver QR Code">
+                            <QrCode className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={(e) => handleDelete(e, project.id)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-destructive hover:text-destructive transition-colors">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="categories">
+            <div className="mb-8 flex items-center justify-between">
+              <h3 className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Gerenciar Categorias</h3>
+              <button onClick={() => setShowCategoryForm(!showCategoryForm)} className="inline-flex items-center gap-2 border border-foreground bg-foreground px-5 py-2.5 text-[10px] uppercase tracking-[0.3em] text-background transition-all duration-300 hover:bg-transparent hover:text-foreground">
+                <Plus className="h-3.5 w-3.5" />
+                {showCategoryForm ? "Cancelar" : "Nova Categoria"}
+              </button>
+            </div>
+
+            <AnimatePresence>
+              {showCategoryForm && (
+                <motion.div className="mb-10 border border-border p-8 bg-secondary/20" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}>
+                  <div className="flex flex-col gap-5 max-w-md">
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Nome da Categoria</label>
+                      <input type="text" placeholder="Ex: Esportes, Retratos, Eventos" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} className="w-full border border-border bg-background px-4 py-3 text-sm text-foreground focus:outline-none focus:border-foreground transition-colors" />
+                    </div>
+                    <button onClick={handleSaveCategory} disabled={categorySaving || !categoryName.trim()} className="inline-flex items-center justify-center gap-2 border border-foreground bg-foreground px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-background transition-all duration-300 hover:bg-transparent hover:text-foreground disabled:opacity-30">
+                      {categorySaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      {categorySaving ? "Salvando..." : "Salvar Categoria"}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {categories.length === 0 ? (
+              <div className="flex flex-col items-center justify-center border border-dashed border-border py-24">
+                <Tag className="h-8 w-8 text-muted-foreground/20 mb-4" strokeWidth={1} />
+                <p className="text-sm text-muted-foreground">Nenhuma categoria criada ainda.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {categories.map((category) => (
+                  <div key={category.id} className="flex items-center justify-between border border-border p-5 bg-secondary/10 group hover:border-foreground/30 transition-all">
+                    <div>
+                      <h4 className="font-display text-base text-foreground">{category.name}</h4>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{category.slug}</p>
+                    </div>
+                    <button onClick={() => handleDeleteCategory(category.id)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-destructive hover:text-destructive transition-colors">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
 
         <Dialog open={!!qrProject} onOpenChange={(open) => !open && setQrProject(null)}>
           <DialogContent className="sm:max-w-md bg-background border-border">

@@ -1,7 +1,7 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
-import { getProjectsAsync, type Project } from "@/lib/storage";
-import { Camera, Eye, Heart, Award, Instagram } from "lucide-react";
+import { getProjectsAsync, getCategoriesAsync, type Project, type Category } from "@/lib/storage";
+import { Camera, Eye, Heart, Award, Instagram, LayoutGrid } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 const INSTAGRAM_URL = "https://instagram.com/gofocus.br";
@@ -25,14 +25,24 @@ const reasons = [
 
 const Index = () => {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadProjects() {
-      const data = await getProjectsAsync();
-      setProjects(data);
+    async function loadData() {
+      const [projectsData, categoriesData] = await Promise.all([
+        getProjectsAsync(),
+        getCategoriesAsync()
+      ]);
+      setProjects(projectsData);
+      setCategories(categoriesData);
     }
-    loadProjects();
+    loadData();
   }, []);
+
+  const filteredProjects = selectedCategoryId
+    ? projects.filter(p => p.categoryId === selectedCategoryId)
+    : projects;
 
   return (
     <div className="min-h-screen bg-background">
@@ -62,11 +72,46 @@ const Index = () => {
               <h2 className="mt-4 font-display text-4xl font-light tracking-[0.1em] text-foreground sm:text-5xl md:text-6xl">Nossos Trabalhos</h2>
               <p className="mt-4 text-sm text-muted-foreground max-w-lg mx-auto">Cada projeto conta uma história. Explore alguns dos nossos trabalhos mais recentes.</p>
             </AnimatedSection>
-            <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
-              {projects.map((project, i) => (
-                <PortfolioCard key={project.id} project={project} index={i} />
-              ))}
-            </div>
+
+            {categories.length > 0 && (
+              <AnimatedSection className="mb-12">
+                <div className="flex flex-wrap justify-center gap-4">
+                  <button
+                    onClick={() => setSelectedCategoryId(null)}
+                    className={`px-6 py-2 text-[10px] uppercase tracking-[0.2em] transition-all duration-300 border ${selectedCategoryId === null
+                        ? "bg-foreground text-background border-foreground"
+                        : "bg-transparent text-muted-foreground border-border hover:border-foreground hover:text-foreground"
+                      }`}
+                  >
+                    Todos
+                  </button>
+                  {categories.map((category) => (
+                    <button
+                      key={category.id}
+                      onClick={() => setSelectedCategoryId(category.id)}
+                      className={`px-6 py-2 text-[10px] uppercase tracking-[0.2em] transition-all duration-300 border ${selectedCategoryId === category.id
+                          ? "bg-foreground text-background border-foreground"
+                          : "bg-transparent text-muted-foreground border-border hover:border-foreground hover:text-foreground"
+                        }`}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                </div>
+              </AnimatedSection>
+            )}
+
+            {filteredProjects.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border">
+                <p className="text-sm text-muted-foreground uppercase tracking-widest">Nenhum projeto encontrado nesta categoria.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredProjects.map((project, i) => (
+                  <PortfolioCard key={project.id} project={project} index={i} />
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}

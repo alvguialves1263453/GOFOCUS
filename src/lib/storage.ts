@@ -5,6 +5,12 @@ export interface ProjectPhoto {
   publicId: string;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export interface Project {
   id: string;
   clientName: string;
@@ -14,9 +20,11 @@ export interface Project {
   featured: boolean;
   coverIndex: number; // which photo to use as cover
   likes?: number;
+  categoryId?: string;
 }
 
 const STORAGE_KEY = 'gofocus_projects';
+const CATEGORIES_KEY = 'gofocus_categories';
 
 // --- SUPABASE ASYNC FUNCTIONS ---
 
@@ -32,7 +40,11 @@ export async function getProjectsAsync(): Promise<Project[]> {
       return getProjectsLocal(); // Fallback to local
     }
 
-    return data || [];
+    // Map snake_case from DB to camelCase for UI
+    return (data || []).map((p: any) => ({
+      ...p,
+      categoryId: p.category_id
+    }));
   } catch (err) {
     console.error('Critical failure in getProjectsAsync:', err);
     return getProjectsLocal();
@@ -40,7 +52,13 @@ export async function getProjectsAsync(): Promise<Project[]> {
 }
 
 export async function saveProjectAsync(project: Project): Promise<void> {
-  const { error } = await supabase.from('projects').insert([project]);
+  const { categoryId, ...rest } = project;
+  const dbProject = {
+    ...rest,
+    category_id: categoryId
+  };
+
+  const { error } = await supabase.from('projects').insert([dbProject]);
   if (error) throw error;
 
   // Also save locally for backup
@@ -48,9 +66,15 @@ export async function saveProjectAsync(project: Project): Promise<void> {
 }
 
 export async function updateProjectAsync(id: string, updates: Partial<Project>): Promise<void> {
+  const { categoryId, ...rest } = updates;
+  const dbUpdates = {
+    ...rest,
+    ...(categoryId !== undefined && { category_id: categoryId })
+  };
+
   const { error } = await supabase
     .from('projects')
-    .update(updates)
+    .update(dbUpdates)
     .eq('id', id);
 
   if (error) throw error;
@@ -161,11 +185,61 @@ export async function getProjectBySlugAsync(slug: string): Promise<Project | nul
       return getProjectBySlugLocal(slug);
     }
 
-    return data;
+    return {
+      ...data,
+      categoryId: data.category_id
+    };
   } catch (err) {
     console.error('Critical failure in getProjectBySlugAsync:', err);
     return getProjectBySlugLocal(slug);
   }
+}
+
+// --- CATEGORIES ASYNC FUNCTIONS ---
+
+export async function getCategoriesAsync(): Promise<Category[]> {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching categories from Supabase:', error);
+      return getCategoriesLocal();
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('Critical failure in getCategoriesAsync:', err);
+    return getCategoriesLocal();
+  }
+}
+
+export async function saveCategoryAsync(category: Category): Promise<void> {
+  const { error } = await supabase.from('categories').insert([category]);
+  if (error) throw error;
+  saveCategoryLocal(category);
+}
+
+export async function updateCategoryAsync(id: string, updates: Partial<Category>): Promise<void> {
+  const { error } = await supabase
+    .from('categories')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) throw error;
+  updateCategoryLocal(id, updates);
+}
+
+export async function deleteCategoryAsync(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('categories')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+  deleteCategoryLocal(id);
 }
 
 // --- LOCAL STORAGE BACKUP / FALLBACK (LEGACY) ---
@@ -203,6 +277,32 @@ function deleteProjectLocal(id: string): void {
 
 function getProjectBySlugLocal(slug: string): Project | null {
   return getProjectsLocal().find(p => p.slug === slug) || null;
+}
+
+// --- CATEGORIES LOCAL STORAGE ---
+
+function getCategoriesLocal(): Category[] {
+  const data = localStorage.getItem(CATEGORIES_KEY);
+  if (!data) return [];
+  return JSON.parse(data);
+}
+
+function saveCategoryLocal(category: Category): void {
+  const categories = getCategoriesLocal();
+  categories.push(category);
+  localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+}
+
+function updateCategoryLocal(id: string, updates: Partial<Category>): void {
+  const categories = getCategoriesLocal().map(c =>
+    c.id === id ? { ...c, ...updates } : c
+  );
+  localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+}
+
+function deleteCategoryLocal(id: string): void {
+  const categories = getCategoriesLocal().filter(c => c.id !== id);
+  localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
 }
 
 // --- LEGACY SYNC EXPORTS (Keep for temporary compatibility) ---

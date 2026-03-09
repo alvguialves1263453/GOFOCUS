@@ -1,16 +1,24 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { getProjectsAsync, updateProjectAsync, type Project, type ProjectPhoto } from "@/lib/storage";
+import { getProjectsAsync, updateProjectAsync, getCategoriesAsync, type Project, type ProjectPhoto, type Category } from "@/lib/storage";
 import { uploadToImageKit, getOptimizedUrl, deleteFromImageKit } from "@/lib/imagekit";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ExternalLink } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ExternalLink, Tag } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 const AdminProjectEdit = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [project, setProject] = useState<Project | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -22,8 +30,16 @@ const AdminProjectEdit = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (id) loadProject();
+    if (id) {
+      loadProject();
+      loadCategories();
+    }
   }, [id]);
+
+  const loadCategories = async () => {
+    const data = await getCategoriesAsync();
+    setCategories(data);
+  };
 
   const loadProject = async () => {
     try {
@@ -122,6 +138,19 @@ const AdminProjectEdit = () => {
     }
   };
 
+  const updateCategory = async (categoryId: string) => {
+    if (!project || categoryId === project.categoryId) return;
+    try {
+      // "none" will be stored as undefined or empty
+      const idToStore = categoryId === "none" ? undefined : categoryId;
+      await updateProjectAsync(project.id, { categoryId: idToStore });
+      setProject({ ...project, categoryId: idToStore });
+      toast.success("Categoria atualizada");
+    } catch (err) {
+      toast.error("Erro ao atualizar categoria");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -149,11 +178,33 @@ const AdminProjectEdit = () => {
                 onBlur={(e) => updateName(e.target.value)}
                 className="bg-transparent font-display text-4xl font-light tracking-tight text-foreground outline-none border-b border-transparent focus:border-border transition-colors w-full sm:w-[400px]"
               />
-              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center gap-2">
-                <span>{photos.length} fotos</span>
-                <span className="h-1 w-1 rounded-full bg-border" />
-                <span>Criado em {new Date(project.createdAt).toLocaleDateString("pt-BR")}</span>
-              </p>
+              <div className="flex flex-wrap items-center gap-4">
+                <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center gap-2">
+                  <span>{photos.length} fotos</span>
+                  <span className="h-1 w-1 rounded-full bg-border" />
+                  <span>Criado em {new Date(project.createdAt).toLocaleDateString("pt-BR")}</span>
+                </p>
+                <div className="h-4 w-px bg-border hidden sm:block" />
+                <div className="flex items-center gap-2">
+                  <Tag className="h-3 w-3 text-muted-foreground" />
+                  <Select
+                    defaultValue={project.categoryId || "none"}
+                    onValueChange={updateCategory}
+                  >
+                    <SelectTrigger className="h-7 w-auto min-w-[120px] bg-transparent border-none p-0 text-[10px] uppercase tracking-[0.2em] text-foreground focus:ring-0 focus:ring-offset-0">
+                      <SelectValue placeholder="Categoria" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border-border">
+                      <SelectItem value="none" className="text-[10px] uppercase tracking-widest">Sem Categoria</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id} className="text-[10px] uppercase tracking-widest">
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
