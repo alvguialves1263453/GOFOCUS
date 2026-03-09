@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
+// NAO MEXER PQ DEU CERTO! (NAO SABER COMO TA FEITO, MAS FUNCIONA)
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();

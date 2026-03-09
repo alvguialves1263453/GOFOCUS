@@ -67,7 +67,6 @@ const Login = () => {
                             <label className="text-[9px] uppercase tracking-[0.3em] text-white/40 ml-4 font-bold">E-mail</label>
                             <input
                                 type="email"
-                                placeholder="usuario@gofocus.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
@@ -78,7 +77,6 @@ const Login = () => {
                             <label className="text-[9px] uppercase tracking-[0.3em] text-white/40 ml-4 font-bold">Senha</label>
                             <input
                                 type="password"
-                                placeholder="••••••••"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
