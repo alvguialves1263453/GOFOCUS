@@ -42,11 +42,23 @@ export async function getProjectsAsync(): Promise<Project[]> {
     }
 
     // Map snake_case from DB to camelCase for UI
-    return (data || []).map((p: any) => ({
+    const remoteProjects = (data || []).map((p: any) => ({
       ...p,
       clientName: p.client_name || p.clientName,
       categoryId: p.category_id
     }));
+
+    // Merge with local projects for resilience
+    const localProjects = getProjectsLocal();
+    const allProjects = [...remoteProjects];
+
+    localProjects.forEach(local => {
+      if (!allProjects.find(p => p.id === local.id)) {
+        allProjects.unshift(local);
+      }
+    });
+
+    return allProjects;
   } catch (err) {
     console.error('Critical failure in getProjectsAsync:', err);
     return getProjectsLocal();

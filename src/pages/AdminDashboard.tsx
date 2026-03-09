@@ -29,6 +29,13 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 const AdminDashboard = () => {
@@ -39,6 +46,7 @@ const AdminDashboard = () => {
   const [showForm, setShowForm] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [projectName, setProjectName] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [categoryName, setCategoryName] = useState("");
   const [saving, setSaving] = useState(false);
   const [categorySaving, setCategorySaving] = useState(false);
@@ -73,11 +81,13 @@ const AdminDashboard = () => {
         photos: [],
         createdAt: new Date().toISOString(),
         featured: false,
-        coverIndex: 0
+        coverIndex: 0,
+        categoryId: selectedCategoryId || undefined
       };
       await saveProjectAsync(newProject);
       toast.success("Projeto criado com sucesso!");
       setProjectName("");
+      setSelectedCategoryId("");
       setShowForm(false);
       loadProjects();
     } catch (err: any) {
@@ -232,16 +242,33 @@ const AdminDashboard = () => {
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  <div className="flex flex-col gap-8 max-w-md">
-                    <div className="space-y-3">
-                      <label className="text-[9px] uppercase tracking-[0.4em] text-white/50 ml-4 font-bold">Título do Projeto</label>
-                      <input
-                        type="text"
-                        placeholder="Ex: Casamento em Milão"
-                        value={projectName}
-                        onChange={(e) => setProjectName(e.target.value)}
-                        className="w-full glass-liquid border-white/5 bg-transparent px-8 py-5 rounded-full text-sm text-white focus:outline-none focus:border-primary/30 transition-all placeholder:text-white/10"
-                      />
+                  <div className="flex flex-col gap-8 max-w-2xl">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <label className="text-[9px] uppercase tracking-[0.4em] text-white/50 ml-4 font-bold">Título do Projeto</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Casamento em Milão"
+                          value={projectName}
+                          onChange={(e) => setProjectName(e.target.value)}
+                          className="w-full glass-liquid border-white/5 bg-transparent px-8 py-5 rounded-full text-sm text-white focus:outline-none focus:border-primary/30 transition-all placeholder:text-white/10"
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[9px] uppercase tracking-[0.4em] text-white/50 ml-4 font-bold">Categoria</label>
+                        <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+                          <SelectTrigger className="w-full glass-liquid border-white/5 bg-transparent px-8 py-5 h-auto rounded-full text-sm text-white focus:outline-none focus:ring-0 focus:ring-offset-0 border-white/5 transition-all">
+                            <SelectValue placeholder="Selecione uma categoria" />
+                          </SelectTrigger>
+                          <SelectContent className="glass-liquid border-white/10 text-white">
+                            {categories.map((cat) => (
+                              <SelectItem key={cat.id} value={cat.id} className="focus:bg-white/10 focus:text-white">
+                                {cat.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     <button
                       onClick={handleSave}
