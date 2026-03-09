@@ -131,6 +131,28 @@ const ClientPreview = () => {
 
   const handleDownload = async (url: string, index: number) => {
     const fileName = `${project?.clientName || "foto"}-${index + 1}.jpg`;
+
+    // Web Share API fallback for mobile (better for iOS Photos app)
+    if (navigator.share) {
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const file = new File([blob], fileName, { type: "image/jpeg" });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: project?.clientName || "Foto GoFocus",
+            text: "Salvar foto na galeria"
+          });
+          return;
+        }
+      } catch (err) {
+        console.log("Falha ao usar Web Share:", err);
+      }
+    }
+
+    // Default download logic (fallback)
     try {
       const res = await fetch(url);
       const blob = await res.blob();
