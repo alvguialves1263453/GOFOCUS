@@ -15,7 +15,7 @@ import {
 } from "@/lib/storage";
 import { deleteFromImageKit } from "@/lib/imagekit";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check, QrCode, Tag, ExternalLink } from "lucide-react";
+import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check, QrCode, Tag, ExternalLink, X } from "lucide-react";
 import LiquidBackground from "@/components/LiquidBackground";
 import {
   Dialog,
@@ -67,9 +67,9 @@ const AdminDashboard = () => {
     setSaving(true);
     try {
       const newProject: Project = {
-        id: crypto.randomUUID(),
+        id: "", // storage.ts will generate
         clientName: projectName.trim(),
-        slug: generateSlug(projectName.trim()),
+        slug: "", // storage.ts will generate
         photos: [],
         createdAt: new Date().toISOString(),
         featured: false,

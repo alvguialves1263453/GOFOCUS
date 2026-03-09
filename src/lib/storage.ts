@@ -53,9 +53,16 @@ export async function getProjectsAsync(): Promise<Project[]> {
 }
 
 export async function saveProjectAsync(project: Project): Promise<void> {
+  const id = project.id || uuidv4();
+  const clientName = project.clientName.trim();
+  const slug = project.slug || generateSlug(clientName);
+
   const { categoryId, ...rest } = project;
   const dbProject = {
     ...rest,
+    id,
+    client_name: clientName,
+    slug,
     category_id: categoryId
   };
 

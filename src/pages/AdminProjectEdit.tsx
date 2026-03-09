@@ -67,7 +67,7 @@ const AdminProjectEdit = () => {
 
     try {
       const MAX_SIZE = 25 * 1024 * 1024;
-      const oversizedFiles = files.filter(f => f.size > MAX_SIZE);
+      const oversizedFiles = (files as File[]).filter(f => f.size > MAX_SIZE);
 
       if (oversizedFiles.length > 0) {
         toast.error(`Arquivo(s) muito grandes: ${oversizedFiles.map(f => f.name).join(", ")}. O limite é 25MB.`);
