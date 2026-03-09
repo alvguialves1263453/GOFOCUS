@@ -10,23 +10,9 @@ const ClientLogin = () => {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
-    const { user, loading: authLoading, signInWithGoogle } = useAuth();
-
-    useEffect(() => {
-        if (!authLoading && user) {
-            navigate("/dashboard");
-        }
-    }, [user, authLoading, navigate]);
-
-    const handleGoogleLogin = async () => {
-        setError("");
-        setLoading(true);
-        try {
-            await signInWithGoogle();
-        } catch (err: any) {
-            setError(err.message || "Erro ao fazer login com Google");
-            setLoading(false);
-        }
+    const { loading: authLoading } = useAuth();
+    const handleGoogleLogin = () => {
+        setError("O login com Google foi desativado. Por favor, entre em contato com o administrador.");
     };
 
     if (authLoading) {
@@ -54,21 +40,25 @@ const ClientLogin = () => {
                             Área do Cliente
                         </h1>
                         <p className="text-[9px] text-white/40 uppercase tracking-[0.2em]">
-                            Acesse suas fotos e projetos
+                            Acesso Restrito
                         </p>
                         <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                     </div>
                 </div>
 
                 <div className="flex flex-col gap-6">
-                    <button
-                        onClick={handleGoogleLogin}
-                        disabled={loading}
-                        className="bg-white text-black px-8 py-5 rounded-full text-[10px] font-bold uppercase tracking-[0.4em] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-3 glow-border"
-                    >
-                        <LogIn className="w-4 h-4" />
-                        {loading ? "Redirecionando..." : "Entrar com Google"}
-                    </button>
+                    <div className="text-center space-y-4">
+                        <p className="text-[10px] text-white/60 uppercase tracking-[0.2em] leading-relaxed">
+                            O acesso via conta Google foi removido.<br />
+                            Aguarde novas instruções de acesso.
+                        </p>
+                        <button
+                            onClick={() => navigate("/")}
+                            className="text-[9px] text-primary uppercase tracking-[0.4em] font-bold hover:underline"
+                        >
+                            Voltar ao Início
+                        </button>
+                    </div>
 
                     {error && (
                         <motion.p

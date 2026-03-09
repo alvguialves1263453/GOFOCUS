@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+/* Google Fonts removed */
+
 
 @tailwind base;
 @tailwind components;
@@ -41,8 +42,8 @@
     --glass-border: rgba(255, 255, 255, 0.1);
     --glass-blur: 20px;
 
-    --font-display: 'Inter', system-ui, -apple-system, sans-serif;
-    --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-display: system-ui, -apple-system, sans-serif;
+    --font-body: system-ui, -apple-system, sans-serif;
   }
 }
 

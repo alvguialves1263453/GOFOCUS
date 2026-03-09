@@ -240,7 +240,7 @@ const AdminProjectEdit = () => {
               {uploadStatus.isUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Plus className="h-8 w-8" strokeWidth={1} />}
             </div>
             <div className="space-y-3">
-              <h3 className="text-xl font-display font-light text-white/90">Expandir Narrativa</h3>
+              <h3 className="text-xl font-display font-light text-white/90">Role para Baixo!</h3>
               <p className="text-[9px] uppercase tracking-[0.4em] text-white/30 font-bold">Arraste os arquivos ou clique para processar as capturas</p>
             </div>
           </motion.div>

@@ -68,21 +68,17 @@ const Profile = () => {
                         {/* Avatar & Name */}
                         <div className="flex flex-col items-center text-center gap-6">
                             <div className="h-24 w-24 rounded-full bg-primary/20 p-1 border-2 border-primary/30 shadow-[0_0_30px_rgba(var(--primary-rgb),0.2)]">
-                                {user.user_metadata?.avatar_url ? (
-                                    <img src={user.user_metadata.avatar_url} alt="Avatar" className="h-full w-full rounded-full object-cover" />
-                                ) : (
-                                    <div className="h-full w-full rounded-full bg-black/40 flex items-center justify-center text-primary text-3xl font-display">
-                                        {user.email?.charAt(0).toUpperCase()}
-                                    </div>
-                                )}
+                                <div className="h-full w-full rounded-full bg-black/40 flex items-center justify-center text-primary text-3xl font-display">
+                                    {user.email?.charAt(0).toUpperCase()}
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <h1 className="font-display text-3xl font-light text-white tracking-tight uppercase">
-                                    {user.user_metadata?.full_name || "Seu Perfil"}
+                                    {user.email?.split('@')[0] || "Usuário"}
                                 </h1>
                                 <div className="flex items-center justify-center gap-2">
                                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                    <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold">Logado com Google</p>
+                                    <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold">Sessão Ativa</p>
                                 </div>
                             </div>
                         </div>
