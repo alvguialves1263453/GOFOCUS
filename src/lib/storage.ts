@@ -71,7 +71,7 @@ export async function getProjectsAsync(): Promise<Project[]> {
   }
 }
 
-export async function saveProjectAsync(project: Project): Promise<{ remote: boolean }> {
+export async function saveProjectAsync(project: Project): Promise<{ remote: boolean; error?: string }> {
   const id = project.id || uuidv4();
   const clientName = project.clientName.trim();
   const slug = project.slug || generateSlug(clientName);
@@ -89,20 +89,26 @@ export async function saveProjectAsync(project: Project): Promise<{ remote: bool
   };
 
   let remoteSuccess = false;
+  let remoteError = "";
   try {
     const { error } = await supabase.from('projects').insert([dbProject]);
     if (error) {
       console.warn("Falha ao salvar projeto no Supabase (possível RLS).", error);
+      remoteError = error.message;
     } else {
       remoteSuccess = true;
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error("Erro ao persistir no Supabase:", err);
+    remoteError = err.message || String(err);
   }
 
   // Mandatory local save for resilience
   saveProjectLocal({ ...project, id, clientName, slug });
-  return { remote: remoteSuccess };
+  return {
+    remote: remoteSuccess,
+    error: !remoteSuccess ? (remoteError || "Erro desconhecido no Banco de Dados.") : undefined
+  };
 }
 
 export async function updateProjectAsync(id: string, updates: Partial<Project>): Promise<void> {
@@ -260,13 +266,14 @@ export async function getCategoriesAsync(): Promise<Category[]> {
   }
 }
 
-export async function saveCategoryAsync(category: Category): Promise<{ remote: boolean }> {
+export async function saveCategoryAsync(category: Category): Promise<{ remote: boolean; error?: string }> {
   // Ensure fields are present and clean
   const id = category.id || uuidv4();
   const name = category.name.trim();
   const slug = category.slug || generateSlug(name);
 
   let remoteSuccess = false;
+  let remoteError = "";
   try {
     const { error } = await supabase
       .from('categories')
@@ -274,16 +281,21 @@ export async function saveCategoryAsync(category: Category): Promise<{ remote: b
 
     if (error) {
       console.warn("Falha ao salvar categoria no Supabase (RLS).", error);
+      remoteError = error.message;
     } else {
       remoteSuccess = true;
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error("Erro crítico ao salvar categoria:", err);
+    remoteError = err.message || String(err);
   }
 
   // Backup local para resiliência total
   saveCategoryLocal({ id, name, slug });
-  return { remote: remoteSuccess };
+  return {
+    remote: remoteSuccess,
+    error: !remoteSuccess ? (remoteError || "Erro ao salvar categoria.") : undefined
+  };
 }
 
 export async function updateCategoryAsync(id: string, updates: Partial<Category>): Promise<void> {

@@ -89,7 +89,7 @@ const AdminDashboard = () => {
       if (result.remote) {
         toast.success("Projeto criado e sincronizado com a nuvem!");
       } else {
-        toast.warning("Projeto salvo localmente, mas não sincronizado (Erro RLS). Verifique o banco de dados.");
+        toast.error("Salvo apenas localmente: " + (result.error || "Erro de permissão RLS."));
       }
       setProjectName("");
       setSelectedCategoryId("");
@@ -115,7 +115,7 @@ const AdminDashboard = () => {
       if (result.remote) {
         toast.success("Categoria criada e sincronizada!");
       } else {
-        toast.warning("Categoria salva localmente, mas não sincronizada. Verifique o banco de dados.");
+        toast.error("Salvo apenas localmente: " + (result.error || "Erro de permissão."));
       }
       setCategoryName("");
       setShowCategoryForm(false);
