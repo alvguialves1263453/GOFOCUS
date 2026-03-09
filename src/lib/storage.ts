@@ -65,7 +65,7 @@ export async function getProjectsAsync(): Promise<Project[]> {
   }
 }
 
-export async function saveProjectAsync(project: Project): Promise<void> {
+export async function saveProjectAsync(project: Project): Promise<{ remote: boolean }> {
   const id = project.id || uuidv4();
   const clientName = project.clientName.trim();
   const slug = project.slug || generateSlug(clientName);
@@ -79,10 +79,13 @@ export async function saveProjectAsync(project: Project): Promise<void> {
     category_id: categoryId
   };
 
+  let remoteSuccess = false;
   try {
     const { error } = await supabase.from('projects').insert([dbProject]);
     if (error) {
-      console.warn("Falha ao salvar projeto no Supabase (possível RLS). Salvando localmente.", error);
+      console.warn("Falha ao salvar projeto no Supabase (possível RLS).", error);
+    } else {
+      remoteSuccess = true;
     }
   } catch (err) {
     console.error("Erro ao persistir no Supabase:", err);
@@ -90,6 +93,7 @@ export async function saveProjectAsync(project: Project): Promise<void> {
 
   // Mandatory local save for resilience
   saveProjectLocal({ ...project, id, clientName, slug });
+  return { remote: remoteSuccess };
 }
 
 export async function updateProjectAsync(id: string, updates: Partial<Project>): Promise<void> {
@@ -243,19 +247,22 @@ export async function getCategoriesAsync(): Promise<Category[]> {
   }
 }
 
-export async function saveCategoryAsync(category: Category): Promise<void> {
+export async function saveCategoryAsync(category: Category): Promise<{ remote: boolean }> {
   // Ensure fields are present and clean
   const id = category.id || uuidv4();
   const name = category.name.trim();
   const slug = category.slug || generateSlug(name);
 
+  let remoteSuccess = false;
   try {
     const { error } = await supabase
       .from('categories')
       .insert([{ id, name, slug }]);
 
     if (error) {
-      console.warn("Falha ao salvar categoria no Supabase (RLS). Salvando apenas localmente.", error);
+      console.warn("Falha ao salvar categoria no Supabase (RLS).", error);
+    } else {
+      remoteSuccess = true;
     }
   } catch (err) {
     console.error("Erro crítico ao salvar categoria:", err);
@@ -263,6 +270,7 @@ export async function saveCategoryAsync(category: Category): Promise<void> {
 
   // Backup local para resiliência total
   saveCategoryLocal({ id, name, slug });
+  return { remote: remoteSuccess };
 }
 
 export async function updateCategoryAsync(id: string, updates: Partial<Category>): Promise<void> {

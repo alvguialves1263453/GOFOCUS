@@ -118,7 +118,7 @@ const Index = () => {
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              className="text-5xl md:text-7xl font-display font-light tracking-tight text-white/90"
+              className="text-4xl md:text-7xl font-display font-light tracking-tight text-white/90"
             >
               Trabalhos Selecionados
             </motion.h2>

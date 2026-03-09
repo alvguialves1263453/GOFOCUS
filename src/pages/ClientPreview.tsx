@@ -196,14 +196,14 @@ const ClientPreview = () => {
           <motion.div className="mb-20 text-center flex flex-col items-center gap-8" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
             <div className="space-y-4 max-w-sm sm:max-w-none">
               <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.4em] sm:tracking-[0.5em] text-primary font-bold">Portfólio GoFocus</p>
-              <h1 className="font-display text-4xl sm:text-7xl font-light tracking-tight text-white/90 leading-tight">{project.clientName}</h1>
+              <h1 className="font-display text-4xl sm:text-7xl font-light tracking-tight text-white/90 leading-tight px-4">{project.clientName}</h1>
             </div>
 
             <div className="flex flex-col items-center gap-10 w-full max-w-sm sm:max-w-none">
               <button
                 onClick={handleLike}
                 disabled={liked}
-                className={`group relative flex items-center justify-center gap-6 overflow-hidden px-14 py-6 text-[10px] uppercase font-bold tracking-[0.4em] transition-all duration-700 rounded-full w-full sm:w-auto ${liked
+                className={`group relative flex items-center justify-center gap-6 overflow-hidden px-8 py-5 sm:px-14 sm:py-6 text-[10px] uppercase font-bold tracking-[0.4em] transition-all duration-700 rounded-full w-full sm:w-auto ${liked
                   ? "glass-liquid border-primary/20 text-primary/40 cursor-default scale-95"
                   : "bg-white text-black glow-border shadow-2xl active:scale-95"
                   }`}
@@ -283,11 +283,11 @@ const ClientPreview = () => {
             </div>
           </motion.div>
 
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {photos.map((photo, index) => (
               <motion.div
                 key={`${photo.url}-${index}`}
-                className="group relative cursor-pointer overflow-hidden rounded-[2.5rem] glass-liquid border-white/5 shadow-2xl"
+                className="group relative cursor-pointer overflow-hidden rounded-[1.5rem] sm:rounded-[2.5rem] glass-liquid border-white/5 shadow-2xl"
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}

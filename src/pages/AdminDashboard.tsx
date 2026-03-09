@@ -85,8 +85,12 @@ const AdminDashboard = () => {
         coverIndex: 0,
         categoryId: selectedCategoryId || undefined
       };
-      await saveProjectAsync(newProject);
-      toast.success("Projeto criado com sucesso!");
+      const result = await saveProjectAsync(newProject);
+      if (result.remote) {
+        toast.success("Projeto criado e sincronizado com a nuvem!");
+      } else {
+        toast.warning("Projeto salvo localmente, mas não sincronizado (Erro RLS). Verifique o banco de dados.");
+      }
       setProjectName("");
       setSelectedCategoryId("");
       setShowForm(false);
@@ -107,8 +111,12 @@ const AdminDashboard = () => {
         name: categoryName.trim(),
         slug: "" // storage.ts will generate if empty
       };
-      await saveCategoryAsync(newCategory);
-      toast.success("Categoria criada com sucesso!");
+      const result = await saveCategoryAsync(newCategory);
+      if (result.remote) {
+        toast.success("Categoria criada e sincronizada!");
+      } else {
+        toast.warning("Categoria salva localmente, mas não sincronizada. Verifique o banco de dados.");
+      }
       setCategoryName("");
       setShowCategoryForm(false);
       loadCategories();
@@ -188,8 +196,8 @@ const AdminDashboard = () => {
     <div className="min-h-screen relative text-foreground selection:bg-primary/30">
       <LiquidBackground />
 
-      <header className="px-3 py-6 sm:px-6 sm:py-8 relative z-20">
-        <div className="mx-auto flex flex-col sm:flex-row max-w-6xl items-center justify-between gap-6 sm:gap-4 glass-liquid px-6 sm:px-8 py-5 sm:py-4 rounded-[2rem] sm:rounded-full glow-border">
+      <header className="px-3 py-4 sm:px-6 sm:py-8 relative z-20">
+        <div className="mx-auto flex flex-col sm:flex-row max-w-6xl items-center justify-between gap-6 sm:gap-4 glass-liquid px-5 sm:px-8 py-4 rounded-[2rem] sm:rounded-full glow-border">
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <h1 className="font-display text-2xl sm:text-xl font-light tracking-[0.2em] text-white">GoFocus</h1>
             <span className="text-[8px] uppercase tracking-[0.4em] text-white/30 sm:border-l sm:border-white/10 sm:pl-4 font-bold">Painel de Controle</span>
@@ -428,10 +436,10 @@ function ProjectCard({ project, categories, onClick, onCopyLink, onShowQr, onDel
           </div>
         )}
       </div>
-      <div className="p-8 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h3 className="font-display text-2xl text-white/90 tracking-tight leading-none group-hover:text-white transition-colors">{project.clientName}</h3>
+      <div className="p-6 sm:p-8 space-y-5 sm:space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-1 min-w-0">
+            <h3 className="font-display text-xl sm:text-2xl text-white/90 tracking-tight leading-none group-hover:text-white transition-colors truncate">{project.clientName}</h3>
             <p className="text-[9px] text-white/20 uppercase tracking-[0.4em] font-bold">
               {project.photos?.length || 0} Captura{(project.photos?.length || 0) !== 1 ? "s" : ""}
             </p>
