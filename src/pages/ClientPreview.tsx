@@ -5,6 +5,7 @@ import { getProjectBySlugAsync, getProjectsAsync, incrementLikesAsync, checkIfLi
 import { Loader2, Download, X, Heart, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
+import LiquidBackground from "@/components/LiquidBackground";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +23,7 @@ const ImageWithLoader = ({ src, alt, className, onClick }: { src: string; alt: s
         {!isLoaded && (
           <motion.div
             key="loader"
-            className="absolute inset-0 animate-shimmer"
+            className="absolute inset-0 bg-white/5 animate-pulse"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
@@ -44,7 +45,6 @@ const ImageWithLoader = ({ src, alt, className, onClick }: { src: string; alt: s
 
 const ClientPreview = () => {
   const { id, slug } = useParams<{ id?: string; slug?: string }>();
-  // ... existing states ...
   const [project, setProject] = useState<Project | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -54,7 +54,6 @@ const ClientPreview = () => {
   const [likeCount, setLikeCount] = useState(0);
   const [isQrOpen, setIsQrOpen] = useState(false);
 
-  // ... (rest of the component logic until the grid starts around line 250)
   useEffect(() => {
     async function loadProject() {
       setLoading(true);
@@ -114,15 +113,7 @@ const ClientPreview = () => {
       setTimeout(() => setShowThanks(false), 3000);
     } catch (err: any) {
       console.error("Erro completo ao curtir:", err);
-      let message = "Não foi possível curtir agora.";
-      if (err.message && err.message.includes("relation") && err.message.includes("does not exist")) {
-        message = "Erro no banco: Mesa 'project_likes' não encontrada no Supabase.";
-      } else if (err.code === "42501" || (err.message && err.message.includes("permission denied"))) {
-        message = "Erro de permissão: Você precisa desativar o RLS ou criar uma política de segurança no Supabase.";
-      } else if (err.code) {
-        message = `Erro ${err.code}: ${err.message || "Falha na comunicação com o banco"}`;
-      }
-      toast.error(message);
+      toast.error("Não foi possível processar seu like agora.");
     }
   };
 
@@ -143,25 +134,12 @@ const ClientPreview = () => {
     try {
       const res = await fetch(url);
       const blob = await res.blob();
-      const file = new File([blob], fileName, { type: "image/jpeg" });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: fileName,
-          });
-          return;
-        } catch (shareError) {
-          console.log("Share failed or cancelled, falling back to download");
-        }
-      }
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = fileName;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch (err) {
-      console.error("Falha ao baixar imagem:", err);
       window.open(url, "_blank");
     }
   };
@@ -169,7 +147,8 @@ const ClientPreview = () => {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <LiquidBackground />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
@@ -177,7 +156,8 @@ const ClientPreview = () => {
   if (notFound || !project) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">Projeto não encontrado.</p>
+        <LiquidBackground />
+        <p className="text-sm text-white/40 uppercase tracking-widest">Projeto não encontrado.</p>
       </div>
     );
   }
@@ -188,25 +168,28 @@ const ClientPreview = () => {
   return (
     <>
       <meta name="robots" content="noindex, nofollow" />
-      <div className="min-h-screen bg-background px-3 py-10 sm:px-6 sm:py-16">
-        <div className="mx-auto max-w-6xl">
-          <motion.div className="mb-10 text-center" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">GoFocus</p>
-            <h1 className="font-display text-3xl font-light tracking-[0.1em] text-foreground sm:text-5xl">{project.clientName}</h1>
+      <div className="min-h-screen relative px-3 py-10 sm:px-6 sm:py-24">
+        <LiquidBackground />
+        <div className="mx-auto max-w-6xl relative z-10">
+          <motion.div className="mb-20 text-center flex flex-col items-center gap-8" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+            <div className="space-y-4 max-w-sm sm:max-w-none">
+              <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.4em] sm:tracking-[0.5em] text-primary font-bold">Portfólio GoFocus</p>
+              <h1 className="font-display text-4xl sm:text-7xl font-light tracking-tight text-white/90 leading-tight">{project.clientName}</h1>
+            </div>
 
-            <div className="mt-12 flex flex-col items-center gap-6">
+            <div className="flex flex-col items-center gap-10 w-full max-w-sm sm:max-w-none">
               <button
                 onClick={handleLike}
                 disabled={liked}
-                className={`group relative flex items-center gap-4 overflow-hidden px-12 py-5 text-sm uppercase font-medium tracking-[0.4em] transition-all duration-700 ${liked
-                  ? "border border-primary/10 bg-primary/5 text-primary/30 cursor-default scale-95"
-                  : "bg-white text-black hover:bg-transparent hover:text-white border border-white hover:border-white shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] active:scale-95"
+                className={`group relative flex items-center justify-center gap-6 overflow-hidden px-14 py-6 text-[10px] uppercase font-bold tracking-[0.4em] transition-all duration-700 rounded-full w-full sm:w-auto ${liked
+                  ? "glass-liquid border-primary/20 text-primary/40 cursor-default scale-95"
+                  : "bg-white text-black glow-border shadow-2xl active:scale-95"
                   }`}
               >
-                <Heart className={`h-5 w-5 transition-all duration-500 ${liked ? "fill-primary text-primary scale-110" : "group-hover:scale-125 group-hover:fill-black/10"}`} />
-                <span>{liked ? "Projeto Curtido" : "Curtir este Projeto"}</span>
+                <Heart className={`h-5 w-5 transition-all duration-500 ${liked ? "fill-primary text-primary scale-110" : "group-hover:scale-125"}`} strokeWidth={liked ? 0 : 2} />
+                <span>{liked ? "Projeto Curtido" : "Curtir Projeto"}</span>
                 {likeCount > 0 && (
-                  <span className={`ml-4 flex h-6 items-center justify-center border-l pl-4 font-display text-lg ${liked ? "border-primary/10" : "border-black/20 group-hover:border-white/20"}`}>
+                  <span className={`ml-4 flex h-6 items-center justify-center border-l pl-4 font-display text-xl ${liked ? "border-primary/20" : "border-black/10"}`}>
                     {likeCount}
                   </span>
                 )}
@@ -233,12 +216,6 @@ const ClientPreview = () => {
                     </motion.div>
                   ))}
                 </div>
-
-                {!liked && <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full"
-                  animate={{ translateX: ["100%", "-100%"] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "linear", repeatDelay: 1 }}
-                />}
               </button>
 
               <AnimatePresence>
@@ -247,15 +224,9 @@ const ClientPreview = () => {
                     initial={{ opacity: 0, y: 20, scale: 0.8 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -20, scale: 0.8 }}
-                    className="flex flex-col items-center gap-2"
+                    className="flex flex-col items-center gap-3"
                   >
-                    <span className="text-xs uppercase font-light tracking-[0.5em] text-white">✨ Obrigado por curtir! ✨</span>
-                    <motion.div
-                      className="h-px w-24 bg-gradient-to-r from-transparent via-white/50 to-transparent"
-                      initial={{ width: 0 }}
-                      animate={{ width: 120 }}
-                      transition={{ duration: 1 }}
-                    />
+                    <span className="text-[10px] uppercase font-bold tracking-[0.5em] text-primary">✨ Obrigado pelo apoio ✨</span>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -263,26 +234,26 @@ const ClientPreview = () => {
               <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
                 <DialogTrigger asChild>
                   <button
-                    className="flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground transition-colors duration-300"
+                    className="flex items-center gap-3 text-[9px] uppercase tracking-[0.4em] text-white/30 hover:text-white transition-all duration-500 glass-liquid px-6 py-3 rounded-full border-white/5"
                   >
                     <QrCode className="h-4 w-4" />
-                    Gerar QR Code
+                    Compartilhar via QR
                   </button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md bg-background border-border">
+                <DialogContent className="sm:max-w-md glass-liquid border-white/10 glow-border">
                   <DialogHeader>
-                    <DialogTitle className="font-display text-xl font-light tracking-widest text-center uppercase">QR Code do Projeto</DialogTitle>
+                    <DialogTitle className="font-display text-xl font-light tracking-[0.2em] text-center uppercase text-white/90">QR Code do Projeto</DialogTitle>
                   </DialogHeader>
-                  <div className="flex flex-col items-center justify-center space-y-6 py-6">
-                    <div className="bg-white p-4 rounded-xl shadow-2xl">
+                  <div className="flex flex-col items-center justify-center space-y-8 py-8">
+                    <div className="bg-white p-6 rounded-[2rem] shadow-[0_30px_60px_rgba(255,255,255,0.1)]">
                       <img
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.href)}`}
                         alt="QR Code"
                         className="w-[200px] h-[200px] sm:w-[250px] sm:h-[250px]"
                       />
                     </div>
-                    <p className="text-[10px] text-center uppercase tracking-[0.2em] text-muted-foreground px-4">
-                      Escaneie para abrir este projeto em outro dispositivo
+                    <p className="text-[9px] text-center uppercase tracking-[0.3em] text-white/40 px-6 leading-relaxed">
+                      Escaneie para visualizar esta experiência em outro dispositivo
                     </p>
                   </div>
                 </DialogContent>
@@ -290,27 +261,31 @@ const ClientPreview = () => {
             </div>
           </motion.div>
 
-          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {photos.map((photo, index) => (
               <motion.div
                 key={`${photo.url}-${index}`}
-                className="group relative cursor-pointer overflow-hidden"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05, duration: 0.4 }}
+                className="group relative cursor-pointer overflow-hidden rounded-[2.5rem] glass-liquid border-white/5 shadow-2xl"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: (index % 4) * 0.1, duration: 0.8 }}
+                whileHover={{ y: -8 }}
               >
                 <ImageWithLoader
                   src={photo.url}
                   alt={`${project.clientName} - Foto ${index + 1}`}
-                  className="w-full aspect-square transition-transform duration-500 group-hover:scale-105"
+                  className="w-full aspect-[4/5] object-cover transition-transform duration-[2s] group-hover:scale-110 opacity-70 group-hover:opacity-100"
                   onClick={() => setSelectedPhoto(photo.url)}
                 />
               </motion.div>
             ))}
           </div>
 
-          <motion.div className="mt-16 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5, duration: 1 }}>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">© {new Date().getFullYear()} GoFocus — Todos os direitos reservados</p>
+          <motion.div className="mt-24 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1, duration: 1 }}>
+            <p className="text-[8px] uppercase tracking-[0.5em] text-white/15">
+              © {new Date().getFullYear()} GoFocus Narrative Interiors — Evolução Constante
+            </p>
           </motion.div>
         </div>
       </div>
@@ -318,35 +293,35 @@ const ClientPreview = () => {
       <AnimatePresence>
         {selectedPhoto && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setSelectedPhoto(null)}
           >
             <motion.div
-              className="relative max-h-[90vh] max-w-[90vw]"
-              initial={{ scale: 0.9, opacity: 0 }}
+              className="relative max-h-[90vh] max-w-[95vw]"
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
               <ImageWithLoader
                 src={selectedPhoto}
                 alt="Foto ampliada"
-                className="max-h-[85vh] max-w-[90vw] object-contain rounded"
+                className="max-h-[85vh] max-w-[95vw] object-contain rounded-[2rem] shadow-2xl"
               />
-              <div className="absolute top-3 right-3 flex gap-2">
+              <div className="absolute top-6 right-6 flex gap-4">
                 <button
                   onClick={() => handleDownload(selectedPhoto, selectedIndex)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/40"
+                  className="flex h-12 w-12 items-center justify-center rounded-full glass-liquid glow-border text-white transition-all hover:scale-110"
                   title="Baixar foto"
                 >
                   <Download className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => setSelectedPhoto(null)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/40"
+                  className="flex h-12 w-12 items-center justify-center rounded-full glass-liquid glow-border text-white transition-all hover:scale-110"
                   title="Fechar"
                 >
                   <X className="h-5 w-5" />

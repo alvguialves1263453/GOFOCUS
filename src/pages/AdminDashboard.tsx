@@ -15,7 +15,8 @@ import {
 } from "@/lib/storage";
 import { deleteFromImageKit } from "@/lib/imagekit";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check, QrCode, Tag } from "lucide-react";
+import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check, QrCode, Tag, ExternalLink } from "lucide-react";
+import LiquidBackground from "@/components/LiquidBackground";
 import {
   Dialog,
   DialogContent,
@@ -91,9 +92,9 @@ const AdminDashboard = () => {
     setCategorySaving(true);
     try {
       const newCategory: Category = {
-        id: crypto.randomUUID(),
+        id: "", // storage.ts will generate if empty
         name: categoryName.trim(),
-        slug: generateSlug(categoryName.trim())
+        slug: "" // storage.ts will generate if empty
       };
       await saveCategoryAsync(newCategory);
       toast.success("Categoria criada com sucesso!");
@@ -101,7 +102,8 @@ const AdminDashboard = () => {
       setShowCategoryForm(false);
       loadCategories();
     } catch (err: any) {
-      toast.error("Erro ao salvar categoria");
+      console.error("Erro na UI ao salvar categoria:", err);
+      toast.error(err.message || "Erro ao salvar categoria");
     } finally {
       setCategorySaving(false);
     }
@@ -165,22 +167,27 @@ const AdminDashboard = () => {
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <LiquidBackground />
+        <p className="text-[10px] text-white/40 uppercase tracking-[0.4em] animate-pulse">Autenticando...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border/50 px-6 py-5 backdrop-blur-sm sticky top-0 z-10 bg-background/80">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 className="font-display text-xl font-light tracking-[0.15em] text-foreground">GoFocus</h1>
-            <span className="hidden sm:inline text-[10px] uppercase tracking-[0.3em] text-muted-foreground border-l border-border pl-4">Admin</span>
+    <div className="min-h-screen relative text-foreground selection:bg-primary/30">
+      <LiquidBackground />
+
+      <header className="px-3 py-6 sm:px-6 sm:py-8 relative z-20">
+        <div className="mx-auto flex flex-col sm:flex-row max-w-6xl items-center justify-between gap-6 sm:gap-4 glass-liquid px-6 sm:px-8 py-5 sm:py-4 rounded-[2rem] sm:rounded-full glow-border">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <h1 className="font-display text-2xl sm:text-xl font-light tracking-[0.2em] text-white">GoFocus</h1>
+            <span className="text-[8px] uppercase tracking-[0.4em] text-white/30 sm:border-l sm:border-white/10 sm:pl-4 font-bold">Painel de Controle</span>
           </div>
-          <div className="flex items-center gap-6">
-            <a href="/" target="_blank" rel="noopener noreferrer" className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors">Ver Site</a>
-            <button onClick={handleLogout} className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors">
+          <div className="flex items-center gap-10 sm:gap-8">
+            <a href="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[10px] sm:text-[9px] uppercase tracking-[0.3em] text-white/50 hover:text-white transition-all font-bold">
+              Ver Site <ExternalLink className="h-3 w-3" />
+            </a>
+            <button onClick={handleLogout} className="flex items-center gap-2 text-[10px] sm:text-[9px] uppercase tracking-[0.3em] text-white/50 hover:text-white transition-all font-bold">
               <LogOut className="h-3 w-3" />
               Sair
             </button>
@@ -188,36 +195,61 @@ const AdminDashboard = () => {
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-6 py-10">
+      <div className="mx-auto max-w-6xl px-6 py-10 relative z-10">
         <Tabs defaultValue="projects" className="w-full">
-          <div className="mb-8 flex items-center justify-between">
-            <h2 className="font-display text-lg font-light tracking-wide text-foreground">Dashboard</h2>
-            <TabsList className="bg-secondary/20 border border-border">
-              <TabsTrigger value="projects" className="text-[10px] uppercase tracking-widest px-6 data-[state=active]:bg-foreground data-[state=active]:text-background">Projetos</TabsTrigger>
-              <TabsTrigger value="categories" className="text-[10px] uppercase tracking-widest px-6 data-[state=active]:bg-foreground data-[state=active]:text-background">Categorias</TabsTrigger>
+          <div className="mb-12 flex flex-col items-center justify-between gap-10 bg-black/20 p-8 sm:p-10 rounded-[3rem] border border-white/5 backdrop-blur-3xl lg:flex-row">
+            <div className="space-y-2 text-center lg:text-left">
+              <h2 className="font-display text-4xl sm:text-3xl font-light tracking-tight text-white/90">Gestão de Conteúdo</h2>
+              <p className="text-[9px] uppercase tracking-[0.4em] text-white/30 font-bold">Organize seus projetos e categorias</p>
+            </div>
+            <TabsList className="bg-white/5 p-1.5 rounded-full border border-white/5 w-full max-w-[340px] sm:w-auto">
+              <TabsTrigger value="projects" className="flex-1 text-[9px] uppercase tracking-widest px-8 py-3.5 rounded-full data-[state=active]:bg-white data-[state=active]:text-black transition-all font-bold sm:flex-none">Projetos</TabsTrigger>
+              <TabsTrigger value="categories" className="flex-1 text-[9px] uppercase tracking-widest px-8 py-3.5 rounded-full data-[state=active]:bg-white data-[state=active]:text-black transition-all font-bold sm:flex-none">Categorias</TabsTrigger>
             </TabsList>
           </div>
 
           <TabsContent value="projects">
-            <div className="mb-8 flex items-center justify-between">
-              <h3 className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Gerenciar Projetos</h3>
-              <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center gap-2 border border-foreground bg-foreground px-5 py-2.5 text-[10px] uppercase tracking-[0.3em] text-background transition-all duration-300 hover:bg-transparent hover:text-foreground">
-                <Plus className="h-3.5 w-3.5" />
-                {showForm ? "Cancelar" : "Novo Projeto"}
+            <div className="mb-10 flex items-center justify-between">
+              <h3 className="text-[9px] uppercase tracking-[0.4em] text-white/30 font-bold px-4 border-l-2 border-primary">Projetos Ativos</h3>
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className={`inline-flex items-center gap-3 px-8 py-4 text-[9px] uppercase tracking-[0.3em] transition-all duration-500 rounded-full font-bold ${showForm
+                  ? "glass-liquid text-white border-white/10"
+                  : "bg-white text-black glow-border shadow-xl hover:scale-105"
+                  }`}
+              >
+                {showForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                {showForm ? "Fechar" : "Novo Projeto"}
               </button>
             </div>
 
             <AnimatePresence>
               {showForm && (
-                <motion.div className="mb-10 border border-border p-8 bg-secondary/20" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}>
-                  <div className="flex flex-col gap-5 max-w-md">
-                    <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Nome do Projeto</label>
-                      <input type="text" placeholder="Ex: Casamento Maria e João" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="w-full border border-border bg-background px-4 py-3 text-sm text-foreground focus:outline-none focus:border-foreground transition-colors" />
+                <motion.div
+                  className="mb-12 glass-liquid p-10 rounded-[3rem] glow-border shadow-2xl"
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <div className="flex flex-col gap-8 max-w-md">
+                    <div className="space-y-3">
+                      <label className="text-[9px] uppercase tracking-[0.4em] text-white/50 ml-4 font-bold">Título do Projeto</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Casamento em Milão"
+                        value={projectName}
+                        onChange={(e) => setProjectName(e.target.value)}
+                        className="w-full glass-liquid border-white/5 bg-transparent px-8 py-5 rounded-full text-sm text-white focus:outline-none focus:border-primary/30 transition-all placeholder:text-white/10"
+                      />
                     </div>
-                    <button onClick={handleSave} disabled={saving || !projectName.trim()} className="inline-flex items-center justify-center gap-2 border border-foreground bg-foreground px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-background transition-all duration-300 hover:bg-transparent hover:text-foreground disabled:opacity-30">
-                      {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                      {saving ? "Salvando..." : "Salvar Projeto"}
+                    <button
+                      onClick={handleSave}
+                      disabled={saving || !projectName.trim()}
+                      className="inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full text-[10px] uppercase tracking-[0.4em] font-bold transition-all hover:scale-[1.02] active:scale-[0.98] glow-border shadow-xl disabled:opacity-30"
+                    >
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                      {saving ? "Processando..." : "Criar Projeto Vitalício"}
                     </button>
                   </div>
                 </motion.div>
@@ -225,74 +257,70 @@ const AdminDashboard = () => {
             </AnimatePresence>
 
             {projects.length === 0 ? (
-              <div className="flex flex-col items-center justify-center border border-dashed border-border py-24">
-                <FolderOpen className="h-8 w-8 text-muted-foreground/20 mb-4" strokeWidth={1} />
-                <p className="text-sm text-muted-foreground">Nenhum projeto criado ainda.</p>
+              <div className="flex flex-col items-center justify-center glass-liquid py-32 rounded-[4rem] border-white/5 border-dashed">
+                <FolderOpen className="h-10 w-10 text-white/10 mb-6" strokeWidth={1} />
+                <p className="text-[10px] uppercase tracking-[0.4em] text-white/20 font-bold">A imensidão está vazia.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {projects.map((project) => {
-                  const photo = project.photos?.[project.coverIndex || 0];
-                  return (
-                    <motion.div key={project.id} className="group relative border border-border overflow-hidden cursor-pointer bg-secondary/10 transition-all hover:border-foreground/30 hover:bg-secondary/20" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onClick={() => navigate(`/admin/projeto/${project.id}`)}>
-                      <div className="relative aspect-[16/10] bg-secondary/30 overflow-hidden">
-                        {photo ? (
-                          <img src={photo.url} alt={`Capa - ${project.clientName}`} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                        ) : (
-                          <div className="flex h-full items-center justify-center"><Image className="h-8 w-8 text-muted-foreground/10" strokeWidth={1} /></div>
-                        )}
-                        {project.categoryId && categories.find(c => c.id === project.categoryId) && (
-                          <div className="absolute top-3 left-3 bg-background/80 backdrop-blur-sm border border-border px-2 py-1 text-[8px] uppercase tracking-widest text-foreground">
-                            {categories.find(c => c.id === project.categoryId)?.name}
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-5 flex items-center justify-between">
-                        <div>
-                          <h3 className="font-display text-base text-foreground group-hover:text-foreground transition-colors">{project.clientName}</h3>
-                          <p className="mt-1 text-[10px] text-muted-foreground uppercase tracking-wider">
-                            {project.photos?.length || 0} foto{(project.photos?.length || 0) !== 1 ? "s" : ""}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={(e) => handleCopyLink(e, project.slug, project.id)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-foreground hover:text-foreground transition-colors" title="Copiar link de compartilhamento">
-                            {copiedId === project.id ? <Check className="h-3.5 w-3.5" /> : <LinkIcon className="h-3.5 w-3.5" />}
-                          </button>
-                          <button onClick={(e) => handleShowQr(e, project.clientName, project.slug)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-foreground hover:text-foreground transition-colors" title="Ver QR Code">
-                            <QrCode className="h-3.5 w-3.5" />
-                          </button>
-                          <button onClick={(e) => handleDelete(e, project.id)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-destructive hover:text-destructive transition-colors">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
+              <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+                {projects.map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    categories={categories}
+                    onClick={() => navigate(`/admin/projeto/${project.id}`)}
+                    onCopyLink={handleCopyLink}
+                    onShowQr={handleShowQr}
+                    onDelete={handleDelete}
+                    copiedId={copiedId}
+                  />
+                ))}
               </div>
             )}
           </TabsContent>
 
           <TabsContent value="categories">
-            <div className="mb-8 flex items-center justify-between">
-              <h3 className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Gerenciar Categorias</h3>
-              <button onClick={() => setShowCategoryForm(!showCategoryForm)} className="inline-flex items-center gap-2 border border-foreground bg-foreground px-5 py-2.5 text-[10px] uppercase tracking-[0.3em] text-background transition-all duration-300 hover:bg-transparent hover:text-foreground">
-                <Plus className="h-3.5 w-3.5" />
-                {showCategoryForm ? "Cancelar" : "Nova Categoria"}
+            <div className="mb-10 flex items-center justify-between">
+              <h3 className="text-[9px] uppercase tracking-[0.4em] text-white/30 font-bold px-4 border-l-2 border-primary">Estrutura de Categorias</h3>
+              <button
+                onClick={() => setShowCategoryForm(!showCategoryForm)}
+                className={`inline-flex items-center gap-3 px-8 py-4 text-[9px] uppercase tracking-[0.3em] transition-all duration-500 rounded-full font-bold ${showCategoryForm
+                  ? "glass-liquid text-white border-white/10"
+                  : "bg-white text-black glow-border shadow-xl hover:scale-105"
+                  }`}
+              >
+                {showCategoryForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                {showCategoryForm ? "Fechar" : "Nova Categoria"}
               </button>
             </div>
 
             <AnimatePresence>
               {showCategoryForm && (
-                <motion.div className="mb-10 border border-border p-8 bg-secondary/20" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}>
-                  <div className="flex flex-col gap-5 max-w-md">
-                    <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Nome da Categoria</label>
-                      <input type="text" placeholder="Ex: Esportes, Retratos, Eventos" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} className="w-full border border-border bg-background px-4 py-3 text-sm text-foreground focus:outline-none focus:border-foreground transition-colors" />
+                <motion.div
+                  className="mb-12 glass-liquid p-10 rounded-[3rem] glow-border shadow-2xl"
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <div className="flex flex-col gap-8 max-w-md">
+                    <div className="space-y-3">
+                      <label className="text-[9px] uppercase tracking-[0.4em] text-white/50 ml-4 font-bold">Título da Categoria</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Arquitetura, Interiores"
+                        value={categoryName}
+                        onChange={(e) => setCategoryName(e.target.value)}
+                        className="w-full glass-liquid border-white/5 bg-transparent px-8 py-5 rounded-full text-sm text-white focus:outline-none focus:border-primary/30 transition-all placeholder:text-white/10"
+                      />
                     </div>
-                    <button onClick={handleSaveCategory} disabled={categorySaving || !categoryName.trim()} className="inline-flex items-center justify-center gap-2 border border-foreground bg-foreground px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-background transition-all duration-300 hover:bg-transparent hover:text-foreground disabled:opacity-30">
-                      {categorySaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                      {categorySaving ? "Salvando..." : "Salvar Categoria"}
+                    <button
+                      onClick={handleSaveCategory}
+                      disabled={categorySaving || !categoryName.trim()}
+                      className="inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full text-[10px] uppercase tracking-[0.4em] font-bold transition-all hover:scale-[1.02] active:scale-[0.98] glow-border shadow-xl disabled:opacity-30"
+                    >
+                      {categorySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tag className="h-4 w-4" />}
+                      {categorySaving ? "Processando..." : "Registrar Categoria"}
                     </button>
                   </div>
                 </motion.div>
@@ -300,20 +328,20 @@ const AdminDashboard = () => {
             </AnimatePresence>
 
             {categories.length === 0 ? (
-              <div className="flex flex-col items-center justify-center border border-dashed border-border py-24">
-                <Tag className="h-8 w-8 text-muted-foreground/20 mb-4" strokeWidth={1} />
-                <p className="text-sm text-muted-foreground">Nenhuma categoria criada ainda.</p>
+              <div className="flex flex-col items-center justify-center glass-liquid py-32 rounded-[4rem] border-white/5 border-dashed">
+                <Tag className="h-10 w-10 text-white/10 mb-6" strokeWidth={1} />
+                <p className="text-[10px] uppercase tracking-[0.4em] text-white/20 font-bold">Sem nichos definidos.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {categories.map((category) => (
-                  <div key={category.id} className="flex items-center justify-between border border-border p-5 bg-secondary/10 group hover:border-foreground/30 transition-all">
-                    <div>
-                      <h4 className="font-display text-base text-foreground">{category.name}</h4>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{category.slug}</p>
+                  <div key={category.id} className="flex items-center justify-between glass-liquid p-8 rounded-[2.5rem] group hover:border-white/20 transition-all glow-border">
+                    <div className="space-y-1">
+                      <h4 className="font-display text-lg text-white/90">{category.name}</h4>
+                      <p className="text-[8px] text-white/20 uppercase tracking-[0.4em] font-bold">{category.slug}</p>
                     </div>
-                    <button onClick={() => handleDeleteCategory(category.id)} className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground hover:border-destructive hover:text-destructive transition-colors">
-                      <Trash2 className="h-3.5 w-3.5" />
+                    <button onClick={() => handleDeleteCategory(category.id)} className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/5 text-white/30 hover:border-destructive/30 hover:text-destructive transition-all">
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 ))}
@@ -323,13 +351,13 @@ const AdminDashboard = () => {
         </Tabs>
 
         <Dialog open={!!qrProject} onOpenChange={(open) => !open && setQrProject(null)}>
-          <DialogContent className="sm:max-w-md bg-background border-border">
+          <DialogContent className="sm:max-w-md glass-liquid border-white/10 glow-border">
             <DialogHeader>
-              <DialogTitle className="font-display text-xl font-light tracking-widest text-center uppercase">QR Code do Projeto</DialogTitle>
+              <DialogTitle className="font-display text-xl font-light tracking-[0.2em] text-center uppercase text-white/90">QR Code do Projeto</DialogTitle>
             </DialogHeader>
-            <div className="flex flex-col items-center justify-center space-y-6 py-6">
-              <span className="text-[10px] uppercase font-light tracking-[0.2em] text-white/70">{qrProject?.name}</span>
-              <div className="bg-white p-4 rounded-xl shadow-2xl">
+            <div className="flex flex-col items-center justify-center space-y-8 py-8">
+              <span className="text-[10px] uppercase font-bold tracking-[0.4em] text-primary">{qrProject?.name}</span>
+              <div className="bg-white p-6 rounded-[2rem] shadow-[0_30px_60px_rgba(255,255,255,0.1)]">
                 {qrProject && (
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrProject.url)}`}
@@ -338,8 +366,8 @@ const AdminDashboard = () => {
                   />
                 )}
               </div>
-              <p className="text-[10px] text-center uppercase tracking-[0.2em] text-muted-foreground px-4">
-                Escaneie para abrir este projeto em outro dispositivo
+              <p className="text-[9px] text-center uppercase tracking-[0.3em] text-white/40 px-6 leading-relaxed">
+                Escaneie para visualizar este portfólio em outro dispositivo
               </p>
             </div>
           </DialogContent>
@@ -348,5 +376,58 @@ const AdminDashboard = () => {
     </div>
   );
 };
+
+function ProjectCard({ project, categories, onClick, onCopyLink, onShowQr, onDelete, copiedId }: any) {
+  const photo = project.photos?.[project.coverIndex || 0];
+  const category = categories.find((c: any) => c.id === project.categoryId);
+
+  return (
+    <motion.div
+      className="group relative glass-liquid rounded-[3rem] overflow-hidden cursor-pointer border-white/5 glow-border shadow-2xl transition-all hover:-translate-y-2 duration-500"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      onClick={onClick}
+    >
+      <div className="relative aspect-[16/10] bg-white/5 overflow-hidden">
+        {photo ? (
+          <img src={photo.url} alt={project.clientName} className="h-full w-full object-cover transition-transform duration-[2s] group-hover:scale-110 opacity-60 group-hover:opacity-100" />
+        ) : (
+          <div className="flex h-full items-center justify-center"><Image className="h-8 w-8 text-white/5" strokeWidth={1} /></div>
+        )}
+        {category && (
+          <div className="absolute top-5 left-5 glass-liquid px-4 py-1.5 rounded-full text-[7px] font-bold uppercase tracking-[0.3em] text-white border-white/10 glow-border">
+            {category.name}
+          </div>
+        )}
+      </div>
+      <div className="p-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h3 className="font-display text-2xl text-white/90 tracking-tight leading-none group-hover:text-white transition-colors">{project.clientName}</h3>
+            <p className="text-[9px] text-white/20 uppercase tracking-[0.4em] font-bold">
+              {project.photos?.length || 0} Captura{(project.photos?.length || 0) !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <motion.div whileHover={{ scale: 1.1 }} className="h-10 w-10 flex items-center justify-center glass-liquid rounded-full border-white/10 glow-border">
+            <ExternalLink className="h-3.5 w-3.5 text-white/40" />
+          </motion.div>
+        </div>
+
+        <div className="flex items-center gap-3 pt-2">
+          <button onClick={(e) => onCopyLink(e, project.slug, project.id)} className="flex-1 flex h-12 items-center justify-center gap-3 glass-liquid rounded-full border-white/5 text-[9px] font-bold uppercase tracking-widest text-white/40 hover:text-white hover:border-white/20 transition-all glow-border">
+            {copiedId === project.id ? <Check className="h-3.5 w-3.5 text-primary" /> : <LinkIcon className="h-3.5 w-3.5" />}
+            {copiedId === project.id ? "Copiado" : "Link"}
+          </button>
+          <button onClick={(e) => onShowQr(e, project.clientName, project.slug)} className="flex h-12 w-12 items-center justify-center glass-liquid rounded-full border-white/5 text-white/40 hover:text-white hover:border-white/20 transition-all glow-border">
+            <QrCode className="h-4 w-4" />
+          </button>
+          <button onClick={(e) => onDelete(e, project.id)} className="flex h-12 w-12 items-center justify-center glass-liquid rounded-full border-white/5 text-white/20 hover:text-destructive hover:border-destructive/30 transition-all glow-border">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export default AdminDashboard;

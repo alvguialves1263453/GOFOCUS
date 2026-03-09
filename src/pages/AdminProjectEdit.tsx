@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getProjectsAsync, updateProjectAsync, getCategoriesAsync, type Project, type ProjectPhoto, type Category } from "@/lib/storage";
 import { uploadToImageKit, getOptimizedUrl, deleteFromImageKit } from "@/lib/imagekit";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ExternalLink, Tag } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ExternalLink, Tag, X, Image, Sparkles, Camera } from "lucide-react";
+import LiquidBackground from "@/components/LiquidBackground";
 import {
   Select,
   SelectContent,
@@ -20,7 +21,6 @@ const AdminProjectEdit = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
   const [copied, setCopied] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ total: number; current: number; isUploading: boolean }>({
     total: 0,
@@ -28,6 +28,7 @@ const AdminProjectEdit = () => {
     isUploading: false
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
     if (id) {
@@ -65,7 +66,7 @@ const AdminProjectEdit = () => {
     setUploadStatus({ total: files.length, current: 0, isUploading: true });
 
     try {
-      const MAX_SIZE = 25 * 1024 * 1024; // 25MB limit for ImageKit free tier
+      const MAX_SIZE = 25 * 1024 * 1024;
       const oversizedFiles = files.filter(f => f.size > MAX_SIZE);
 
       if (oversizedFiles.length > 0) {
@@ -75,9 +76,6 @@ const AdminProjectEdit = () => {
       }
 
       const uploadedPhotos: ProjectPhoto[] = [];
-
-      // Upload sequentially to show progress or use Promise.all and update in batches
-      // For better UX, we can do them in sequence to see the counter go up
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const uploaded = await uploadToImageKit(file, `gofocus/${project.slug}`);
@@ -106,7 +104,6 @@ const AdminProjectEdit = () => {
     const updatedPhotos = project.photos.filter((_, i) => i !== index);
 
     try {
-      // First delete from ImageKit
       if (photoToRemove.publicId) {
         await deleteFromImageKit(photoToRemove.publicId);
       }
@@ -141,7 +138,6 @@ const AdminProjectEdit = () => {
   const updateCategory = async (categoryId: string) => {
     if (!project || categoryId === project.categoryId) return;
     try {
-      // "none" will be stored as undefined or empty
       const idToStore = categoryId === "none" ? undefined : categoryId;
       await updateProjectAsync(project.id, { categoryId: idToStore });
       setProject({ ...project, categoryId: idToStore });
@@ -151,10 +147,11 @@ const AdminProjectEdit = () => {
     }
   };
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <LiquidBackground />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
@@ -164,40 +161,46 @@ const AdminProjectEdit = () => {
   const photos = project.photos || [];
 
   return (
-    <div className="min-h-screen bg-background px-6 py-12">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-12 flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex items-start gap-5">
-            <button onClick={() => navigate("/admin/dashboard")} className="mt-1 flex h-10 w-10 items-center justify-center border border-border/50 text-muted-foreground transition-all hover:border-foreground hover:text-foreground hover:bg-secondary/50">
-              <ArrowLeft className="h-4 w-4" />
+    <div className="min-h-screen relative text-foreground selection:bg-primary/30">
+      <LiquidBackground />
+
+      <div className="mx-auto max-w-6xl px-6 py-12 relative z-10">
+        <div className="mb-16 flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between glass-liquid p-8 sm:p-12 rounded-[3.5rem] glow-border shadow-2xl">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 text-center sm:text-left w-full lg:w-auto">
+            <button
+              onClick={() => navigate("/admin/dashboard")}
+              className="flex h-14 w-14 items-center justify-center shrink-0 rounded-full glass-liquid border-white/5 text-white/40 transition-all hover:text-white hover:bg-white/10 glow-border"
+            >
+              <ArrowLeft className="h-5 w-5" />
             </button>
-            <div className="space-y-2">
+            <div className="space-y-6 w-full">
               <input
                 type="text"
                 defaultValue={project.clientName}
                 onBlur={(e) => updateName(e.target.value)}
-                className="bg-transparent font-display text-4xl font-light tracking-tight text-foreground outline-none border-b border-transparent focus:border-border transition-colors w-full sm:w-[400px]"
+                className="bg-transparent font-display text-4xl sm:text-5xl font-light tracking-tight text-white/90 outline-none border-b border-transparent focus:border-white/20 transition-all w-full text-center sm:text-left"
               />
-              <div className="flex flex-wrap items-center gap-4">
-                <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center gap-2">
-                  <span>{photos.length} fotos</span>
-                  <span className="h-1 w-1 rounded-full bg-border" />
-                  <span>Criado em {new Date(project.createdAt).toLocaleDateString("pt-BR")}</span>
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-6">
+                <p className="text-[10px] uppercase tracking-[0.4em] text-white/30 font-bold flex items-center gap-3">
+                  <Camera className="h-4 w-4" />
+                  <span>{photos.length} Fotos</span>
+                  <span className="h-1 w-1 rounded-full bg-white/10" />
+                  <span>{new Date(project.createdAt).toLocaleDateString("pt-BR")}</span>
                 </p>
-                <div className="h-4 w-px bg-border hidden sm:block" />
-                <div className="flex items-center gap-2">
-                  <Tag className="h-3 w-3 text-muted-foreground" />
+                <div className="h-5 w-px bg-white/10 hidden sm:block" />
+                <div className="flex items-center gap-4 glass-liquid px-6 py-2.5 rounded-full border-white/5 glow-border">
+                  <Tag className="h-3.5 w-3.5 text-primary" />
                   <Select
                     defaultValue={project.categoryId || "none"}
                     onValueChange={updateCategory}
                   >
-                    <SelectTrigger className="h-7 w-auto min-w-[120px] bg-transparent border-none p-0 text-[10px] uppercase tracking-[0.2em] text-foreground focus:ring-0 focus:ring-offset-0">
+                    <SelectTrigger className="h-auto w-auto min-w-[150px] bg-transparent border-none p-0 text-[10px] font-bold uppercase tracking-[0.3em] text-white/70 focus:ring-0 focus:ring-offset-0">
                       <SelectValue placeholder="Categoria" />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border-border">
-                      <SelectItem value="none" className="text-[10px] uppercase tracking-widest">Sem Categoria</SelectItem>
+                    <SelectContent className="glass-liquid border-white/10 text-white">
+                      <SelectItem value="none" className="text-[10px] uppercase tracking-widest font-bold">Sem Categoria</SelectItem>
                       {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id} className="text-[10px] uppercase tracking-widest">
+                        <SelectItem key={cat.id} value={cat.id} className="text-[10px] uppercase tracking-widest font-bold">
                           {cat.name}
                         </SelectItem>
                       ))}
@@ -207,35 +210,43 @@ const AdminProjectEdit = () => {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={handleCopyLink} className="inline-flex items-center gap-2 border border-border/50 px-5 py-3 text-[9px] uppercase tracking-[0.2em] text-muted-foreground transition-all hover:border-foreground hover:text-foreground">
-              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? "Copiado!" : "Copiar Link Público"}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full lg:w-auto">
+            <button
+              onClick={handleCopyLink}
+              className="flex h-14 items-center justify-center gap-3 glass-liquid px-10 rounded-full border-white/5 text-[10px] uppercase tracking-[0.3em] font-bold text-white/50 transition-all hover:text-white glow-border w-full sm:w-auto"
+            >
+              {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+              {copied ? "Link Copiado!" : "Compartilhar"}
             </button>
-            <a href={`/cliente/${project.slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 border border-foreground bg-foreground px-5 py-3 text-[9px] uppercase tracking-[0.2em] text-background transition-all hover:bg-transparent hover:text-foreground">
-              <ExternalLink className="h-3.5 w-3.5" />
+            <a
+              href={`/cliente/${project.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-14 items-center justify-center gap-3 bg-white text-black px-10 rounded-full text-[10px] uppercase tracking-[0.4em] font-bold shadow-xl transition-all hover:scale-105 active:scale-95 glow-border w-full sm:w-auto"
+            >
+              <ExternalLink className="h-4 w-4" />
               Ver Prévia
             </a>
           </div>
         </div>
 
-        <div className="mb-12 p-10 border border-dashed border-border/60 bg-secondary/5 text-center transition-all hover:border-border hover:bg-secondary/10 relative overflow-hidden group">
+        <div className="mb-16 p-16 glass-liquid rounded-[4rem] border border-dashed border-white/10 bg-white/[0.02] text-center transition-all hover:bg-white/[0.04] relative overflow-hidden group glow-border shadow-2xl">
           <input ref={fileInputRef} type="file" multiple accept="image/*" onChange={handleAddPhotos} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={uploadStatus.isUploading} />
           <motion.div
-            className="flex flex-col items-center gap-4 py-4"
-            animate={uploadStatus.isUploading ? { scale: 0.95, opacity: 0.5 } : { scale: 1, opacity: 1 }}
+            className="flex flex-col items-center gap-6"
+            animate={uploadStatus.isUploading ? { scale: 0.98, opacity: 0.6 } : { scale: 1, opacity: 1 }}
           >
-            <div className="h-14 w-14 rounded-full border border-border flex items-center justify-center bg-background group-hover:bg-foreground group-hover:text-background transition-all duration-500 shadow-sm">
-              {uploadStatus.isUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Plus className="h-6 w-6" strokeWidth={1} />}
+            <div className="h-20 w-20 rounded-full glass-liquid border-white/5 flex items-center justify-center bg-white/5 group-hover:bg-white group-hover:text-black transition-all duration-700 glow-border shadow-2xl">
+              {uploadStatus.isUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Plus className="h-8 w-8" strokeWidth={1} />}
             </div>
-            <div className="space-y-1">
-              <p className="text-sm text-foreground font-medium tracking-wide">{uploadStatus.isUploading ? `Enviando ${uploadStatus.current}/${uploadStatus.total}...` : "Clique ou arraste para enviar novas fotos"}</p>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Otimização automática ativada</p>
+            <div className="space-y-3">
+              <h3 className="text-xl font-display font-light text-white/90">Expandir Narrativa</h3>
+              <p className="text-[9px] uppercase tracking-[0.4em] text-white/30 font-bold">Arraste os arquivos ou clique para processar as capturas</p>
             </div>
           </motion.div>
           {uploadStatus.isUploading && (
             <motion.div
-              className="absolute bottom-0 left-0 h-1 bg-foreground"
+              className="absolute bottom-0 left-0 h-1.5 bg-primary"
               initial={{ width: 0 }}
               animate={{ width: `${(uploadStatus.current / uploadStatus.total) * 100}%` }}
               transition={{ type: "spring", bounce: 0, duration: 0.5 }}
@@ -244,16 +255,17 @@ const AdminProjectEdit = () => {
         </div>
 
         {photos.length === 0 ? (
-          <div className="flex items-center justify-center py-32 border border-border/30 rounded-lg">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/50">Nenhuma foto adicionada</p>
+          <div className="flex flex-col items-center justify-center py-40 glass-liquid rounded-[4rem] border-white/5 border-dashed">
+            <Image className="h-12 w-12 text-white/10 mb-6" strokeWidth={1} />
+            <p className="text-[10px] uppercase tracking-[0.4em] text-white/20 font-bold">Nenhuma captura disponível ainda.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 animate-in fade-in slide-in-from-bottom-5 duration-1000">
             <AnimatePresence mode="popLayout">
               {photos.map((photo, index) => (
                 <motion.div
                   key={`${photo.url}-${index}`}
-                  className="group relative aspect-[3/4] overflow-hidden bg-secondary/10"
+                  className="group relative aspect-[3/4] overflow-hidden rounded-[2rem] glass-liquid border-white/5 glow-border shadow-2xl"
                   layout
                   initial={{ opacity: 0, scale: 0.9, y: 20 }}
                   animate={{
@@ -262,26 +274,30 @@ const AdminProjectEdit = () => {
                     y: 0,
                     transition: {
                       type: "spring",
-                      duration: 0.6,
+                      duration: 0.8,
                       delay: index * 0.05
                     }
                   }}
-                  exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
-                  whileHover={{ y: -5 }}
+                  exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.3 } }}
+                  whileHover={{ y: -8 }}
                 >
                   <img
-                    src={getOptimizedUrl(photo.url, 400)}
+                    src={getOptimizedUrl(photo.url, 600)}
                     alt={`Foto ${index + 1}`}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="h-full w-full object-cover transition-transform duration-[2s] group-hover:scale-110 opacity-70 group-hover:opacity-100"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-background/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button onClick={() => handleRemovePhoto(index)} className="h-10 w-10 flex items-center justify-center bg-background border border-border text-destructive hover:bg-destructive hover:text-background transition-all hover:scale-110 shadow-lg">
-                      <Trash2 className="h-4 w-4" />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-4">
+                    <button
+                      onClick={() => handleRemovePhoto(index)}
+                      className="h-14 w-14 flex items-center justify-center rounded-full glass-liquid border-white/10 text-destructive hover:scale-110 transition-all glow-border shadow-2xl"
+                    >
+                      <Trash2 className="h-6 w-6" />
                     </button>
+                    <span className="text-[10px] uppercase tracking-[0.4em] text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity delay-100">Excluir</span>
                   </div>
-                  <div className="absolute bottom-2 left-2 px-2 py-1 bg-background/80 backdrop-blur-sm border border-border/50 text-[8px] uppercase tracking-widest text-muted-foreground opacity-60 group-hover:opacity-100 transition-opacity">
-                    #{index + 1}
+                  <div className="absolute bottom-4 left-4 glass-liquid px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest text-white/40 border-white/5">
+                    CPT {index + 1}
                   </div>
                 </motion.div>
               ))}
@@ -293,27 +309,28 @@ const AdminProjectEdit = () => {
       <AnimatePresence>
         {uploadStatus.isUploading && (
           <motion.div
-            initial={{ y: 100, opacity: 0 }}
+            initial={{ y: 150, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-foreground text-background px-8 py-4 rounded-full shadow-2xl flex items-center gap-6 min-w-[300px]"
+            exit={{ y: 150, opacity: 0 }}
+            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 glass-liquid px-10 py-6 rounded-[3rem] glow-border shadow-[0_40px_100px_rgba(0,0,0,0.8)] flex items-center gap-8 min-w-[350px] border-white/10"
           >
-            <div className="relative h-10 w-10 flex items-center justify-center">
+            <div className="relative h-14 w-14 flex items-center justify-center">
               <svg className="absolute inset-0 h-full w-full -rotate-90">
-                <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-20" />
+                <circle cx="28" cy="28" r="25" fill="none" stroke="currentColor" strokeWidth="3" className="text-white/10" />
                 <motion.circle
-                  cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="2"
-                  strokeDasharray="113.1"
-                  animate={{ strokeDashoffset: 113.1 * (1 - uploadStatus.current / uploadStatus.total) }}
+                  cx="28" cy="28" r="25" fill="none" stroke="primary" strokeWidth="3"
+                  strokeDasharray="157"
+                  animate={{ strokeDashoffset: 157 * (1 - uploadStatus.current / uploadStatus.total) }}
+                  className="text-primary"
                 />
               </svg>
-              <span className="text-[10px] font-bold">{Math.round((uploadStatus.current / uploadStatus.total) * 100)}%</span>
+              <span className="text-[11px] font-bold text-white">{Math.round((uploadStatus.current / uploadStatus.total) * 100)}%</span>
             </div>
-            <div className="flex-1">
-              <p className="text-[10px] uppercase tracking-widest font-bold opacity-70 mb-1">Enviando Galeria</p>
-              <p className="text-xs">{uploadStatus.current} de {uploadStatus.total} arquivos</p>
+            <div className="flex-1 space-y-1">
+              <p className="text-[10px] uppercase tracking-[0.4em] font-bold text-primary">Processando Midia</p>
+              <p className="text-xs text-white/60">{uploadStatus.current} de {uploadStatus.total} arquivos finalizados</p>
             </div>
-            <Loader2 className="h-4 w-4 animate-spin opacity-50" />
+            <Sparkles className="h-5 w-5 text-primary animate-pulse" />
           </motion.div>
         )}
       </AnimatePresence>

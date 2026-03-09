@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface ProjectPhoto {
   url: string;
@@ -217,16 +218,29 @@ export async function getCategoriesAsync(): Promise<Category[]> {
 }
 
 export async function saveCategoryAsync(category: Category): Promise<void> {
-  // Ensure we only send fields that exist in the DB
-  const { id, name, slug } = category;
-  const { error } = await supabase.from('categories').insert([{ id, name, slug }]);
+  // Ensure fields are present and clean
+  const id = category.id || uuidv4();
+  const name = category.name.trim();
+  const slug = category.slug || generateSlug(name);
+
+  console.log("Tentando persistir categoria:", { id, name, slug });
+
+  const { error } = await supabase
+    .from('categories')
+    .insert([{ id, name, slug }]);
 
   if (error) {
-    console.error('Supabase Error saving category:', error);
-    throw error;
+    console.error('Erro detalhado do Supabase (Categorias):', error);
+    if (error.code === '42501') {
+      throw new Error("Permissão negada (RLS). Verifique as políticas da tabela 'categories' no Supabase Dashboard.");
+    }
+    if (error.code === '23505') {
+      throw new Error("Esta categoria ou slug já existe.");
+    }
+    throw new Error(error.message || "Falha ao salvar categoria no banco de dados.");
   }
 
-  saveCategoryLocal(category);
+  saveCategoryLocal({ id, name, slug });
 }
 
 export async function updateCategoryAsync(id: string, updates: Partial<Category>): Promise<void> {

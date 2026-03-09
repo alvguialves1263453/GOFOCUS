@@ -48,14 +48,28 @@
 
 @layer utilities {
   .glass {
-    background: var(--glass-background);
-    backdrop-filter: blur(var(--glass-blur)) saturate(150%);
-    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-liquid {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(40px) saturate(220%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05),
+      0 10px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  .glow-border {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.1),
+      inset 0 0 10px rgba(255, 255, 255, 0.05);
   }
 
   .glass-dark {
     background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(40px) saturate(200%);
+    backdrop-filter: blur(50px) saturate(250%);
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
