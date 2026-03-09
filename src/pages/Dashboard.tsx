@@ -98,15 +98,25 @@ const Dashboard = () => {
 
                             <nav className="flex flex-col gap-2">
                                 <p className="text-[9px] uppercase tracking-[0.3em] text-white/30 mb-2">Menu</p>
-                                <button className="flex items-center gap-4 p-4 rounded-2xl bg-primary text-black text-[10px] font-bold uppercase tracking-[0.2em]">
+                                <button
+                                    onClick={() => navigate("/dashboard")}
+                                    className="flex items-center gap-4 p-4 rounded-2xl bg-primary text-black text-[10px] font-bold uppercase tracking-[0.2em] w-full text-left"
+                                >
                                     <LayoutDashboard className="w-4 h-4" />
                                     Painel
                                 </button>
-                                <button className="flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 text-white/60 hover:text-white text-[10px] font-bold uppercase tracking-[0.2em] transition-all">
+                                <button
+                                    onClick={() => navigate("/perfil")}
+                                    className="flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 text-white/60 hover:text-white text-[10px] font-bold uppercase tracking-[0.2em] transition-all w-full text-left"
+                                >
+                                    <UserIcon className="w-4 h-4" />
+                                    Meu Perfil
+                                </button>
+                                <button className="flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 text-white/60 hover:text-white text-[10px] font-bold uppercase tracking-[0.2em] transition-all w-full text-left">
                                     <FolderKanban className="w-4 h-4" />
                                     Meus Projetos
                                 </button>
-                                <button className="flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 text-white/60 hover:text-white text-[10px] font-bold uppercase tracking-[0.2em] transition-all">
+                                <button className="flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 text-white/60 hover:text-white text-[10px] font-bold uppercase tracking-[0.2em] transition-all w-full text-left">
                                     <ShoppingCart className="w-4 h-4" />
                                     Carrinho
                                 </button>

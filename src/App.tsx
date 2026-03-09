@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import ClientLogin from "./pages/ClientLogin";
 import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminProjectEdit from "./pages/AdminProjectEdit";
 import ClientPreview from "./pages/ClientPreview";
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/login" element={<ClientLogin />} />
           <Route path="/admin" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/perfil" element={<Profile />} />
           <Route
             path="/admin/dashboard"
             element={
