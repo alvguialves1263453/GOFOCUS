@@ -78,8 +78,9 @@ export function getOptimizedUrl(url: string, width?: number, height?: number): s
     const transformations = [];
     if (width) transformations.push(`w-${width}`);
     if (height) transformations.push(`h-${height}`);
-    transformations.push("q-auto"); // Automatic quality
+    transformations.push("q-90"); // High quality for photographers
     transformations.push("f-auto"); // Automatic format (webp/avif)
+
 
     const transformString = transformations.join(",");
 

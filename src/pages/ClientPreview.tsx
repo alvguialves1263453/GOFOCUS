@@ -296,10 +296,11 @@ const ClientPreview = () => {
                 <ImageWithLoader
                   src={photo.url}
                   alt={`${project.clientName} - Foto ${index + 1}`}
-                  width={600}
+                  width={1200}
                   className="w-full aspect-[4/5] object-cover transition-transform duration-[2s] group-hover:scale-110 opacity-70 group-hover:opacity-100"
                   onClick={() => setSelectedPhoto(photo.url)}
                 />
+
 
               </motion.div>
             ))}
@@ -331,10 +332,11 @@ const ClientPreview = () => {
             >
               <ImageWithLoader
                 src={selectedPhoto}
-                width={1200}
+                width={2560}
                 alt="Foto ampliada"
                 className="max-h-[85vh] max-w-[95vw] object-contain rounded-[2rem] shadow-2xl"
               />
+
 
               <div className="absolute top-6 right-6 flex gap-4">
                 <button
