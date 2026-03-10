@@ -21,17 +21,13 @@ const ImageWithLoader = ({
   alt,
   className,
   onClick,
-  width = 800,
-  placeholderWidth,
-  isPriority = false
+  width = 800
 }: {
   src: string;
   alt: string;
   className?: string;
   onClick?: () => void;
   width?: number;
-  placeholderWidth?: number;
-  isPriority?: boolean;
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -40,35 +36,27 @@ const ImageWithLoader = ({
   }, [src]);
 
   return (
-    <div className={`relative overflow-hidden ${className}`} onClick={onClick}>
-      {/* Camada 1: Placeholder/Fundo (Sempre no fundo para evitar buracos) */}
-      {placeholderWidth && (
-        <img
-          src={getOptimizedUrl(src, placeholderWidth)}
-          alt=""
-          className={`absolute inset-0 h-full w-full ${className} pointer-events-none select-none`}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Camada 2: Loader (Apenas se não tiver placeholder) */}
-      {!isLoaded && !placeholderWidth && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/5">
-          <Loader2 className="h-4 w-4 animate-spin text-white/10" />
+    <div
+      className={`relative overflow-hidden bg-white/5 ${className}`}
+      onClick={onClick}
+    >
+      {!isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-white/20" />
         </div>
       )}
 
-      {/* Camada 3: Imagem Final (Sobreposta) */}
       <motion.img
         key={src}
         src={getOptimizedUrl(src, width)}
         alt={alt}
-        className={`relative z-10 h-full w-full ${className} ${!isLoaded ? "opacity-0" : "opacity-100"}`}
+        className={`h-full w-full ${className} ${!isLoaded ? "opacity-0" : "opacity-100"}`}
         onLoad={() => setIsLoaded(true)}
         initial={{ opacity: 0 }}
         animate={{ opacity: isLoaded ? 1 : 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        loading={isPriority ? "eager" : "lazy"}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        loading="lazy"
+        decoding="async"
       />
     </div>
   );
@@ -165,7 +153,7 @@ const ClientPreview = () => {
   const handleDownload = async (url: string, index: number) => {
     const fileName = `${project?.clientName || "foto"}-${index + 1}.jpg`;
 
-    // Web Share API fallback for mobile (better for iOS Photos app)
+    // Web Share API for iOS/Android (Native gallery experience)
     if (navigator.share) {
       try {
         const response = await fetch(url);
@@ -175,13 +163,13 @@ const ClientPreview = () => {
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
-            title: project?.clientName || "Foto GoFocus",
-            text: "Salvar foto na galeria"
+            title: `GoFocus - ${project?.clientName || "Foto"}`,
+            text: "Salvar foto em alta qualidade"
           });
           return;
         }
       } catch (err) {
-        console.log("Falha ao usar Web Share:", err);
+        console.warn("Navigator share failed:", err);
       }
     }
 
@@ -219,6 +207,7 @@ const ClientPreview = () => {
 
   const photos = project.photos || [];
   const selectedIndex = selectedPhoto ? photos.findIndex(p => p.url === selectedPhoto) : -1;
+
 
   return (
     <>
@@ -367,11 +356,10 @@ const ClientPreview = () => {
               <ImageWithLoader
                 src={selectedPhoto}
                 width={2560}
-                placeholderWidth={1200}
-                isPriority={true}
                 alt="Foto ampliada"
-                className="max-h-[85vh] max-w-[95vw] object-contain rounded-[2rem] shadow-2xl relative z-10"
+                className="max-h-[85vh] max-w-[95vw] object-contain rounded-[2rem] shadow-2xl"
               />
+
 
 
 
