@@ -13,7 +13,8 @@ import {
   type ProjectPhoto,
   type Category
 } from "@/lib/storage";
-import { deleteFromImageKit } from "@/lib/imagekit";
+import { deleteFromImageKit, getOptimizedUrl } from "@/lib/imagekit";
+
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check, QrCode, Tag, ExternalLink, X } from "lucide-react";
 import LiquidBackground from "@/components/LiquidBackground";
@@ -426,10 +427,16 @@ function ProjectCard({ project, categories, onClick, onCopyLink, onShowQr, onDel
     >
       <div className="relative aspect-[16/10] bg-white/5 overflow-hidden">
         {photo ? (
-          <img src={photo.url} alt={project.clientName} className="h-full w-full object-cover transition-transform duration-[2s] group-hover:scale-110 opacity-60 group-hover:opacity-100" />
+          <img
+            src={getOptimizedUrl(photo.url, 600)}
+            alt={project.clientName}
+            className="h-full w-full object-cover transition-transform duration-[2s] group-hover:scale-110 opacity-60 group-hover:opacity-100"
+            loading="lazy"
+          />
         ) : (
           <div className="flex h-full items-center justify-center"><Image className="h-8 w-8 text-white/5" strokeWidth={1} /></div>
         )}
+
         {category && (
           <div className="absolute top-5 left-5 glass-liquid px-4 py-1.5 rounded-full text-[7px] font-bold uppercase tracking-[0.3em] text-white border-white/10 glow-border">
             {category.name}

@@ -4,6 +4,8 @@ import { getProjectsAsync, getCategoriesAsync, type Project, type Category } fro
 import { Heart, Instagram, ChevronDown, Sparkles, LayoutGrid, Camera, Eye, Award, Loader2, Plus, FolderOpen, QrCode, MoveHorizontal } from "lucide-react";
 import logo from "@/assets/logo.png";
 import LiquidBackground from "@/components/LiquidBackground";
+import { getOptimizedUrl } from "@/lib/imagekit";
+
 
 const INSTAGRAM_URL = "https://instagram.com/gofocus.br";
 
@@ -286,11 +288,13 @@ function PortfolioCard({ project, index }: { project: Project; index: number }) 
       whileHover={{ y: -12 }}
     >
       <img
-        src={cover.url}
+        src={getOptimizedUrl(cover.url, 800)}
         alt={project.clientName}
         className="h-full w-full object-cover transition-transform duration-[2s] group-hover:scale-110 opacity-70 group-hover:opacity-100 transition-opacity"
         loading="lazy"
+        decoding="async"
       />
+
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
 
       <div className="absolute inset-x-6 bottom-6 glass-liquid glow-border p-7 rounded-[2rem] backdrop-blur-3xl overflow-hidden shadow-2xl translate-y-2 group-hover:translate-y-0 transition-transform duration-700">

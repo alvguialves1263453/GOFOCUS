@@ -105,6 +105,8 @@
   z-index: -1;
   pointer-events: none;
   mix-blend-mode: soft-light;
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
 }
 
 @layer base {
@@ -145,5 +147,22 @@
     opacity: 0 !important;
     width: 0 !important;
     height: 0 !important;
+  }
+}
+
+/* Mobile Performance Optimizations */
+@media (max-width: 768px) {
+  .glass-liquid {
+    backdrop-filter: blur(15px) saturate(150%) !important;
+  }
+
+  .blur-blob {
+    filter: blur(40px) !important;
+    opacity: 0.3 !important;
+  }
+
+  body {
+    overscroll-behavior-y: none;
+    /* Prevent pull-to-refresh crash on heavy pages */
   }
 }
