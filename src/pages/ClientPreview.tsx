@@ -35,38 +35,39 @@ const ImageWithLoader = ({
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Reiniciar estado de carregamento quando a URL mudar
   useEffect(() => {
     setIsLoaded(false);
   }, [src]);
 
   return (
     <div className={`relative overflow-hidden ${className}`} onClick={onClick}>
-      {/* Placeholder (sempre visível no fundo se disponível) */}
+      {/* Camada 1: Placeholder/Fundo (Sempre no fundo para evitar buracos) */}
       {placeholderWidth && (
         <img
           src={getOptimizedUrl(src, placeholderWidth)}
           alt=""
-          className={`absolute inset-0 h-full w-full ${className}`}
+          className={`absolute inset-0 h-full w-full ${className} pointer-events-none select-none`}
           aria-hidden="true"
         />
       )}
 
+      {/* Camada 2: Loader (Apenas se não tiver placeholder) */}
       {!isLoaded && !placeholderWidth && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/5">
           <Loader2 className="h-4 w-4 animate-spin text-white/10" />
         </div>
       )}
 
+      {/* Camada 3: Imagem Final (Sobreposta) */}
       <motion.img
         key={src}
         src={getOptimizedUrl(src, width)}
         alt={alt}
-        className={`h-full w-full ${className} ${!isLoaded ? "opacity-0" : "opacity-100"}`}
+        className={`relative z-10 h-full w-full ${className} ${!isLoaded ? "opacity-0" : "opacity-100"}`}
         onLoad={() => setIsLoaded(true)}
         initial={{ opacity: 0 }}
         animate={{ opacity: isLoaded ? 1 : 0 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
         loading={isPriority ? "eager" : "lazy"}
       />
     </div>
