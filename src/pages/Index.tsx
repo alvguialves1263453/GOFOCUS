@@ -4,6 +4,8 @@ import { getProjectsAsync, getCategoriesAsync, type Project, type Category } fro
 import { Heart, Instagram, ChevronDown, Sparkles, LayoutGrid, Camera, Eye, Award, Loader2, Plus, FolderOpen, QrCode, MoveHorizontal } from "lucide-react";
 import logo from "@/assets/logo.png";
 import LiquidBackground from "@/components/LiquidBackground";
+import { getOptimizedUrl } from "@/lib/imagekit";
+
 
 const INSTAGRAM_URL = "https://instagram.com/gofocus.br";
 
@@ -188,7 +190,7 @@ const Index = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3"
+                className="grid grid-cols-2 gap-3 sm:gap-8 lg:grid-cols-3"
               >
                 {filteredProjects.map((project, i) => (
                   <PortfolioCard key={project.id} project={project} index={i} />
@@ -276,7 +278,7 @@ function PortfolioCard({ project, index }: { project: Project; index: number }) 
   return (
     <motion.a
       href={`/projeto/${project.id}`}
-      className="group relative block aspect-[4/5] overflow-hidden rounded-[2.5rem] glass-liquid shadow-2xl border border-white/5"
+      className="group relative block aspect-[4/5] overflow-hidden rounded-[1.5rem] sm:rounded-[2.5rem] glass-liquid shadow-2xl border border-white/5"
       initial={{ opacity: 0, y: 40 }}
       whileInView={{
         opacity: 1,
@@ -286,27 +288,30 @@ function PortfolioCard({ project, index }: { project: Project; index: number }) 
       whileHover={{ y: -12 }}
     >
       <img
-        src={cover.url}
+        src={getOptimizedUrl(cover.url, 1600)}
         alt={project.clientName}
         className="h-full w-full object-cover transition-transform duration-[2s] group-hover:scale-110 opacity-70 group-hover:opacity-100 transition-opacity"
         loading="lazy"
+        decoding="async"
       />
+
+
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
 
-      <div className="absolute inset-x-6 bottom-6 glass-liquid glow-border p-7 rounded-[2rem] backdrop-blur-3xl overflow-hidden shadow-2xl translate-y-2 group-hover:translate-y-0 transition-transform duration-700">
-        <div className="relative z-10 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-display text-2xl text-white/90 tracking-tight leading-none">{project.clientName}</h3>
-            <span className="glass-liquid px-2 py-0.5 rounded-full text-[7px] font-bold text-white/60">PRM</span>
+      <div className="absolute inset-x-2 bottom-2 md:inset-x-6 md:bottom-6 glass-liquid glow-border p-3 md:p-7 rounded-[1rem] md:rounded-[2rem] backdrop-blur-3xl overflow-hidden shadow-2xl translate-y-1 md:translate-y-2 group-hover:translate-y-0 transition-transform duration-700">
+        <div className="relative z-10 space-y-1.5 md:space-y-3">
+          <div className="flex items-center justify-between gap-1">
+            <h3 className="font-display text-sm md:text-2xl text-white/90 tracking-tight leading-tight md:leading-none truncate">{project.clientName}</h3>
+            <span className="glass-liquid px-1.5 py-0.5 rounded-full text-[6px] md:text-[7px] font-bold text-white/60 shrink-0">PRM</span>
           </div>
-          <div className="flex items-center justify-between text-[8px] uppercase tracking-[0.3em] text-white/30">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-2.5 w-2.5" />
-              <span>{project.photos?.length || 0} Capturas</span>
+          <div className="flex items-center justify-between text-[6px] md:text-[8px] uppercase tracking-[0.2em] md:tracking-[0.3em] text-white/30">
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="h-2 md:h-2.5 w-2 md:w-2.5" />
+              <span className="truncate">{project.photos?.length || 0} Capturas</span>
             </div>
             {project.likes && project.likes > 0 && (
-              <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 text-white/80 border border-white/10">
-                <Heart className="h-3 w-3 fill-primary text-primary" />
+              <span className="flex items-center gap-1 md:gap-2 px-1.5 md:px-3 py-0.5 md:py-1 rounded-full bg-white/5 text-white/80 border border-white/10 shrink-0">
+                <Heart className="h-2 md:h-3 w-2 md:w-3 fill-primary text-primary" />
                 {project.likes}
               </span>
             )}

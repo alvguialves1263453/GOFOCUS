@@ -103,16 +103,38 @@ const AdminProjectEdit = () => {
     const photoToRemove = project.photos[index];
     const updatedPhotos = project.photos.filter((_, i) => i !== index);
 
+    // Adjust coverIndex if needed
+    let newCoverIndex = project.coverIndex || 0;
+    if (index === newCoverIndex) {
+      newCoverIndex = 0; // Reset to first if cover was deleted
+    } else if (index < newCoverIndex) {
+      newCoverIndex--; // Shift if a previous photo was deleted
+    }
+
     try {
       if (photoToRemove.publicId) {
         await deleteFromImageKit(photoToRemove.publicId);
       }
 
-      await updateProjectAsync(project.id, { photos: updatedPhotos });
-      setProject({ ...project, photos: updatedPhotos });
+      await updateProjectAsync(project.id, {
+        photos: updatedPhotos,
+        coverIndex: newCoverIndex
+      });
+      setProject({ ...project, photos: updatedPhotos, coverIndex: newCoverIndex });
       toast.success("Foto removida");
     } catch (err) {
       toast.error("Erro ao remover foto");
+    }
+  };
+
+  const handleSetCover = async (index: number) => {
+    if (!project) return;
+    try {
+      await updateProjectAsync(project.id, { coverIndex: index });
+      setProject({ ...project, coverIndex: index });
+      toast.success("Capa do projeto atualizada!");
+    } catch (err) {
+      toast.error("Erro ao atualizar capa");
     }
   };
 
@@ -288,14 +310,31 @@ const AdminProjectEdit = () => {
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-4">
-                    <button
-                      onClick={() => handleRemovePhoto(index)}
-                      className="h-14 w-14 flex items-center justify-center rounded-full glass-liquid border-white/10 text-destructive hover:scale-110 transition-all glow-border shadow-2xl"
-                    >
-                      <Trash2 className="h-6 w-6" />
-                    </button>
-                    <span className="text-[10px] uppercase tracking-[0.4em] text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity delay-100">Excluir</span>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleSetCover(index)}
+                        className={`h-14 w-14 flex items-center justify-center rounded-full glass-liquid border-white/10 transition-all glow-border shadow-2xl ${project.coverIndex === index ? 'text-primary' : 'text-white/40 hover:text-white'}`}
+                        title="Definir como capa"
+                      >
+                        <Image className="h-6 w-6" />
+                      </button>
+                      <button
+                        onClick={() => handleRemovePhoto(index)}
+                        className="h-14 w-14 flex items-center justify-center rounded-full glass-liquid border-white/10 text-destructive hover:scale-110 transition-all glow-border shadow-2xl"
+                        title="Excluir"
+                      >
+                        <Trash2 className="h-6 w-6" />
+                      </button>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-[0.4em] text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity delay-100">
+                      {project.coverIndex === index ? 'Capa vinculada' : 'Gerenciar'}
+                    </span>
                   </div>
+                  {project.coverIndex === index && (
+                    <div className="absolute top-4 right-4 glass-liquid px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest text-primary border-primary shadow-2xl">
+                      Capa
+                    </div>
+                  )}
                   <div className="absolute bottom-4 left-4 glass-liquid px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest text-white/40 border-white/5">
                     CPT {index + 1}
                   </div>

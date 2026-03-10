@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getProjectBySlugAsync, getProjectsAsync, incrementLikesAsync, checkIfLikedAsync, type Project } from "@/lib/storage";
 import { Loader2, Download, X, Heart, QrCode } from "lucide-react";
+import { getOptimizedUrl } from "@/lib/imagekit";
 import { toast } from "sonner";
+
 import { v4 as uuidv4 } from 'uuid';
 import LiquidBackground from "@/components/LiquidBackground";
 import {
@@ -14,34 +16,53 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-const ImageWithLoader = ({ src, alt, className, onClick }: { src: string; alt: string; className?: string; onClick?: () => void }) => {
+const ImageWithLoader = ({
+  src,
+  alt,
+  className,
+  onClick,
+  width = 800
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  onClick?: () => void;
+  width?: number;
+}) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
+  useEffect(() => {
+    setIsLoaded(false);
+  }, [src]);
+
   return (
-    <div className={`relative overflow-hidden ${className}`} onClick={onClick}>
-      <AnimatePresence>
-        {!isLoaded && (
-          <motion.div
-            key="loader"
-            className="absolute inset-0 bg-white/5 animate-pulse"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
-          />
-        )}
-      </AnimatePresence>
+    <div
+      className={`relative overflow-hidden bg-white/5 ${className}`}
+      onClick={onClick}
+    >
+      {!isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-white/20" />
+        </div>
+      )}
+
       <motion.img
-        src={src}
+        key={src}
+        src={getOptimizedUrl(src, width)}
         alt={alt}
-        className={`h-full w-full object-cover ${className} ${!isLoaded ? "opacity-0" : "opacity-100"}`}
+        className={`h-full w-full ${className} ${!isLoaded ? "opacity-0" : "opacity-100"}`}
         onLoad={() => setIsLoaded(true)}
         initial={{ opacity: 0 }}
         animate={{ opacity: isLoaded ? 1 : 0 }}
-        transition={{ duration: 0.8 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        loading="lazy"
+        decoding="async"
       />
     </div>
   );
 };
+
+
 
 const ClientPreview = () => {
   const { id, slug } = useParams<{ id?: string; slug?: string }>();
@@ -132,7 +153,7 @@ const ClientPreview = () => {
   const handleDownload = async (url: string, index: number) => {
     const fileName = `${project?.clientName || "foto"}-${index + 1}.jpg`;
 
-    // Web Share API fallback for mobile (better for iOS Photos app)
+    // Web Share API for iOS/Android (Native gallery experience)
     if (navigator.share) {
       try {
         const response = await fetch(url);
@@ -142,13 +163,13 @@ const ClientPreview = () => {
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
-            title: project?.clientName || "Foto GoFocus",
-            text: "Salvar foto na galeria"
+            title: `GoFocus - ${project?.clientName || "Foto"}`,
+            text: "Salvar foto em alta qualidade"
           });
           return;
         }
       } catch (err) {
-        console.log("Falha ao usar Web Share:", err);
+        console.warn("Navigator share failed:", err);
       }
     }
 
@@ -186,6 +207,7 @@ const ClientPreview = () => {
 
   const photos = project.photos || [];
   const selectedIndex = selectedPhoto ? photos.findIndex(p => p.url === selectedPhoto) : -1;
+
 
   return (
     <>
@@ -263,7 +285,7 @@ const ClientPreview = () => {
                   </button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md glass-liquid border-white/10 glow-border">
-                  <DialogHeader>
+                  <DialogHeader className="text-center sm:text-center">
                     <DialogTitle className="font-display text-xl font-light tracking-[0.2em] text-center uppercase text-white/90">QR Code do Projeto</DialogTitle>
                   </DialogHeader>
                   <div className="flex flex-col items-center justify-center space-y-8 py-8">
@@ -297,9 +319,12 @@ const ClientPreview = () => {
                 <ImageWithLoader
                   src={photo.url}
                   alt={`${project.clientName} - Foto ${index + 1}`}
+                  width={1200}
                   className="w-full aspect-[4/5] object-cover transition-transform duration-[2s] group-hover:scale-110 opacity-70 group-hover:opacity-100"
                   onClick={() => setSelectedPhoto(photo.url)}
                 />
+
+
               </motion.div>
             ))}
           </div>
@@ -330,9 +355,15 @@ const ClientPreview = () => {
             >
               <ImageWithLoader
                 src={selectedPhoto}
+                width={2560}
                 alt="Foto ampliada"
                 className="max-h-[85vh] max-w-[95vw] object-contain rounded-[2rem] shadow-2xl"
               />
+
+
+
+
+
               <div className="absolute top-6 right-6 flex gap-4">
                 <button
                   onClick={() => handleDownload(selectedPhoto, selectedIndex)}
