@@ -22,7 +22,8 @@ const ImageWithLoader = ({
   className,
   onClick,
   width = 800,
-  placeholderWidth
+  placeholderWidth,
+  isPriority = false
 }: {
   src: string;
   alt: string;
@@ -30,36 +31,43 @@ const ImageWithLoader = ({
   onClick?: () => void;
   width?: number;
   placeholderWidth?: number;
+  isPriority?: boolean;
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Reiniciar estado de carregamento quando a URL mudar
+  useEffect(() => {
+    setIsLoaded(false);
+  }, [src]);
+
   return (
-    <div className={`relative overflow-hidden bg-white/5 ${className}`} onClick={onClick}>
-      {/* Placeholder instantâneo (Geralmente já está no cache) */}
+    <div className={`relative overflow-hidden ${className}`} onClick={onClick}>
+      {/* Placeholder (sempre visível no fundo se disponível) */}
       {placeholderWidth && (
         <img
           src={getOptimizedUrl(src, placeholderWidth)}
           alt=""
-          className={`absolute inset-0 h-full w-full object-contain ${className} transition-opacity duration-700 ${isLoaded ? "opacity-0" : "opacity-100"}`}
+          className={`absolute inset-0 h-full w-full ${className}`}
           aria-hidden="true"
         />
       )}
 
       {!isLoaded && !placeholderWidth && (
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center bg-white/5">
           <Loader2 className="h-4 w-4 animate-spin text-white/10" />
         </div>
       )}
+
       <motion.img
+        key={src}
         src={getOptimizedUrl(src, width)}
         alt={alt}
-        className={`h-full w-full object-cover ${className} ${!isLoaded ? "opacity-0" : "opacity-100"}`}
+        className={`h-full w-full ${className} ${!isLoaded ? "opacity-0" : "opacity-100"}`}
         onLoad={() => setIsLoaded(true)}
         initial={{ opacity: 0 }}
         animate={{ opacity: isLoaded ? 1 : 0 }}
-        transition={{ duration: 0.5 }}
-        loading="lazy"
-        decoding="async"
+        transition={{ duration: 0.4 }}
+        loading={isPriority ? "eager" : "lazy"}
       />
     </div>
   );
@@ -359,9 +367,11 @@ const ClientPreview = () => {
                 src={selectedPhoto}
                 width={2560}
                 placeholderWidth={1200}
+                isPriority={true}
                 alt="Foto ampliada"
                 className="max-h-[85vh] max-w-[95vw] object-contain rounded-[2rem] shadow-2xl relative z-10"
               />
+
 
 
 
