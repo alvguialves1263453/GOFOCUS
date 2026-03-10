@@ -285,7 +285,7 @@ const ClientPreview = () => {
                   </button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md glass-liquid border-white/10 glow-border">
-                  <DialogHeader>
+                  <DialogHeader className="text-center sm:text-center">
                     <DialogTitle className="font-display text-xl font-light tracking-[0.2em] text-center uppercase text-white/90">QR Code do Projeto</DialogTitle>
                   </DialogHeader>
                   <div className="flex flex-col items-center justify-center space-y-8 py-8">
