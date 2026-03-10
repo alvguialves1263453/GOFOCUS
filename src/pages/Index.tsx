@@ -68,7 +68,7 @@ const Index = () => {
             className="flex flex-col items-center gap-8 w-full max-w-[320px] sm:max-w-md"
           >
             <h1 className="text-[10px] sm:text-[9px] font-medium uppercase tracking-[0.5em] sm:tracking-[0.6em] text-white/50 leading-relaxed text-center">
-              Cada foto conta uma história
+              Cada foto conta uma história.
             </h1>
             <div className="flex flex-col gap-5 w-full sm:flex-row sm:items-center sm:justify-center mt-2">
               <motion.a
