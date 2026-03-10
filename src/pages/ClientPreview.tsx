@@ -16,12 +16,36 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-const ImageWithLoader = ({ src, alt, className, onClick, width = 800 }: { src: string; alt: string; className?: string; onClick?: () => void; width?: number }) => {
+const ImageWithLoader = ({
+  src,
+  alt,
+  className,
+  onClick,
+  width = 800,
+  placeholderWidth
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  onClick?: () => void;
+  width?: number;
+  placeholderWidth?: number;
+}) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   return (
     <div className={`relative overflow-hidden bg-white/5 ${className}`} onClick={onClick}>
-      {!isLoaded && (
+      {/* Placeholder instantâneo (Geralmente já está no cache) */}
+      {placeholderWidth && (
+        <img
+          src={getOptimizedUrl(src, placeholderWidth)}
+          alt=""
+          className={`absolute inset-0 h-full w-full object-contain ${className} transition-opacity duration-700 ${isLoaded ? "opacity-0" : "opacity-100"}`}
+          aria-hidden="true"
+        />
+      )}
+
+      {!isLoaded && !placeholderWidth && (
         <div className="absolute inset-0 flex items-center justify-center">
           <Loader2 className="h-4 w-4 animate-spin text-white/10" />
         </div>
@@ -40,6 +64,7 @@ const ImageWithLoader = ({ src, alt, className, onClick, width = 800 }: { src: s
     </div>
   );
 };
+
 
 
 const ClientPreview = () => {
@@ -333,9 +358,11 @@ const ClientPreview = () => {
               <ImageWithLoader
                 src={selectedPhoto}
                 width={2560}
+                placeholderWidth={1200}
                 alt="Foto ampliada"
-                className="max-h-[85vh] max-w-[95vw] object-contain rounded-[2rem] shadow-2xl"
+                className="max-h-[85vh] max-w-[95vw] object-contain rounded-[2rem] shadow-2xl relative z-10"
               />
+
 
 
               <div className="absolute top-6 right-6 flex gap-4">
