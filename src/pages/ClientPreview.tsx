@@ -21,13 +21,15 @@ const ImageWithLoader = ({
   alt,
   className,
   onClick,
-  width = 800
+  width = 800,
+  loadingMessage
 }: {
   src: string;
   alt: string;
   className?: string;
   onClick?: () => void;
   width?: number;
+  loadingMessage?: string;
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -40,11 +42,30 @@ const ImageWithLoader = ({
       className={`relative overflow-hidden bg-white/5 ${className}`}
       onClick={onClick}
     >
-      {!isLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-white/20" />
-        </div>
-      )}
+      <AnimatePresence>
+        {!isLoaded && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/20 backdrop-blur-sm z-10"
+          >
+            <div className="relative flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary/60" />
+              <div className="absolute inset-0 h-8 w-8 animate-ping rounded-full bg-primary/20" />
+            </div>
+            {loadingMessage && (
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-[10px] uppercase font-bold tracking-[0.4em] text-primary/80 px-6 text-center"
+              >
+                {loadingMessage}
+              </motion.p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <motion.img
         key={src}
@@ -54,7 +75,7 @@ const ImageWithLoader = ({
         onLoad={() => setIsLoaded(true)}
         initial={{ opacity: 0 }}
         animate={{ opacity: isLoaded ? 1 : 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
         loading="lazy"
         decoding="async"
       />
@@ -357,6 +378,7 @@ const ClientPreview = () => {
                 src={selectedPhoto}
                 width={2560}
                 alt="Foto ampliada"
+                loadingMessage="Carregando imagem em alta qualidade"
                 className="max-h-[85vh] max-w-[95vw] object-contain rounded-[2rem] shadow-2xl"
               />
 
