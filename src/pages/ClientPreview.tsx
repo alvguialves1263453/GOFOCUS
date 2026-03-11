@@ -39,29 +39,37 @@ const ImageWithLoader = ({
 
   return (
     <div
-      className={`relative overflow-hidden bg-white/5 ${className}`}
+      className={`relative overflow-hidden bg-white/5 ${className} ${!isLoaded && loadingMessage ? "min-h-[40vh] w-full" : ""}`}
       onClick={onClick}
     >
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {!isLoaded && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            key="loader"
+            initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/20 backdrop-blur-sm z-10"
+            transition={{ duration: 0.4 }}
+            className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-black/40 backdrop-blur-md z-20"
           >
             <div className="relative flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary/60" />
-              <div className="absolute inset-0 h-8 w-8 animate-ping rounded-full bg-primary/20" />
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <motion.div
+                className="absolute inset-0 h-10 w-10 rounded-full border border-primary/30"
+                animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              />
             </div>
             {loadingMessage && (
-              <motion.p
+              <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-[10px] uppercase font-bold tracking-[0.4em] text-primary/80 px-6 text-center"
+                className="flex flex-col items-center gap-2"
               >
-                {loadingMessage}
-              </motion.p>
+                <p className="text-[11px] uppercase font-bold tracking-[0.5em] text-primary px-6 text-center">
+                  {loadingMessage}
+                </p>
+                <div className="h-[1px] w-12 bg-primary/20 animate-pulse" />
+              </motion.div>
             )}
           </motion.div>
         )}
@@ -361,17 +369,20 @@ const ClientPreview = () => {
       <AnimatePresence>
         {selectedPhoto && (
           <motion.div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-3xl p-4 overflow-hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setSelectedPhoto(null)}
           >
+            <LiquidBackground />
+
             <motion.div
-              className="relative max-h-[90vh] max-w-[95vw]"
+              className="relative z-10 w-full max-w-6xl flex items-center justify-center"
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
               onClick={(e) => e.stopPropagation()}
             >
               <ImageWithLoader
@@ -379,24 +390,20 @@ const ClientPreview = () => {
                 width={2560}
                 alt="Foto ampliada"
                 loadingMessage="Carregando imagem em alta qualidade"
-                className="max-h-[85vh] max-w-[95vw] object-contain rounded-[2rem] shadow-2xl"
+                className="max-h-[85vh] w-auto max-w-full object-contain rounded-[2rem] shadow-2xl ring-1 ring-white/10"
               />
 
-
-
-
-
-              <div className="absolute top-6 right-6 flex gap-4">
+              <div className="absolute -top-16 right-0 flex gap-4 sm:top-6 sm:right-6">
                 <button
                   onClick={() => handleDownload(selectedPhoto, selectedIndex)}
-                  className="flex h-12 w-12 items-center justify-center rounded-full glass-liquid glow-border text-white transition-all hover:scale-110"
+                  className="flex h-12 w-12 items-center justify-center rounded-full glass-liquid glow-border text-white transition-all hover:scale-110 active:scale-95 bg-white/5 backdrop-blur-xl"
                   title="Baixar foto"
                 >
                   <Download className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => setSelectedPhoto(null)}
-                  className="flex h-12 w-12 items-center justify-center rounded-full glass-liquid glow-border text-white transition-all hover:scale-110"
+                  className="flex h-12 w-12 items-center justify-center rounded-full glass-liquid glow-border text-white transition-all hover:scale-110 active:scale-95 bg-white/5 backdrop-blur-xl"
                   title="Fechar"
                 >
                   <X className="h-5 w-5" />
