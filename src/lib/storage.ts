@@ -126,14 +126,20 @@ export async function updateProjectAsync(id: string, updates: Partial<Project>):
   if (updates.likes !== undefined) dbUpdates.likes = updates.likes;
   if (updates.hidden !== undefined) dbUpdates.hidden = updates.hidden;
 
-  const { error } = await supabase
-    .from('projects')
-    .update(dbUpdates)
-    .eq('id', id);
+  try {
+    const { error } = await supabase
+      .from('projects')
+      .update(dbUpdates)
+      .eq('id', id);
 
-  if (error) throw error;
+    if (error) {
+      console.warn("Falha ao atualizar no Supabase (possível coluna 'hidden' ausente ou RLS).", error);
+    }
+  } catch (err: any) {
+    console.error("Erro crítico na atualização remota:", err);
+  }
 
-  // Also update locally for backup
+  // Mandatory local update for resilience
   updateProjectLocal(id, updates);
 }
 

@@ -195,16 +195,42 @@ img {
   display: none;
   position: fixed;
   inset: 0;
-  background: black;
+  background: #000;
   color: white;
-  z-index: 2147483647;
+  z-index: 999999999;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
   font-family: 'Playfair Display', serif;
+  padding: 40px;
 }
 
 .no-screenshot-message.active {
   display: flex !important;
+}
+
+.no-screenshot-message h2 {
+  font-size: 2.5rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 1rem;
+  color: #fff;
+}
+
+.no-screenshot-message p {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Prevent mobile selection/long-press */
+img, .photo-protect-layer {
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  -khtml-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  pointer-events: auto;
 }

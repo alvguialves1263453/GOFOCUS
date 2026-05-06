@@ -95,6 +95,9 @@ const ImageWithLoader = ({
         loading="lazy"
         decoding="async"
       />
+
+      {/* Mobile Protection Layer: blocks long-press save menu */}
+      <div className="photo-protect-layer absolute inset-0 z-30 touch-none pointer-events-auto bg-transparent" />
     </div>
   );
 };
@@ -274,10 +277,11 @@ const ClientPreview = () => {
 
       {/* ── PROTECTION OVERLAY ── */}
       <div className={`no-screenshot-message ${isProtected ? "active" : ""}`}>
-         <X className="h-12 w-12 text-white/20 mb-6" />
-         <h2 className="text-2xl font-serif mb-2">Acesso Protegido</h2>
-         <p className="text-[10px] uppercase tracking-[0.4em] text-white/40">
-           Prints e salvamentos proibidos para sua segurança
+         <X className="h-16 w-16 text-white/5 mb-8 animate-pulse" />
+         <h2 className="text-3xl font-serif mb-4">PROIBIDO PRINTS!</h2>
+         <p className="text-[10px] uppercase tracking-[0.5em] text-white/40 max-w-xs leading-loose">
+           Esta galeria é protegida por direitos autorais.<br/>
+           O uso de capturas de tela e salvamento de fotos é estritamente proibido.
          </p>
       </div>
 

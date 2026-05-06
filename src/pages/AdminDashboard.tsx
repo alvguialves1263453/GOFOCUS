@@ -18,7 +18,7 @@ import {
   Plus, FolderOpen, Trash2, Image as ImageIcon,
   Loader2, LogOut, Link as LinkIcon, Check, QrCode,
   Tag, ExternalLink, X, ArrowUpRight, LayoutGrid, Layers,
-  Search, Eye, EyeOff, Filter,
+  Search, Eye, EyeOff, Filter, Edit2,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -46,6 +46,8 @@ const AdminDashboard = () => {
   const [qrProject, setQrProject] = useState<{ name: string; url: string } | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editCategoryName, setEditCategoryName] = useState("");
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editProjectName, setEditProjectName] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -136,6 +138,26 @@ const AdminDashboard = () => {
       toast.error(err.message || "Erro ao atualizar categoria");
     } finally {
       setCategorySaving(false);
+    }
+  };
+
+  const handleUpdateProjectName = async () => {
+    if (!editingProject || !editProjectName.trim()) return;
+    setSaving(true);
+    try {
+      const { generateSlug } = await import("@/lib/storage");
+      const newSlug = generateSlug(editProjectName.trim());
+      await updateProjectAsync(editingProject.id, { 
+        clientName: editProjectName.trim(),
+        slug: newSlug
+      });
+      toast.success("Álbum renomeado!");
+      setEditingProject(null);
+      loadProjects();
+    } catch {
+      toast.error("Erro ao renomear álbum");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -440,6 +462,11 @@ const AdminDashboard = () => {
                     onShowQr={handleShowQr}
                     onDelete={handleDelete}
                     onToggleVisibility={handleToggleVisibility}
+                    onEditName={(e: any, p: Project) => {
+                      e.stopPropagation();
+                      setEditingProject(p);
+                      setEditProjectName(p.clientName);
+                    }}
                     copiedId={copiedId}
                   />
                 ))}
@@ -613,12 +640,41 @@ const AdminDashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Edit Project Name Dialog ── */}
+      <Dialog open={!!editingProject} onOpenChange={(open) => !open && setEditingProject(null)}>
+        <DialogContent className="sm:max-w-md bg-[#111] border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-lg font-normal text-white">
+              Renomear Álbum
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-[9px] uppercase tracking-[0.3em] text-white/35 font-medium">Nome do Álbum</label>
+              <input
+                type="text"
+                value={editProjectName}
+                onChange={(e) => setEditProjectName(e.target.value)}
+                className="w-full bg-transparent border border-white/10 px-4 py-3 rounded-sm text-sm text-white focus:outline-none focus:border-white/30"
+              />
+            </div>
+            <button
+              onClick={handleUpdateProjectName}
+              disabled={saving || !editProjectName.trim()}
+              className="w-full py-3 bg-white text-black text-[9px] font-bold uppercase tracking-widest rounded-sm hover:opacity-80 transition-opacity disabled:opacity-30"
+            >
+              {saving ? "Salvando…" : "Atualizar Nome"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-     /* ─── PROJECT CARD ─── */
-function ProjectCard({ project, categories, index, onClick, onCopyLink, onShowQr, onDelete, onToggleVisibility, copiedId }: any) {
+/* ─── PROJECT CARD ─── */
+function ProjectCard({ project, categories, index, onClick, onCopyLink, onShowQr, onDelete, onToggleVisibility, onEditName, copiedId }: any) {
   const [isLoaded, setIsLoaded] = useState(false);
   const photo = project.photos?.[project.coverIndex || 0];
   const category = categories.find((c: any) => c.id === project.categoryId);
@@ -688,6 +744,13 @@ function ProjectCard({ project, categories, index, onClick, onCopyLink, onShowQr
             className="flex h-10 md:h-8 w-10 md:w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors active:scale-90 md:active:scale-100"
           >
             {project.hidden ? <EyeOff className="h-4 md:h-3.5 w-4 md:w-3.5" /> : <Eye className="h-4 md:h-3.5 w-4 md:w-3.5" />}
+          </button>
+          <button
+            onClick={(e) => onEditName(e, project)}
+            title="Renomear"
+            className="flex h-10 md:h-8 w-10 md:w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors active:scale-90 md:active:scale-100"
+          >
+            <Edit2 className="h-4 md:h-3.5 w-4 md:w-3.5" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onShowQr(e, project.clientName, project.slug); }}
