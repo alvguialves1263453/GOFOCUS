@@ -18,7 +18,7 @@ import {
   Plus, FolderOpen, Trash2, Image as ImageIcon,
   Loader2, LogOut, Link as LinkIcon, Check, QrCode,
   Tag, ExternalLink, X, ArrowUpRight, LayoutGrid, Layers,
-  Search, Eye, EyeOff, Filter, Edit2,
+  Search, Eye, EyeOff, Filter, Edit2, MoreVertical,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -52,6 +52,7 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "visible" | "hidden">("all");
+  const [mobileActionProject, setMobileActionProject] = useState<Project | null>(null);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -234,12 +235,16 @@ const AdminDashboard = () => {
   };
 
   const filteredProjects = projects.filter((p) => {
-    const matchesSearch = p.clientName.toLowerCase().includes(searchQuery.toLowerCase());
+    const name = p.clientName || "";
+    const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
+    
     const matchesCategory = filterCategory === "all" || p.categoryId === filterCategory;
+    
+    const isHidden = p.hidden === true;
     const matchesStatus = 
       filterStatus === "all" || 
-      (filterStatus === "visible" && !p.hidden) || 
-      (filterStatus === "hidden" && p.hidden);
+      (filterStatus === "visible" && !isHidden) || 
+      (filterStatus === "hidden" && isHidden);
     
     return matchesSearch && matchesCategory && matchesStatus;
   });
@@ -460,6 +465,17 @@ const AdminDashboard = () => {
                 <FolderOpen className="h-8 w-8 text-white/10 mb-4" strokeWidth={1} />
                 <p className="text-[10px] uppercase tracking-[0.4em] text-white/20">Nenhum projeto ainda.</p>
               </div>
+            ) : filteredProjects.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-28 border border-white/6 bg-white/2 rounded-sm">
+                <Search className="h-8 w-8 text-white/10 mb-4" strokeWidth={1} />
+                <p className="text-[10px] uppercase tracking-[0.4em] text-white/20">Nenhum resultado para os filtros atuais.</p>
+                <button 
+                  onClick={() => { setSearchQuery(""); setFilterCategory("all"); setFilterStatus("all"); }}
+                  className="mt-4 text-[9px] uppercase tracking-widest text-white/40 hover:text-white underline underline-offset-4"
+                >
+                  Limpar filtros
+                </button>
+              </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
                 {filteredProjects.map((project, i) => (
@@ -471,13 +487,14 @@ const AdminDashboard = () => {
                     onClick={() => navigate(`/admin/projeto/${project.id}`)}
                     onCopyLink={handleCopyLink}
                     onShowQr={handleShowQr}
-                    onDelete={handleDelete}
-                    onToggleVisibility={handleToggleVisibility}
                     onEditName={(e: any, p: Project) => {
                       e.stopPropagation();
                       setEditingProject(p);
                       setEditProjectName(p.clientName);
                     }}
+                    onDelete={handleDelete}
+                    onToggleVisibility={handleToggleVisibility}
+                    onOpenMobileActions={(p: Project) => setMobileActionProject(p)}
                     copiedId={copiedId}
                   />
                 ))}
@@ -485,6 +502,99 @@ const AdminDashboard = () => {
             )}
           </div>
         )}
+
+        {/* ── MOBILE ACTIONS DIALOG ── */}
+        <Dialog open={!!mobileActionProject} onOpenChange={(open) => !open && setMobileActionProject(null)}>
+          <DialogContent className="sm:max-w-md bg-[#0a0a0a] border-white/10 text-white p-0 overflow-hidden">
+            <div className="p-6 pb-4 border-b border-white/5">
+              <p className="text-[9px] uppercase tracking-[0.4em] text-white/30 mb-1">Ações do Projeto</p>
+              <h3 className="font-serif text-lg">{mobileActionProject?.clientName}</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 divide-y divide-white/5">
+              <button
+                onClick={(e) => {
+                  setMobileActionProject(null);
+                  handleCopyLink(e as any, mobileActionProject!.slug, mobileActionProject!.id);
+                }}
+                className="flex items-center gap-4 px-6 py-4 hover:bg-white/5 transition-colors text-left"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-white/5 border border-white/10">
+                  <LinkIcon className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium">Copiar Link</p>
+                  <p className="text-[9px] uppercase tracking-wider text-white/20">Link de visualização do cliente</p>
+                </div>
+              </button>
+
+              <button
+                onClick={(e) => {
+                  setMobileActionProject(null);
+                  handleToggleVisibility(e as any, mobileActionProject!);
+                }}
+                className="flex items-center gap-4 px-6 py-4 hover:bg-white/5 transition-colors text-left"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-white/5 border border-white/10">
+                  {mobileActionProject?.hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </div>
+                <div>
+                  <p className="text-xs font-medium">{mobileActionProject?.hidden ? "Mostrar Álbum" : "Ocultar Álbum"}</p>
+                  <p className="text-[9px] uppercase tracking-wider text-white/20">Visibilidade na página principal</p>
+                </div>
+              </button>
+
+              <button
+                onClick={(e) => {
+                  setMobileActionProject(null);
+                  setEditingProject(mobileActionProject);
+                  setEditProjectName(mobileActionProject!.clientName);
+                }}
+                className="flex items-center gap-4 px-6 py-4 hover:bg-white/5 transition-colors text-left"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-white/5 border border-white/10">
+                  <Edit2 className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium">Renomear</p>
+                  <p className="text-[9px] uppercase tracking-wider text-white/20">Alterar nome do cliente ou evento</p>
+                </div>
+              </button>
+
+              <button
+                onClick={(e) => {
+                  setMobileActionProject(null);
+                  handleShowQr(e as any, mobileActionProject!.clientName, mobileActionProject!.slug);
+                }}
+                className="flex items-center gap-4 px-6 py-4 hover:bg-white/5 transition-colors text-left"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-white/5 border border-white/10">
+                  <QrCode className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium">QR Code</p>
+                  <p className="text-[9px] uppercase tracking-wider text-white/20">Gerar código para acesso rápido</p>
+                </div>
+              </button>
+
+              <button
+                onClick={(e) => {
+                  setMobileActionProject(null);
+                  handleDelete(e as any, mobileActionProject!.id);
+                }}
+                className="flex items-center gap-4 px-6 py-4 hover:bg-white/5 transition-colors text-left text-red-400"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-red-500/10 border border-red-500/20">
+                  <Trash2 className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium">Excluir Projeto</p>
+                  <p className="text-[9px] uppercase tracking-wider text-red-500/30">Esta ação não pode ser desfeita</p>
+                </div>
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* ── CATEGORIES TAB ── */}
         {activeTab === "categories" && (
@@ -685,7 +795,7 @@ const AdminDashboard = () => {
 };
 
 /* ─── PROJECT CARD ─── */
-function ProjectCard({ project, categories, index, onClick, onCopyLink, onShowQr, onDelete, onToggleVisibility, onEditName, copiedId }: any) {
+function ProjectCard({ project, categories, index, onClick, onCopyLink, onShowQr, onDelete, onToggleVisibility, onEditName, onOpenMobileActions, copiedId }: any) {
   const [isLoaded, setIsLoaded] = useState(false);
   const photo = project.photos?.[project.coverIndex || 0];
   const category = categories.find((c: any) => c.id === project.categoryId);
@@ -737,45 +847,55 @@ function ProjectCard({ project, categories, index, onClick, onCopyLink, onShowQr
           </div>
         )}
 
-        {/* Hover overlay with actions */}
-        <div className="absolute inset-0 bg-black/60 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
+        {/* Desktop Hover overlay with actions (Hidden on mobile) */}
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex items-center justify-center gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); onCopyLink(e, project.slug, project.id); }}
             title="Copiar link"
-            className="flex h-10 md:h-8 w-10 md:w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors active:scale-90 md:active:scale-100"
+            className="flex h-8 w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors"
           >
             {copiedId === project.id
-              ? <Check className="h-4 md:h-3.5 w-4 md:w-3.5" />
-              : <LinkIcon className="h-4 md:h-3.5 w-4 md:w-3.5" />
+              ? <Check className="h-3.5 w-3.5" />
+              : <LinkIcon className="h-3.5 w-3.5" />
             }
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onToggleVisibility(e, project); }}
             title={project.hidden ? "Mostrar Projeto" : "Ocultar Projeto"}
-            className="flex h-10 md:h-8 w-10 md:w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors active:scale-90 md:active:scale-100"
+            className="flex h-8 w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors"
           >
-            {project.hidden ? <EyeOff className="h-4 md:h-3.5 w-4 md:w-3.5" /> : <Eye className="h-4 md:h-3.5 w-4 md:w-3.5" />}
+            {project.hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
           </button>
           <button
             onClick={(e) => onEditName(e, project)}
             title="Renomear"
-            className="flex h-10 md:h-8 w-10 md:w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors active:scale-90 md:active:scale-100"
+            className="flex h-8 w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors"
           >
-            <Edit2 className="h-4 md:h-3.5 w-4 md:w-3.5" />
+            <Edit2 className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onShowQr(e, project.clientName, project.slug); }}
             title="QR Code"
-            className="flex h-10 md:h-8 w-10 md:w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors active:scale-90 md:active:scale-100"
+            className="flex h-8 w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors"
           >
-            <QrCode className="h-4 md:h-3.5 w-4 md:w-3.5" />
+            <QrCode className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(e, project.id); }}
             title="Excluir"
-            className="flex h-10 md:h-8 w-10 md:w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-red-500/30 text-white hover:text-red-300 border border-white/15 transition-colors active:scale-90 md:active:scale-100"
+            className="flex h-8 w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-red-500/30 text-white hover:text-red-300 border border-white/15 transition-colors"
           >
-            <Trash2 className="h-4 md:h-3.5 w-4 md:w-3.5" />
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {/* Mobile Settings Button (Only on mobile) */}
+        <div className="absolute top-2 right-2 md:hidden">
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenMobileActions(project); }}
+            className="flex h-9 w-9 items-center justify-center rounded-sm bg-black/60 text-white border border-white/10 active:scale-90 transition-transform"
+          >
+            <MoreVertical className="h-4 w-4" />
           </button>
         </div>
       </div>
