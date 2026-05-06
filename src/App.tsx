@@ -9,6 +9,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminProjectEdit from "./pages/AdminProjectEdit";
 import ClientPreview from "./pages/ClientPreview";
 import NotFound from "./pages/NotFound";
+import Links from "./pages/Links";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
           />
           <Route path="/projeto/:id" element={<ClientPreview />} />
           <Route path="/cliente/:slug" element={<ClientPreview />} />
+          <Route path="/links" element={<Links />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

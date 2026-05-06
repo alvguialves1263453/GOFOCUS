@@ -1,60 +1,54 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import logo from "@/assets/logo.png";
-import LiquidBackground from "@/components/LiquidBackground";
-import { LogIn } from "lucide-react";
 
 const ClientLogin = () => {
     const [error, setError] = useState("");
-    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { loading: authLoading } = useAuth();
-    const handleGoogleLogin = () => {
-        setError("O login com Google foi desativado. Por favor, entre em contato com o administrador.");
-    };
 
     if (authLoading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-background">
-                <LiquidBackground />
-                <p className="text-[10px] text-white/40 uppercase tracking-[0.4em] animate-pulse">Carregando...</p>
+            <div className="flex min-h-screen items-center justify-center bg-[#050505]">
+                <p className="text-[10px] text-white/30 uppercase tracking-[0.4em] animate-pulse">Carregando...</p>
             </div>
         );
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-background px-6">
-            <LiquidBackground />
+        <div className="flex min-h-screen items-center justify-center bg-[#050505] px-6">
             <motion.div
-                className="flex w-full max-w-sm flex-col gap-10 glass-liquid p-10 rounded-[3rem] glow-border shadow-2xl relative z-10"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full max-w-sm space-y-12"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
             >
-                <div className="flex flex-col items-center gap-6">
-                    <img src={logo} alt="GoFocus" className="w-40 drop-shadow-2xl" />
-                    <div className="space-y-2 text-center w-full">
-                        <h1 className="font-display text-2xl font-light tracking-[0.2em] text-white uppercase">
+                <div className="flex flex-col items-center gap-8">
+                    <img src={logo} alt="GoFocus" className="h-10 brightness-0 invert" />
+                    <div className="space-y-3 text-center">
+                        <h1 className="font-serif text-2xl font-normal text-white px-4">
                             Área do Cliente
                         </h1>
-                        <p className="text-[9px] text-white/40 uppercase tracking-[0.2em]">
+                        <p className="text-[9px] text-white/30 uppercase tracking-[0.4em]">
                             Acesso Restrito
                         </p>
-                        <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-6">
-                    <div className="text-center space-y-4">
-                        <p className="text-[10px] text-white/60 uppercase tracking-[0.2em] leading-relaxed">
-                            O acesso via conta Google foi removido.<br />
-                            Aguarde novas instruções de acesso.
+                <div className="border border-white/10 bg-white/[0.02] p-10 rounded-sm space-y-8">
+                    <div className="text-center space-y-6">
+                        <p className="text-[11px] text-white/40 uppercase tracking-[0.2em] leading-relaxed">
+                            O acesso direto via conta Google foi removido.<br />
+                            Aguarde as novas instruções de acesso seguro.
                         </p>
+                        
+                        <div className="h-px w-8 bg-white/10 mx-auto" />
+
                         <button
                             onClick={() => navigate("/")}
-                            className="text-[9px] text-primary uppercase tracking-[0.4em] font-bold hover:underline"
+                            className="bg-white text-black px-8 py-3 rounded-sm text-[9px] font-bold uppercase tracking-[0.4em] transition-opacity hover:opacity-80 w-full"
                         >
                             Voltar ao Início
                         </button>
@@ -62,17 +56,17 @@ const ClientLogin = () => {
 
                     {error && (
                         <motion.p
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-[10px] text-destructive text-center font-bold uppercase tracking-widest bg-destructive/10 py-3 rounded-xl border border-destructive/20"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-[9px] text-red-400 text-center uppercase tracking-widest bg-red-500/5 py-2.5 border border-red-500/10"
                         >
                             {error}
                         </motion.p>
                     )}
                 </div>
 
-                <p className="text-center text-[8px] text-white/20 uppercase tracking-[0.5em] font-light">
-                    Sistemas GoFocus © 2026
+                <p className="text-center text-[8px] text-white/10 uppercase tracking-[0.6em]">
+                    GoFocus Narrative © 2026
                 </p>
             </motion.div>
         </div>

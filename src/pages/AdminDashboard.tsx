@@ -5,37 +5,24 @@ import {
   getProjectsAsync,
   saveProjectAsync,
   deleteProjectAsync,
-  generateSlug,
   getCategoriesAsync,
   saveCategoryAsync,
   deleteCategoryAsync,
   type Project,
-  type ProjectPhoto,
-  type Category
+  type Category,
 } from "@/lib/storage";
 import { deleteFromImageKit, getOptimizedUrl } from "@/lib/imagekit";
-
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, FolderOpen, Trash2, Image, Loader2, LogOut, Link as LinkIcon, Check, QrCode, Tag, ExternalLink, X } from "lucide-react";
-import LiquidBackground from "@/components/LiquidBackground";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Plus, FolderOpen, Trash2, Image as ImageIcon,
+  Loader2, LogOut, Link as LinkIcon, Check, QrCode,
+  Tag, ExternalLink, X, ArrowUpRight, LayoutGrid, Layers,
+} from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
@@ -45,6 +32,7 @@ const AdminDashboard = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [activeTab, setActiveTab] = useState<"projects" | "categories">("projects");
   const [showForm, setShowForm] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [projectName, setProjectName] = useState("");
@@ -77,26 +65,26 @@ const AdminDashboard = () => {
     setSaving(true);
     try {
       const newProject: Project = {
-        id: "", // storage.ts will generate
+        id: "",
         clientName: projectName.trim(),
-        slug: "", // storage.ts will generate
+        slug: "",
         photos: [],
         createdAt: new Date().toISOString(),
         featured: false,
         coverIndex: 0,
-        categoryId: selectedCategoryId || undefined
+        categoryId: selectedCategoryId || undefined,
       };
       const result = await saveProjectAsync(newProject);
       if (result.remote) {
-        toast.success("Projeto criado e sincronizado com a nuvem!");
+        toast.success("Projeto criado e sincronizado!");
       } else {
-        toast.error("Salvo apenas localmente: " + (result.error || "Erro de permissão RLS."));
+        toast.error("Salvo localmente: " + (result.error || "Erro de permissão RLS."));
       }
       setProjectName("");
       setSelectedCategoryId("");
       setShowForm(false);
       loadProjects();
-    } catch (err: any) {
+    } catch {
       toast.error("Erro ao salvar projeto");
     } finally {
       setSaving(false);
@@ -107,22 +95,17 @@ const AdminDashboard = () => {
     if (!categoryName.trim()) return;
     setCategorySaving(true);
     try {
-      const newCategory: Category = {
-        id: "", // storage.ts will generate if empty
-        name: categoryName.trim(),
-        slug: "" // storage.ts will generate if empty
-      };
+      const newCategory: Category = { id: "", name: categoryName.trim(), slug: "" };
       const result = await saveCategoryAsync(newCategory);
       if (result.remote) {
-        toast.success("Categoria criada e sincronizada!");
+        toast.success("Categoria criada!");
       } else {
-        toast.error("Salvo apenas localmente: " + (result.error || "Erro de permissão."));
+        toast.error("Salvo localmente: " + (result.error || "Erro de permissão."));
       }
       setCategoryName("");
       setShowCategoryForm(false);
       loadCategories();
     } catch (err: any) {
-      console.error("Erro na UI ao salvar categoria:", err);
       toast.error(err.message || "Erro ao salvar categoria");
     } finally {
       setCategorySaving(false);
@@ -130,36 +113,30 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta categoria? Os projetos associados não serão excluídos, mas ficarão sem categoria.")) return;
+    if (!confirm("Excluir esta categoria?")) return;
     try {
       await deleteCategoryAsync(id);
       toast.success("Categoria excluída");
       loadCategories();
-    } catch (err) {
+    } catch {
       toast.error("Erro ao excluir categoria");
     }
   };
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!confirm("Tem certeza que deseja excluir este projeto?")) return;
-
-    const projectToDelete = projects.find(p => p.id === id);
-
+    if (!confirm("Excluir este projeto?")) return;
+    const projectToDelete = projects.find((p) => p.id === id);
     try {
-      if (projectToDelete && projectToDelete.photos) {
-        // Delete all photos from ImageKit
+      if (projectToDelete?.photos) {
         await Promise.all(
-          projectToDelete.photos
-            .filter(p => !!p.publicId)
-            .map(p => deleteFromImageKit(p.publicId))
+          projectToDelete.photos.filter((p) => !!p.publicId).map((p) => deleteFromImageKit(p.publicId))
         );
       }
-
       await deleteProjectAsync(id);
       toast.success("Projeto excluído");
       loadProjects();
-    } catch (err) {
+    } catch {
       toast.error("Erro ao excluir projeto");
     }
   };
@@ -186,28 +163,48 @@ const AdminDashboard = () => {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <LiquidBackground />
-        <p className="text-[10px] text-white/40 uppercase tracking-[0.4em] animate-pulse">Autenticando...</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
+        <span className="text-[10px] text-white/30 uppercase tracking-[0.4em] animate-pulse">Autenticando…</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen relative text-foreground selection:bg-primary/30">
-      <LiquidBackground />
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
 
-      <header className="px-3 py-4 sm:px-6 sm:py-8 relative z-20">
-        <div className="mx-auto flex flex-col sm:flex-row max-w-6xl items-center justify-between gap-6 sm:gap-4 glass-liquid px-5 sm:px-8 py-4 rounded-[2rem] sm:rounded-full glow-border">
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-            <h1 className="font-display text-2xl sm:text-xl font-light tracking-[0.2em] text-white">GoFocus</h1>
-            <span className="text-[8px] uppercase tracking-[0.4em] text-white/30 sm:border-l sm:border-white/10 sm:pl-4 font-bold">Painel de Controle</span>
+      {/* ── TOP BAR ── */}
+      <header className="sticky top-0 z-50 border-b border-white/6 bg-[#0a0a0a]/95 backdrop-blur-sm">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className="font-serif text-base text-white">GoFocus</span>
+            <span className="hidden sm:block text-white/15">|</span>
+            <span className="hidden sm:block text-[9px] uppercase tracking-[0.4em] text-white/30 font-medium">
+              Painel Admin
+            </span>
           </div>
-          <div className="flex items-center gap-10 sm:gap-8">
-            <a href="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[10px] sm:text-[9px] uppercase tracking-[0.3em] text-white/50 hover:text-white transition-all font-bold">
-              Ver Site <ExternalLink className="h-3 w-3" />
+          <div className="flex items-center gap-5">
+            <a
+              href="/links"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 border border-white/10 rounded-sm text-[9px] uppercase tracking-[0.3em] text-white hover:bg-white hover:text-black transition-colors"
+            >
+              Página de Links
+              <ArrowUpRight className="h-3 w-3" />
             </a>
-            <button onClick={handleLogout} className="flex items-center gap-2 text-[10px] sm:text-[9px] uppercase tracking-[0.3em] text-white/50 hover:text-white transition-all font-bold">
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-sm text-[9px] uppercase tracking-[0.3em] text-white/50 hover:text-white transition-colors"
+            >
+              Ver Site
+              <ArrowUpRight className="h-3 w-3" />
+            </a>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.3em] text-white/35 hover:text-white transition-colors"
+            >
               <LogOut className="h-3 w-3" />
               Sair
             </button>
@@ -215,62 +212,100 @@ const AdminDashboard = () => {
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-6 py-10 relative z-10">
-        <Tabs defaultValue="projects" className="w-full">
-          <div className="mb-12 flex flex-col items-center justify-between gap-10 bg-black/20 p-8 sm:p-10 rounded-[3rem] border border-white/5 backdrop-blur-3xl lg:flex-row">
-            <div className="space-y-2 text-center lg:text-left">
-              <h2 className="font-display text-4xl sm:text-3xl font-light tracking-tight text-white/90">Gestão de Conteúdo</h2>
-              <p className="text-[9px] uppercase tracking-[0.4em] text-white/30 font-bold">Organize seus projetos e categorias</p>
-            </div>
-            <TabsList className="bg-white/5 p-1.5 rounded-full border border-white/5 w-full max-w-[340px] sm:w-auto">
-              <TabsTrigger value="projects" className="flex-1 text-[9px] uppercase tracking-widest px-8 py-3.5 rounded-full data-[state=active]:bg-white data-[state=active]:text-black transition-all font-bold sm:flex-none">Projetos</TabsTrigger>
-              <TabsTrigger value="categories" className="flex-1 text-[9px] uppercase tracking-widest px-8 py-3.5 rounded-full data-[state=active]:bg-white data-[state=active]:text-black transition-all font-bold sm:flex-none">Categorias</TabsTrigger>
-            </TabsList>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
+
+        {/* ── PAGE TITLE + TABS ── */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10 pb-8 border-b border-white/6">
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.45em] text-white/30 mb-2 font-medium">Administração</p>
+            <h1 className="text-2xl sm:text-3xl font-serif font-normal text-white">Gestão de Conteúdo</h1>
           </div>
 
-          <TabsContent value="projects">
-            <div className="mb-10 flex items-center justify-between">
-              <h3 className="text-[9px] uppercase tracking-[0.4em] text-white/30 font-bold px-4 border-l-2 border-primary">Projetos Ativos</h3>
+          {/* Tab switcher */}
+          <div className="flex items-center border border-white/10 rounded-sm overflow-hidden self-start sm:self-auto">
+            <button
+              onClick={() => setActiveTab("projects")}
+              className={`flex items-center gap-2 px-5 py-2.5 text-[9px] font-semibold uppercase tracking-wider transition-colors ${
+                activeTab === "projects"
+                  ? "bg-white text-black"
+                  : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              <LayoutGrid className="h-3 w-3" />
+              Projetos
+            </button>
+            <button
+              onClick={() => setActiveTab("categories")}
+              className={`flex items-center gap-2 px-5 py-2.5 text-[9px] font-semibold uppercase tracking-wider transition-colors border-l border-white/10 ${
+                activeTab === "categories"
+                  ? "bg-white text-black"
+                  : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              <Layers className="h-3 w-3" />
+              Categorias
+            </button>
+          </div>
+        </div>
+
+        {/* ── PROJECTS TAB ── */}
+        {activeTab === "projects" && (
+          <div>
+            {/* Section header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-px h-4 bg-white/30" />
+                <span className="text-[9px] uppercase tracking-[0.4em] text-white/35 font-medium">
+                  {projects.length} {projects.length === 1 ? "Projeto" : "Projetos"}
+                </span>
+              </div>
               <button
                 onClick={() => setShowForm(!showForm)}
-                className={`inline-flex items-center gap-3 px-8 py-4 text-[9px] uppercase tracking-[0.3em] transition-all duration-500 rounded-full font-bold ${showForm
-                  ? "glass-liquid text-white border-white/10"
-                  : "bg-white text-black glow-border shadow-xl hover:scale-105"
-                  }`}
+                className={`flex items-center gap-2 px-5 py-2.5 text-[9px] font-semibold uppercase tracking-wider rounded-sm transition-all duration-300 ${
+                  showForm
+                    ? "border border-white/15 text-white/50 hover:text-white"
+                    : "bg-white text-black hover:opacity-80"
+                }`}
               >
-                {showForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                {showForm ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
                 {showForm ? "Fechar" : "Novo Projeto"}
               </button>
             </div>
 
+            {/* New project form */}
             <AnimatePresence>
               {showForm && (
                 <motion.div
-                  className="mb-12 glass-liquid p-10 rounded-[3rem] glow-border shadow-2xl"
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.35, ease: "easeInOut" }}
+                  className="overflow-hidden"
                 >
-                  <div className="flex flex-col gap-8 max-w-2xl">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-3">
-                        <label className="text-[9px] uppercase tracking-[0.4em] text-white/50 ml-4 font-bold">Título do Projeto</label>
+                  <div className="mb-6 border border-white/8 bg-white/2 rounded-sm p-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] uppercase tracking-[0.3em] text-white/35 font-medium">
+                          Nome do Projeto
+                        </label>
                         <input
                           type="text"
                           placeholder="Ex: Casamento em Milão"
                           value={projectName}
                           onChange={(e) => setProjectName(e.target.value)}
-                          className="w-full glass-liquid border-white/5 bg-transparent px-8 py-5 rounded-full text-sm text-white focus:outline-none focus:border-primary/30 transition-all placeholder:text-white/10"
+                          onKeyDown={(e) => e.key === "Enter" && handleSave()}
+                          className="w-full bg-transparent border border-white/10 px-4 py-3 rounded-sm text-sm text-white placeholder:text-white/15 focus:outline-none focus:border-white/30 transition-colors"
                         />
                       </div>
-                      <div className="space-y-3">
-                        <label className="text-[9px] uppercase tracking-[0.4em] text-white/50 ml-4 font-bold">Categoria</label>
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] uppercase tracking-[0.3em] text-white/35 font-medium">
+                          Categoria
+                        </label>
                         <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
-                          <SelectTrigger className="w-full glass-liquid border-white/5 bg-transparent px-8 py-5 h-auto rounded-full text-sm text-white focus:outline-none focus:ring-0 focus:ring-offset-0 border-white/5 transition-all">
-                            <SelectValue placeholder="Selecione uma categoria" />
+                          <SelectTrigger className="w-full bg-transparent border border-white/10 px-4 py-3 h-auto rounded-sm text-sm text-white focus:ring-0 focus:ring-offset-0">
+                            <SelectValue placeholder="Selecionar…" />
                           </SelectTrigger>
-                          <SelectContent className="glass-liquid border-white/10 text-white">
+                          <SelectContent className="bg-[#111] border-white/10 text-white">
                             {categories.map((cat) => (
                               <SelectItem key={cat.id} value={cat.id} className="focus:bg-white/10 focus:text-white">
                                 {cat.name}
@@ -283,28 +318,30 @@ const AdminDashboard = () => {
                     <button
                       onClick={handleSave}
                       disabled={saving || !projectName.trim()}
-                      className="inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full text-[10px] uppercase tracking-[0.4em] font-bold transition-all hover:scale-[1.02] active:scale-[0.98] glow-border shadow-xl disabled:opacity-30"
+                      className="flex items-center gap-2 px-6 py-2.5 bg-white text-black text-[9px] font-semibold uppercase tracking-wider rounded-sm transition-opacity hover:opacity-80 disabled:opacity-30"
                     >
-                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                      {saving ? "Processando..." : "Criar Projeto Vitalício"}
+                      {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                      {saving ? "Salvando…" : "Criar Projeto"}
                     </button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
+            {/* Projects grid */}
             {projects.length === 0 ? (
-              <div className="flex flex-col items-center justify-center glass-liquid py-32 rounded-[4rem] border-white/5 border-dashed">
-                <FolderOpen className="h-10 w-10 text-white/10 mb-6" strokeWidth={1} />
-                <p className="text-[10px] uppercase tracking-[0.4em] text-white/20 font-bold">A imensidão está vazia.</p>
+              <div className="flex flex-col items-center justify-center py-28 border border-dashed border-white/8 rounded-sm">
+                <FolderOpen className="h-8 w-8 text-white/10 mb-4" strokeWidth={1} />
+                <p className="text-[10px] uppercase tracking-[0.4em] text-white/20">Nenhum projeto ainda.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-                {projects.map((project) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
+                {projects.map((project, i) => (
                   <ProjectCard
                     key={project.id}
                     project={project}
                     categories={categories}
+                    index={i}
                     onClick={() => navigate(`/admin/projeto/${project.id}`)}
                     onCopyLink={handleCopyLink}
                     onShowQr={handleShowQr}
@@ -314,19 +351,28 @@ const AdminDashboard = () => {
                 ))}
               </div>
             )}
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="categories">
-            <div className="mb-10 flex items-center justify-between">
-              <h3 className="text-[9px] uppercase tracking-[0.4em] text-white/30 font-bold px-4 border-l-2 border-primary">Estrutura de Categorias</h3>
+        {/* ── CATEGORIES TAB ── */}
+        {activeTab === "categories" && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-px h-4 bg-white/30" />
+                <span className="text-[9px] uppercase tracking-[0.4em] text-white/35 font-medium">
+                  {categories.length} {categories.length === 1 ? "Categoria" : "Categorias"}
+                </span>
+              </div>
               <button
                 onClick={() => setShowCategoryForm(!showCategoryForm)}
-                className={`inline-flex items-center gap-3 px-8 py-4 text-[9px] uppercase tracking-[0.3em] transition-all duration-500 rounded-full font-bold ${showCategoryForm
-                  ? "glass-liquid text-white border-white/10"
-                  : "bg-white text-black glow-border shadow-xl hover:scale-105"
-                  }`}
+                className={`flex items-center gap-2 px-5 py-2.5 text-[9px] font-semibold uppercase tracking-wider rounded-sm transition-all duration-300 ${
+                  showCategoryForm
+                    ? "border border-white/15 text-white/50 hover:text-white"
+                    : "bg-white text-black hover:opacity-80"
+                }`}
               >
-                {showCategoryForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                {showCategoryForm ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
                 {showCategoryForm ? "Fechar" : "Nova Categoria"}
               </button>
             </div>
@@ -334,140 +380,198 @@ const AdminDashboard = () => {
             <AnimatePresence>
               {showCategoryForm && (
                 <motion.div
-                  className="mb-12 glass-liquid p-10 rounded-[3rem] glow-border shadow-2xl"
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.35, ease: "easeInOut" }}
+                  className="overflow-hidden"
                 >
-                  <div className="flex flex-col gap-8 max-w-md">
-                    <div className="space-y-3">
-                      <label className="text-[9px] uppercase tracking-[0.4em] text-white/50 ml-4 font-bold">Título da Categoria</label>
-                      <input
-                        type="text"
-                        placeholder="Ex: Arquitetura, Interiores"
-                        value={categoryName}
-                        onChange={(e) => setCategoryName(e.target.value)}
-                        className="w-full glass-liquid border-white/5 bg-transparent px-8 py-5 rounded-full text-sm text-white focus:outline-none focus:border-primary/30 transition-all placeholder:text-white/10"
-                      />
+                  <div className="mb-6 border border-white/8 bg-white/2 rounded-sm p-6">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="space-y-1.5 flex-1">
+                        <label className="text-[9px] uppercase tracking-[0.3em] text-white/35 font-medium">
+                          Nome da Categoria
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Arquitetura, Interiores…"
+                          value={categoryName}
+                          onChange={(e) => setCategoryName(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleSaveCategory()}
+                          className="w-full bg-transparent border border-white/10 px-4 py-3 rounded-sm text-sm text-white placeholder:text-white/15 focus:outline-none focus:border-white/30 transition-colors"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <button
+                          onClick={handleSaveCategory}
+                          disabled={categorySaving || !categoryName.trim()}
+                          className="flex items-center gap-2 px-6 py-3 bg-white text-black text-[9px] font-semibold uppercase tracking-wider rounded-sm transition-opacity hover:opacity-80 disabled:opacity-30 whitespace-nowrap"
+                        >
+                          {categorySaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Tag className="h-3.5 w-3.5" />}
+                          {categorySaving ? "Salvando…" : "Criar Categoria"}
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={handleSaveCategory}
-                      disabled={categorySaving || !categoryName.trim()}
-                      className="inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full text-[10px] uppercase tracking-[0.4em] font-bold transition-all hover:scale-[1.02] active:scale-[0.98] glow-border shadow-xl disabled:opacity-30"
-                    >
-                      {categorySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tag className="h-4 w-4" />}
-                      {categorySaving ? "Processando..." : "Registrar Categoria"}
-                    </button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
             {categories.length === 0 ? (
-              <div className="flex flex-col items-center justify-center glass-liquid py-32 rounded-[4rem] border-white/5 border-dashed">
-                <Tag className="h-10 w-10 text-white/10 mb-6" strokeWidth={1} />
-                <p className="text-[10px] uppercase tracking-[0.4em] text-white/20 font-bold">Sem nichos definidos.</p>
+              <div className="flex flex-col items-center justify-center py-28 border border-dashed border-white/8 rounded-sm">
+                <Tag className="h-8 w-8 text-white/10 mb-4" strokeWidth={1} />
+                <p className="text-[10px] uppercase tracking-[0.4em] text-white/20">Nenhuma categoria criada.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {categories.map((category) => (
-                  <div key={category.id} className="flex items-center justify-between glass-liquid p-8 rounded-[2.5rem] group hover:border-white/20 transition-all glow-border">
-                    <div className="space-y-1">
-                      <h4 className="font-display text-lg text-white/90">{category.name}</h4>
-                      <p className="text-[8px] text-white/20 uppercase tracking-[0.4em] font-bold">{category.slug}</p>
+              <div className="divide-y divide-white/5 border border-white/6 rounded-sm overflow-hidden">
+                {categories.map((cat, i) => (
+                  <motion.div
+                    key={cat.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="flex items-center justify-between px-5 py-4 hover:bg-white/2 transition-colors group"
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
+                      <span className="text-[8px] tabular-nums text-white/18 font-medium w-5">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white/85 truncate">{cat.name}</p>
+                        <p className="text-[8px] uppercase tracking-widest text-white/25 mt-0.5">/{cat.slug}</p>
+                      </div>
                     </div>
-                    <button onClick={() => handleDeleteCategory(category.id)} className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/5 text-white/30 hover:border-destructive/30 hover:text-destructive transition-all">
-                      <Trash2 className="h-4 w-4" />
+                    <button
+                      onClick={() => handleDeleteCategory(cat.id)}
+                      className="flex h-8 w-8 items-center justify-center text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}
-          </TabsContent>
-        </Tabs>
-
-        <Dialog open={!!qrProject} onOpenChange={(open) => !open && setQrProject(null)}>
-          <DialogContent className="sm:max-w-md glass-liquid border-white/10 glow-border">
-            <DialogHeader>
-              <DialogTitle className="font-display text-xl font-light tracking-[0.2em] text-center uppercase text-white/90">QR Code do Projeto</DialogTitle>
-            </DialogHeader>
-            <div className="flex flex-col items-center justify-center space-y-8 py-8">
-              <span className="text-[10px] uppercase font-bold tracking-[0.4em] text-primary">{qrProject?.name}</span>
-              <div className="bg-white p-6 rounded-[2rem] shadow-[0_30px_60px_rgba(255,255,255,0.1)]">
-                {qrProject && (
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrProject.url)}`}
-                    alt="QR Code"
-                    className="w-[200px] h-[200px] sm:w-[250px] sm:h-[250px]"
-                  />
-                )}
-              </div>
-              <p className="text-[9px] text-center uppercase tracking-[0.3em] text-white/40 px-6 leading-relaxed">
-                Escaneie para visualizar este portfólio em outro dispositivo
-              </p>
-            </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+        )}
       </div>
+
+      {/* ── QR Dialog ── */}
+      <Dialog open={!!qrProject} onOpenChange={(open) => !open && setQrProject(null)}>
+        <DialogContent className="sm:max-w-sm bg-[#111] border-white/10">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-lg font-normal text-center text-white">
+              QR Code — {qrProject?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-6 py-4">
+            <div className="bg-white p-4 rounded-sm">
+              {qrProject && (
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrProject.url)}`}
+                  alt="QR Code"
+                  className="w-[180px] h-[180px]"
+                />
+              )}
+            </div>
+            <p className="text-[9px] text-center uppercase tracking-[0.3em] text-white/30 px-4 leading-relaxed">
+              Aponte a câmera para abrir o portfólio
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-function ProjectCard({ project, categories, onClick, onCopyLink, onShowQr, onDelete, copiedId }: any) {
+/* ─── PROJECT CARD ─── */
+function ProjectCard({ project, categories, index, onClick, onCopyLink, onShowQr, onDelete, copiedId }: any) {
+  const [isLoaded, setIsLoaded] = useState(false);
   const photo = project.photos?.[project.coverIndex || 0];
   const category = categories.find((c: any) => c.id === project.categoryId);
 
   return (
     <motion.div
-      className="group relative glass-liquid rounded-[3rem] overflow-hidden cursor-pointer border-white/5 glow-border shadow-2xl transition-all hover:-translate-y-2 duration-500"
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
+      className="group relative cursor-pointer bg-white/3 border border-white/6 hover:border-white/15 transition-all duration-300 rounded-sm overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: index * 0.04, duration: 0.4 }}
       onClick={onClick}
     >
-      <div className="relative aspect-[16/10] bg-white/5 overflow-hidden">
+      {/* Thumbnail */}
+      <div className="relative aspect-[3/4] bg-[#111] overflow-hidden">
         {photo ? (
-          <img
-            src={getOptimizedUrl(photo.url, 600)}
-            alt={project.clientName}
-            className="h-full w-full object-cover transition-transform duration-[2s] group-hover:scale-110 opacity-60 group-hover:opacity-100"
-            loading="lazy"
-          />
+          <>
+            {/* Shimmer Skeleton */}
+            {!isLoaded && (
+              <div className="absolute inset-0 overflow-hidden z-10 bg-[#111]">
+                <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent animate-shimmer" />
+              </div>
+            )}
+            
+            <motion.img
+              src={getOptimizedUrl(photo.url, 400)}
+              alt={project.clientName}
+              onLoad={() => setIsLoaded(true)}
+              initial={{ opacity: 0, filter: "blur(10px)" }}
+              animate={{ 
+                opacity: isLoaded ? 1 : 0, 
+                filter: isLoaded ? "blur(0px)" : "blur(10px)"
+              }}
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              loading="lazy"
+            />
+          </>
         ) : (
-          <div className="flex h-full items-center justify-center"><Image className="h-8 w-8 text-white/5" strokeWidth={1} /></div>
+          <div className="flex h-full items-center justify-center">
+            <ImageIcon className="h-6 w-6 text-white/10" strokeWidth={1} />
+          </div>
         )}
 
+        {/* Category badge */}
         {category && (
-          <div className="absolute top-5 left-5 glass-liquid px-4 py-1.5 rounded-full text-[7px] font-bold uppercase tracking-[0.3em] text-white border-white/10 glow-border">
-            {category.name}
+          <div className="absolute top-2 left-2 bg-black/60 px-2 py-0.5 rounded-sm">
+            <span className="text-[7px] uppercase tracking-widest text-white/60 font-medium">{category.name}</span>
           </div>
         )}
-      </div>
-      <div className="p-6 sm:p-8 space-y-5 sm:space-y-6">
-        <div className="flex items-center justify-between gap-4">
-          <div className="space-y-1 min-w-0">
-            <h3 className="font-display text-xl sm:text-2xl text-white/90 tracking-tight leading-none group-hover:text-white transition-colors truncate">{project.clientName}</h3>
-            <p className="text-[9px] text-white/20 uppercase tracking-[0.4em] font-bold">
-              {project.photos?.length || 0} Captura{(project.photos?.length || 0) !== 1 ? "s" : ""}
-            </p>
-          </div>
-          <motion.div whileHover={{ scale: 1.1 }} className="h-10 w-10 flex items-center justify-center glass-liquid rounded-full border-white/10 glow-border">
-            <ExternalLink className="h-3.5 w-3.5 text-white/40" />
-          </motion.div>
-        </div>
 
-        <div className="flex items-center gap-3 pt-2">
-          <button onClick={(e) => onCopyLink(e, project.slug, project.id)} className="flex-1 flex h-12 items-center justify-center gap-3 glass-liquid rounded-full border-white/5 text-[9px] font-bold uppercase tracking-widest text-white/40 hover:text-white hover:border-white/20 transition-all glow-border">
-            {copiedId === project.id ? <Check className="h-3.5 w-3.5 text-primary" /> : <LinkIcon className="h-3.5 w-3.5" />}
-            {copiedId === project.id ? "Copiado" : "Link"}
+        {/* Hover overlay with actions */}
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); onCopyLink(e, project.slug, project.id); }}
+            title="Copiar link"
+            className="flex h-8 w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors"
+          >
+            {copiedId === project.id
+              ? <Check className="h-3.5 w-3.5" />
+              : <LinkIcon className="h-3.5 w-3.5" />
+            }
           </button>
-          <button onClick={(e) => onShowQr(e, project.clientName, project.slug)} className="flex h-12 w-12 items-center justify-center glass-liquid rounded-full border-white/5 text-white/40 hover:text-white hover:border-white/20 transition-all glow-border">
-            <QrCode className="h-4 w-4" />
+          <button
+            onClick={(e) => { e.stopPropagation(); onShowQr(e, project.clientName, project.slug); }}
+            title="QR Code"
+            className="flex h-8 w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors"
+          >
+            <QrCode className="h-3.5 w-3.5" />
           </button>
-          <button onClick={(e) => onDelete(e, project.id)} className="flex h-12 w-12 items-center justify-center glass-liquid rounded-full border-white/5 text-white/20 hover:text-destructive hover:border-destructive/30 transition-all glow-border">
-            <Trash2 className="h-4 w-4" />
+          <button
+            onClick={(e) => onDelete(e, project.id)}
+            title="Excluir"
+            className="flex h-8 w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-red-500/30 text-white hover:text-red-300 border border-white/15 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
+      </div>
+
+      {/* Footer info */}
+      <div className="px-3 py-2.5 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-white/80 truncate leading-tight">{project.clientName}</p>
+          <p className="text-[8px] uppercase tracking-widest text-white/28 mt-0.5">
+            {project.photos?.length || 0} capturas
+          </p>
+        </div>
+        <ExternalLink className="h-3 w-3 text-white/20 shrink-0 group-hover:text-white/50 transition-colors" />
       </div>
     </motion.div>
   );

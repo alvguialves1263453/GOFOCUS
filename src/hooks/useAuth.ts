@@ -1,26 +1,37 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import type { Session, User } from "@supabase/supabase-js";
 
 export function useAuth() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("gofocus_admin_user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    // Get current session on mount
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+      setLoading(false);
+    });
+
+    // Listen for auth state changes (login, logout, token refresh)
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Simple mock authentication
-    if (email === "admin@gofocus.com" && password === "gofocus123") {
-      const mockUser = { email, id: "mock-uid-1" };
-      setUser(mockUser);
-      localStorage.setItem("gofocus_admin_user", JSON.stringify(mockUser));
-    } else {
-      throw new Error("Credenciais inválidas");
-    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
+    setUser(data.user);
+    setSession(data.session);
   };
 
   const signUp = async () => {
@@ -28,9 +39,10 @@ export function useAuth() {
   };
 
   const signOut = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem("gofocus_admin_user");
+    setSession(null);
   };
 
-  return { user, session: user, loading, signIn, signUp, signOut };
+  return { user, session, loading, signIn, signUp, signOut };
 }

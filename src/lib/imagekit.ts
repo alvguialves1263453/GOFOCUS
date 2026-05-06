@@ -2,11 +2,6 @@ const PUBLIC_KEY = import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY || "";
 const URL_ENDPOINT = import.meta.env.VITE_IMAGEKIT_URL_ENDPOINT || "";
 const PRIVATE_KEY = import.meta.env.VITE_IMAGEKIT_PRIVATE_KEY || "";
 
-/**
- * Uploads a file to ImageKit.
- * Note: Client-side upload using private key is NOT recommended for production.
- * For a real app, you should use an authentication endpoint.
- */
 export async function uploadToImageKit(file: File, folder: string = "gofocus"): Promise<{ url: string; publicId: string }> {
     const formData = new FormData();
     formData.append("file", file);
@@ -26,7 +21,6 @@ export async function uploadToImageKit(file: File, folder: string = "gofocus"): 
 
         if (!response.ok) {
             const errorData = await response.json();
-            console.error("ImageKit Error:", errorData);
             throw new Error(errorData.message || "Erro no upload para ImageKit");
         }
 
@@ -41,12 +35,8 @@ export async function uploadToImageKit(file: File, folder: string = "gofocus"): 
     }
 }
 
-/**
- * Deletes a file from ImageKit using its fileId.
- */
 export async function deleteFromImageKit(fileId: string): Promise<boolean> {
     if (!fileId) return false;
-
     try {
         const response = await fetch(`https://api.imagekit.io/v1/files/${fileId}`, {
             method: "DELETE",
@@ -54,39 +44,21 @@ export async function deleteFromImageKit(fileId: string): Promise<boolean> {
                 "Authorization": `Basic ${btoa(PRIVATE_KEY + ":")}`
             }
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error("ImageKit Delete Error:", errorData);
-            return false;
-        }
-
-        return true;
+        return response.ok;
     } catch (error) {
         console.error("ImageKit delete error:", error);
         return false;
     }
 }
 
-/**
- * Returns an optimized URL for a given ImageKit URL.
- * Example: Adding transformations for width, height, or quality.
- */
 export function getOptimizedUrl(url: string, width?: number, height?: number): string {
     if (!url || !url.includes("ik.imagekit.io")) return url;
-
     const transformations = [];
     if (width) transformations.push(`w-${width}`);
     if (height) transformations.push(`h-${height}`);
-    transformations.push("q-90"); // High quality for photographers
-    transformations.push("f-auto"); // Automatic format (webp/avif)
-
+    transformations.push("q-90");
+    transformations.push("f-auto");
 
     const transformString = transformations.join(",");
-
-    // Append transformation to URL
-    if (url.includes("?")) {
-        return `${url}&tr=${transformString}`;
-    }
-    return `${url}?tr=${transformString}`;
+    return url.includes("?") ? `${url}&tr=${transformString}` : `${url}?tr=${transformString}`;
 }

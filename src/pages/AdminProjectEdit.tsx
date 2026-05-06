@@ -1,19 +1,109 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { getProjectsAsync, updateProjectAsync, getCategoriesAsync, type Project, type ProjectPhoto, type Category } from "@/lib/storage";
+import {
+  getProjectsAsync, updateProjectAsync, getCategoriesAsync,
+  type Project, type ProjectPhoto, type Category,
+} from "@/lib/storage";
 import { uploadToImageKit, getOptimizedUrl, deleteFromImageKit } from "@/lib/imagekit";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowLeft, Plus, Trash2, Copy, Check, Loader2, ExternalLink, Tag, X, Image, Sparkles, Camera } from "lucide-react";
-import LiquidBackground from "@/components/LiquidBackground";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  ArrowLeft, Plus, Trash2, Copy, Check, Loader2,
+  ExternalLink, Tag, Image as ImageIcon, X
+} from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor,
+  useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+interface SortablePhotoProps {
+  photo: ProjectPhoto;
+  index: number;
+  isSelected: boolean;
+  isCover: boolean;
+  toggleSelect: (index: number) => void;
+  handleSetCover: (index: number, e: React.MouseEvent) => void;
+  handleRemoveSingle: (index: number, e: React.MouseEvent) => void;
+}
+
+const SortablePhoto = ({ photo, index, isSelected, isCover, toggleSelect, handleSetCover, handleRemoveSingle }: SortablePhotoProps) => {
+  const {
+    attributes, listeners, setNodeRef, transform, transition, isDragging
+  } = useSortable({ id: photo.url });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 999 : 1,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative aspect-[3/4] overflow-hidden rounded-sm bg-white/4 cursor-grab active:cursor-grabbing transition-shadow duration-300 ${
+        isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : 'hover:ring-1 hover:ring-white/20'
+      }`}
+      onClick={(e) => {
+         // Prevent selecting when clicking the actions
+         if((e.target as HTMLElement).closest('.action-btn')) return;
+         toggleSelect(index);
+      }}
+      {...attributes}
+      {...listeners}
+    >
+      <img
+        src={getOptimizedUrl(photo.url, 400)}
+        alt=""
+        className={`h-full w-full object-cover transition-all duration-500 pointer-events-none ${
+            isSelected ? 'scale-105 opacity-50' : 'opacity-80 group-hover:opacity-100'
+        }`}
+        loading="lazy"
+      />
+
+      <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-0'}`}>
+         <div className="bg-white rounded-full p-2 text-black">
+            <Check className="h-4 w-4" strokeWidth={3} />
+         </div>
+      </div>
+
+      <div className={`absolute inset-0 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto ${isSelected ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
+        <button
+          className="action-btn absolute top-2 left-2 flex h-7 w-7 items-center justify-center rounded-sm transition-all shadow-xl bg-black/60 text-white/70 hover:bg-white hover:text-black opacity-0 group-hover:opacity-100"
+          onClick={(e) => { e.stopPropagation(); handleSetCover(index, e); }} title="Definir capa">
+          <ImageIcon className="h-3 w-3" />
+        </button>
+        <button
+          className="action-btn absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-sm text-red-400 hover:bg-red-500 hover:text-white transition-all shadow-xl bg-black/40"
+          onClick={(e) => { e.stopPropagation(); handleRemoveSingle(index, e); }} title="Remover foto">
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </div>
+
+      {isCover && (
+        <div className="absolute bottom-1.5 left-1.5 bg-white/90 px-2 py-0.5 rounded-sm">
+          <span className="text-[7px] font-bold uppercase tracking-wider text-black">Imagem de Capa</span>
+        </div>
+      )}
+
+      <div className="absolute bottom-1.5 right-1.5">
+        <span className="text-[8px] tabular-nums text-white/20 font-bold tracking-tighter">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+      </div>
+    </div>
+  );
+};
 
 const AdminProjectEdit = () => {
   const navigate = useNavigate();
@@ -22,19 +112,52 @@ const AdminProjectEdit = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<{ total: number; current: number; isUploading: boolean }>({
-    total: 0,
-    current: 0,
-    isUploading: false
-  });
+  const [uploadStatus, setUploadStatus] = useState<{
+    total: number; current: number; isUploading: boolean;
+  }>({ total: 0, current: 0, isUploading: false });
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveId(null);
+    const { active, over } = event;
+    if (!over || !project) return;
+    
+    if (active.id !== over.id) {
+      const oldIndex = project.photos.findIndex((p) => p.url === active.id);
+      const newIndex = project.photos.findIndex((p) => p.url === over.id);
+      const newPhotos = arrayMove(project.photos, oldIndex, newIndex);
+      
+      const oldCoverPhoto = project.photos[project.coverIndex || 0];
+      const newCoverIndex = newPhotos.findIndex(p => p.url === oldCoverPhoto.url);
+      
+      setProject({ ...project, photos: newPhotos, coverIndex: newCoverIndex });
+      setSelectedIndices(new Set());
+      
+      try {
+        await updateProjectAsync(project.id, { photos: newPhotos, coverIndex: newCoverIndex });
+      } catch {
+        toast.error("Erro ao salvar nova ordem");
+      }
+    }
+  };
+
 
   useEffect(() => {
-    if (id) {
-      loadProject();
-      loadCategories();
-    }
+    if (id) { loadProject(); loadCategories(); }
   }, [id]);
 
   const loadCategories = async () => {
@@ -45,103 +168,126 @@ const AdminProjectEdit = () => {
   const loadProject = async () => {
     try {
       const projects = await getProjectsAsync();
-      const found = projects.find(p => p.id === id);
-      if (found) {
-        setProject(found);
-      } else {
-        navigate("/admin/dashboard");
-      }
-    } catch (err) {
-      console.error("Failed to load project:", err);
-      navigate("/admin/dashboard");
-    } finally {
-      setLoading(false);
-    }
+      const found = projects.find((p) => p.id === id);
+      if (found) { setProject(found); }
+      else { navigate("/admin/dashboard"); }
+    } catch { navigate("/admin/dashboard"); }
+    finally { setLoading(false); }
   };
 
   const handleAddPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0 || !project) return;
-
     setUploadStatus({ total: files.length, current: 0, isUploading: true });
-
     try {
       const MAX_SIZE = 25 * 1024 * 1024;
-      const oversizedFiles = (files as File[]).filter(f => f.size > MAX_SIZE);
-
-      if (oversizedFiles.length > 0) {
-        toast.error(`Arquivo(s) muito grandes: ${oversizedFiles.map(f => f.name).join(", ")}. O limite é 25MB.`);
+      const oversized = (files as File[]).filter((f) => f.size > MAX_SIZE);
+      if (oversized.length > 0) {
+        toast.error(`Arquivo(s) muito grandes. Limite: 25MB.`);
         setUploadStatus({ total: 0, current: 0, isUploading: false });
         return;
       }
+      const uploadPromises = files.map(async (file) => {
+        const u = await uploadToImageKit(file, `gofocus/${project.slug}`);
+        setUploadStatus((prev) => ({ ...prev, current: prev.current + 1 }));
+        return u;
+      });
 
-      const uploadedPhotos: ProjectPhoto[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const uploaded = await uploadToImageKit(file, `gofocus/${project.slug}`);
-        uploadedPhotos.push(uploaded);
-        setUploadStatus(prev => ({ ...prev, current: i + 1 }));
-      }
-
-      const updatedPhotos = [...(project.photos || []), ...uploadedPhotos];
+      const uploaded = await Promise.all(uploadPromises);
+      const updatedPhotos = [...(project.photos || []), ...uploaded];
       await updateProjectAsync(project.id, { photos: updatedPhotos });
       setProject({ ...project, photos: updatedPhotos });
       toast.success(`${files.length} foto(s) adicionada(s)!`);
     } catch (err: any) {
-      toast.error(err.message || "Erro no upload para ImageKit");
+      toast.error(err.message || "Erro no upload");
     } finally {
       setTimeout(() => {
         setUploadStatus({ total: 0, current: 0, isUploading: false });
+        if (fileInputRef.current) fileInputRef.current.value = "";
       }, 2000);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const handleRemovePhoto = async (index: number) => {
-    if (!project || !confirm("Remover esta foto?")) return;
+  const toggleSelect = (index: number) => {
+    const newSelected = new Set(selectedIndices);
+    if (newSelected.has(index)) {
+      newSelected.delete(index);
+    } else {
+      newSelected.add(index);
+    }
+    setSelectedIndices(newSelected);
+  };
 
-    const photoToRemove = project.photos[index];
-    const updatedPhotos = project.photos.filter((_, i) => i !== index);
+  const handleRemoveSelected = async () => {
+    if (!project || selectedIndices.size === 0) return;
+    if (!confirm(`Excluir as ${selectedIndices.size} fotos selecionadas?`)) return;
 
-    // Adjust coverIndex if needed
+    setIsDeletingBulk(true);
+    const photosToRemove = Array.from(selectedIndices).map(idx => project.photos[idx]);
+    const updatedPhotos = project.photos.filter((_, idx) => !selectedIndices.has(idx));
+    
     let newCoverIndex = project.coverIndex || 0;
-    if (index === newCoverIndex) {
-      newCoverIndex = 0; // Reset to first if cover was deleted
-    } else if (index < newCoverIndex) {
-      newCoverIndex--; // Shift if a previous photo was deleted
+    if (selectedIndices.has(newCoverIndex)) {
+      newCoverIndex = 0;
+    } else {
+      const shifted = Array.from(selectedIndices).filter(idx => idx < (project.coverIndex || 0)).length;
+      newCoverIndex = Math.max(0, (project.coverIndex || 0) - shifted);
     }
 
     try {
-      if (photoToRemove.publicId) {
-        await deleteFromImageKit(photoToRemove.publicId);
-      }
-
-      await updateProjectAsync(project.id, {
-        photos: updatedPhotos,
-        coverIndex: newCoverIndex
-      });
+      const deletePromises = photosToRemove
+        .filter(p => p.publicId)
+        .map(p => deleteFromImageKit(p.publicId));
+      
+      await Promise.all(deletePromises);
+      await updateProjectAsync(project.id, { photos: updatedPhotos, coverIndex: newCoverIndex });
+      
       setProject({ ...project, photos: updatedPhotos, coverIndex: newCoverIndex });
-      toast.success("Foto removida");
-    } catch (err) {
-      toast.error("Erro ao remover foto");
+      setSelectedIndices(new Set());
+      toast.success(`${photosToRemove.length} fotos removidas`);
+    } catch {
+      toast.error("Erro ao remover fotos");
+    } finally {
+      setIsDeletingBulk(false);
     }
   };
 
-  const handleSetCover = async (index: number) => {
+  const handleSetCover = async (index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!project) return;
     try {
       await updateProjectAsync(project.id, { coverIndex: index });
       setProject({ ...project, coverIndex: index });
-      toast.success("Capa do projeto atualizada!");
-    } catch (err) {
-      toast.error("Erro ao atualizar capa");
-    }
+      toast.success("Capa atualizada!");
+    } catch { toast.error("Erro ao atualizar capa"); }
+  };
+
+  const handleRemoveSingle = async (index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!project || !confirm("Remover esta foto?")) return;
+    const photoToRemove = project.photos[index];
+    const updatedPhotos = project.photos.filter((_, i) => i !== index);
+    let newCoverIndex = project.coverIndex || 0;
+    if (index === newCoverIndex) newCoverIndex = 0;
+    else if (index < newCoverIndex) newCoverIndex--;
+    try {
+      if (photoToRemove.publicId) await deleteFromImageKit(photoToRemove.publicId);
+      await updateProjectAsync(project.id, { photos: updatedPhotos, coverIndex: newCoverIndex });
+      setProject({ ...project, photos: updatedPhotos, coverIndex: newCoverIndex });
+      
+      const newSelected = new Set<number>();
+      selectedIndices.forEach(idx => {
+        if (idx === index) return;
+        newSelected.add(idx > index ? idx - 1 : idx);
+      });
+      setSelectedIndices(newSelected);
+      toast.success("Foto removida");
+    } catch { toast.error("Erro ao remover foto"); }
   };
 
   const handleCopyLink = () => {
     if (!project) return;
-    const url = `${window.location.origin}/cliente/${project.slug}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(`${window.location.origin}/cliente/${project.slug}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -152,9 +298,7 @@ const AdminProjectEdit = () => {
       await updateProjectAsync(project.id, { clientName: newName.trim() });
       setProject({ ...project, clientName: newName.trim() });
       toast.success("Nome atualizado");
-    } catch (err) {
-      toast.error("Erro ao atualizar nome");
-    }
+    } catch { toast.error("Erro ao atualizar nome"); }
   };
 
   const updateCategory = async (categoryId: string) => {
@@ -164,213 +308,146 @@ const AdminProjectEdit = () => {
       await updateProjectAsync(project.id, { categoryId: idToStore });
       setProject({ ...project, categoryId: idToStore });
       toast.success("Categoria atualizada");
-    } catch (err) {
-      toast.error("Erro ao atualizar categoria");
-    }
+    } catch { toast.error("Erro ao atualizar categoria"); }
   };
 
   if (loading || authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <LiquidBackground />
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
+        <Loader2 className="h-5 w-5 animate-spin text-white/30" />
       </div>
     );
   }
 
   if (!project) return null;
-
   const photos = project.photos || [];
 
-  return (
-    <div className="min-h-screen relative text-foreground selection:bg-primary/30">
-      <LiquidBackground />
+  const activePhoto = activeId ? photos.find(p => p.url === activeId) : null;
 
-      <div className="mx-auto max-w-6xl px-6 py-12 relative z-10">
-        <div className="mb-16 flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between glass-liquid p-8 sm:p-12 rounded-[3.5rem] glow-border shadow-2xl">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 text-center sm:text-left w-full lg:w-auto">
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-white/10 pb-24">
+      <header className="sticky top-0 z-50 border-b border-white/6 bg-[#0a0a0a]/95 backdrop-blur-sm">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => navigate("/admin/dashboard")}
-              className="flex h-14 w-14 items-center justify-center shrink-0 rounded-full glass-liquid border-white/5 text-white/40 transition-all hover:text-white hover:bg-white/10 glow-border"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border border-white/10 text-white/40 hover:text-white hover:border-white/25 transition-colors"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-3.5 w-3.5" />
             </button>
-            <div className="space-y-6 w-full">
-              <input
-                type="text"
-                defaultValue={project.clientName}
-                onBlur={(e) => updateName(e.target.value)}
-                className="bg-transparent font-display text-4xl sm:text-5xl font-light tracking-tight text-white/90 outline-none border-b border-transparent focus:border-white/20 transition-all w-full text-center sm:text-left"
-              />
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-6">
-                <p className="text-[10px] uppercase tracking-[0.4em] text-white/30 font-bold flex items-center gap-3">
-                  <Camera className="h-4 w-4" />
-                  <span>{photos.length} Fotos</span>
-                  <span className="h-1 w-1 rounded-full bg-white/10" />
-                  <span>{new Date(project.createdAt).toLocaleDateString("pt-BR")}</span>
-                </p>
-                <div className="h-5 w-px bg-white/10 hidden sm:block" />
-                <div className="flex items-center gap-4 glass-liquid px-6 py-2.5 rounded-full border-white/5 glow-border">
-                  <Tag className="h-3.5 w-3.5 text-primary" />
-                  <Select
-                    defaultValue={project.categoryId || "none"}
-                    onValueChange={updateCategory}
-                  >
-                    <SelectTrigger className="h-auto w-auto min-w-[150px] bg-transparent border-none p-0 text-[10px] font-bold uppercase tracking-[0.3em] text-white/70 focus:ring-0 focus:ring-offset-0">
-                      <SelectValue placeholder="Categoria" />
-                    </SelectTrigger>
-                    <SelectContent className="glass-liquid border-white/10 text-white">
-                      <SelectItem value="none" className="text-[10px] uppercase tracking-widest font-bold">Sem Categoria</SelectItem>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id} className="text-[10px] uppercase tracking-widest font-bold">
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
+            <input
+              type="text"
+              defaultValue={project.clientName}
+              onBlur={(e) => updateName(e.target.value)}
+              className="bg-transparent font-serif text-base sm:text-lg text-white/85 outline-none border-b border-transparent focus:border-white/20 transition-colors min-w-0 truncate max-w-[140px] sm:max-w-xs"
+            />
           </div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full lg:w-auto">
-            <button
-              onClick={handleCopyLink}
-              className="flex h-14 items-center justify-center gap-3 glass-liquid px-10 rounded-full border-white/5 text-[10px] uppercase tracking-[0.3em] font-bold text-white/50 transition-all hover:text-white glow-border w-full sm:w-auto"
-            >
-              {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
-              {copied ? "Link Copiado!" : "Compartilhar"}
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={handleCopyLink} className="flex items-center gap-1.5 px-3 py-1.5 border border-white/8 rounded-sm text-[9px] font-semibold uppercase tracking-wider text-white/40 hover:text-white hover:border-white/20 transition-colors">
+              {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              <span className="hidden sm:inline">{copied ? "Copiado" : "Copiar link"}</span>
             </button>
-            <a
-              href={`/cliente/${project.slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex h-14 items-center justify-center gap-3 bg-white text-black px-10 rounded-full text-[10px] uppercase tracking-[0.4em] font-bold shadow-xl transition-all hover:scale-105 active:scale-95 glow-border w-full sm:w-auto"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Ver Prévia
+            <a href={`/cliente/${project.slug}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-black rounded-sm text-[9px] font-semibold uppercase tracking-wider hover:opacity-80 transition-opacity">
+              <ExternalLink className="h-3 w-3" />
+              <span className="hidden sm:inline">Ver prévia</span>
             </a>
           </div>
         </div>
+      </header>
 
-        <div className="mb-16 p-16 glass-liquid rounded-[4rem] border border-dashed border-white/10 bg-white/[0.02] text-center transition-all hover:bg-white/[0.04] relative overflow-hidden group glow-border shadow-2xl">
-          <input ref={fileInputRef} type="file" multiple accept="image/*" onChange={handleAddPhotos} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={uploadStatus.isUploading} />
-          <motion.div
-            className="flex flex-col items-center gap-6"
-            animate={uploadStatus.isUploading ? { scale: 0.98, opacity: 0.6 } : { scale: 1, opacity: 1 }}
-          >
-            <div className="h-20 w-20 rounded-full glass-liquid border-white/5 flex items-center justify-center bg-white/5 group-hover:bg-white group-hover:text-black transition-all duration-700 glow-border shadow-2xl">
-              {uploadStatus.isUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Plus className="h-8 w-8" strokeWidth={1} />}
-            </div>
-            <div className="space-y-3">
-              <h3 className="text-xl font-display font-light text-white/90">Role para Baixo!</h3>
-              <p className="text-[9px] uppercase tracking-[0.4em] text-white/30 font-bold">Arraste os arquivos ou clique para processar as capturas</p>
-            </div>
-          </motion.div>
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 py-6 sm:py-8">
+        
+        <AnimatePresence>
+          {selectedIndices.size > 0 && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-6">
+              <div className="bg-white/[0.03] border border-white/10 p-4 rounded-sm flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                   <div className="bg-white text-black text-[10px] font-bold px-2 py-0.5 rounded-sm">{selectedIndices.size}</div>
+                   <span className="text-[10px] uppercase tracking-[0.2em] text-white/60">Fotos Selecionadas</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setSelectedIndices(new Set())} className="text-[9px] uppercase tracking-widest text-white/30 hover:text-white transition-colors px-4">Cancelar</button>
+                  <button onClick={handleRemoveSelected} disabled={isDeletingBulk} className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-sm text-[9px] font-bold uppercase tracking-widest hover:bg-red-600 transition-colors disabled:opacity-50">
+                    {isDeletingBulk ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                    Excluir Selecionadas
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="relative mb-8 border border-dashed border-white/10 rounded-sm bg-white/[0.015] hover:bg-white/[0.03] transition-colors group overflow-hidden">
+          <input
+            ref={fileInputRef} type="file" multiple accept="image/*"
+            onChange={handleAddPhotos}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            disabled={uploadStatus.isUploading}
+          />
+          <div className="flex flex-col items-center justify-center py-10 sm:py-14 text-center">
+             <div className="h-10 w-10 mb-4 rounded-sm border border-white/10 flex items-center justify-center bg-white/5 group-hover:scale-110 transition-transform duration-300">
+                {uploadStatus.isUploading ? <Loader2 className="h-5 w-5 animate-spin text-white/40" /> : <Plus className="h-5 w-5 text-white/30" />}
+             </div>
+             <p className="text-[11px] uppercase tracking-[0.4em] text-white/50 group-hover:text-white transition-colors">
+                {uploadStatus.isUploading ? `Enviando ${uploadStatus.current}/${uploadStatus.total}` : 'Adicionar Novas Fotos'}
+             </p>
+          </div>
           {uploadStatus.isUploading && (
-            <motion.div
-              className="absolute bottom-0 left-0 h-1.5 bg-primary"
-              initial={{ width: 0 }}
-              animate={{ width: `${(uploadStatus.current / uploadStatus.total) * 100}%` }}
-              transition={{ type: "spring", bounce: 0, duration: 0.5 }}
-            />
+            <motion.div className="absolute bottom-0 left-0 h-0.5 bg-white" initial={{ width: 0 }} animate={{ width: `${(uploadStatus.current / uploadStatus.total) * 100}%` }} transition={{ type: "spring", bounce: 0, duration: 0.4 }} />
           )}
         </div>
 
         {photos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-40 glass-liquid rounded-[4rem] border-white/5 border-dashed">
-            <Image className="h-12 w-12 text-white/10 mb-6" strokeWidth={1} />
-            <p className="text-[10px] uppercase tracking-[0.4em] text-white/20 font-bold">Nenhuma captura disponível ainda.</p>
+          <div className="flex flex-col items-center justify-center py-24 border border-dashed border-white/6 rounded-sm">
+            <ImageIcon className="h-7 w-7 text-white/10 mb-3" strokeWidth={1} />
+            <p className="text-[10px] uppercase tracking-[0.4em] text-white/20">Nenhuma foto adicionada.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 animate-in fade-in slide-in-from-bottom-5 duration-1000">
-            <AnimatePresence mode="popLayout">
-              {photos.map((photo, index) => (
-                <motion.div
-                  key={`${photo.url}-${index}`}
-                  className="group relative aspect-[3/4] overflow-hidden rounded-[2rem] glass-liquid border-white/5 glow-border shadow-2xl"
-                  layout
-                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                  animate={{
-                    opacity: 1,
-                    scale: 1,
-                    y: 0,
-                    transition: {
-                      type: "spring",
-                      duration: 0.8,
-                      delay: index * 0.05
-                    }
-                  }}
-                  exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.3 } }}
-                  whileHover={{ y: -8 }}
-                >
-                  <img
-                    src={getOptimizedUrl(photo.url, 600)}
-                    alt={`Foto ${index + 1}`}
-                    className="h-full w-full object-cover transition-transform duration-[2s] group-hover:scale-110 opacity-70 group-hover:opacity-100"
-                    loading="lazy"
+          <DndContext 
+            sensors={sensors} 
+            collisionDetection={closestCenter} 
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={photos.map(p => p.url)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2">
+                {photos.map((photo, index) => (
+                  <SortablePhoto
+                    key={photo.url}
+                    photo={photo}
+                    index={index}
+                    isSelected={selectedIndices.has(index)}
+                    isCover={project.coverIndex === index}
+                    toggleSelect={toggleSelect}
+                    handleSetCover={handleSetCover}
+                    handleRemoveSingle={handleRemoveSingle}
                   />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-4">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => handleSetCover(index)}
-                        className={`h-14 w-14 flex items-center justify-center rounded-full glass-liquid border-white/10 transition-all glow-border shadow-2xl ${project.coverIndex === index ? 'text-primary' : 'text-white/40 hover:text-white'}`}
-                        title="Definir como capa"
-                      >
-                        <Image className="h-6 w-6" />
-                      </button>
-                      <button
-                        onClick={() => handleRemovePhoto(index)}
-                        className="h-14 w-14 flex items-center justify-center rounded-full glass-liquid border-white/10 text-destructive hover:scale-110 transition-all glow-border shadow-2xl"
-                        title="Excluir"
-                      >
-                        <Trash2 className="h-6 w-6" />
-                      </button>
-                    </div>
-                    <span className="text-[10px] uppercase tracking-[0.4em] text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity delay-100">
-                      {project.coverIndex === index ? 'Capa vinculada' : 'Gerenciar'}
-                    </span>
-                  </div>
-                  {project.coverIndex === index && (
-                    <div className="absolute top-4 right-4 glass-liquid px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest text-primary border-primary shadow-2xl">
-                      Capa
-                    </div>
-                  )}
-                  <div className="absolute bottom-4 left-4 glass-liquid px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest text-white/40 border-white/5">
-                    CPT {index + 1}
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+                ))}
+              </div>
+            </SortableContext>
+            
+            {/* The ghost block that flies outside */}
+            <DragOverlay dropAnimation={{
+               duration: 250,
+               easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+            }}>
+              {activePhoto ? (
+                <div style={{ transform: 'scale(1.15) rotate(3deg)', boxShadow: '0px 30px 60px rgba(0,0,0,0.9)' }} className="relative aspect-[3/4] overflow-hidden rounded-sm bg-white/4 cursor-grabbing">
+                  <img src={getOptimizedUrl(activePhoto.url, 400)} alt="" className="h-full w-full object-cover" />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         )}
       </div>
 
       <AnimatePresence>
         {uploadStatus.isUploading && (
-          <motion.div
-            initial={{ y: 150, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 150, opacity: 0 }}
-            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 glass-liquid px-10 py-6 rounded-[3rem] glow-border shadow-[0_40px_100px_rgba(0,0,0,0.8)] flex items-center gap-8 min-w-[350px] border-white/10"
-          >
-            <div className="relative h-14 w-14 flex items-center justify-center">
-              <svg className="absolute inset-0 h-full w-full -rotate-90">
-                <circle cx="28" cy="28" r="25" fill="none" stroke="currentColor" strokeWidth="3" className="text-white/10" />
-                <motion.circle
-                  cx="28" cy="28" r="25" fill="none" stroke="primary" strokeWidth="3"
-                  strokeDasharray="157"
-                  animate={{ strokeDashoffset: 157 * (1 - uploadStatus.current / uploadStatus.total) }}
-                  className="text-primary"
-                />
-              </svg>
-              <span className="text-[11px] font-bold text-white">{Math.round((uploadStatus.current / uploadStatus.total) * 100)}%</span>
-            </div>
-            <div className="flex-1 space-y-1">
-              <p className="text-[10px] uppercase tracking-[0.4em] font-bold text-primary">Processando Midia</p>
-              <p className="text-xs text-white/60">{uploadStatus.current} de {uploadStatus.total} arquivos finalizados</p>
-            </div>
-            <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-          </motion.div>
+           <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="fixed bottom-0 left-0 right-0 z-50 bg-white text-black py-3 px-6 flex items-center justify-center gap-6">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.4em]">Enviando Arquivos — {Math.round((uploadStatus.current / uploadStatus.total) * 100)}%</span>
+           </motion.div>
         )}
       </AnimatePresence>
     </div>
