@@ -65,9 +65,9 @@ const Index = () => {
     loadData();
   }, []);
 
-  const filteredProjects = selectedCategoryId
-    ? projects.filter((p) => p.categoryId === selectedCategoryId)
-    : projects;
+  const filteredProjects = projects
+    .filter((p) => !p.hidden)
+    .filter((p) => (selectedCategoryId ? p.categoryId === selectedCategoryId : true));
 
   return (
     <div className="relative min-h-screen text-white bg-[#0a0a0a]">

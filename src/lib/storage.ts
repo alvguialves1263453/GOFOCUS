@@ -22,6 +22,7 @@ export interface Project {
   coverIndex: number; // which photo to use as cover
   likes?: number;
   categoryId?: string;
+  hidden?: boolean;
 }
 
 const STORAGE_KEY = 'gofocus_projects';
@@ -42,7 +43,7 @@ export async function getProjectsAsync(): Promise<Project[]> {
     }
 
     // Map snake_case from DB to camelCase for UI
-    const remoteProjects = (data || []).map((p: any) => ({
+    const remoteProjects: Project[] = (data || []).map((p: any) => ({
       id: p.id,
       clientName: p.client_name || p.clientName || "",
       slug: p.slug || "",
@@ -51,7 +52,8 @@ export async function getProjectsAsync(): Promise<Project[]> {
       featured: p.featured || false,
       coverIndex: p.cover_index !== undefined ? p.cover_index : (p.coverIndex || 0),
       likes: p.likes || 0,
-      categoryId: p.category_id || p.categoryId
+      categoryId: p.category_id || p.categoryId,
+      hidden: p.hidden || false
     }));
 
     // Merge with local projects for resilience
@@ -85,7 +87,8 @@ export async function saveProjectAsync(project: Project): Promise<{ remote: bool
     featured: project.featured || false,
     cover_index: project.coverIndex || 0,
     category_id: project.categoryId || null,
-    likes: project.likes || 0
+    likes: project.likes || 0,
+    hidden: project.hidden || false
   };
 
   let remoteSuccess = false;
@@ -121,6 +124,7 @@ export async function updateProjectAsync(id: string, updates: Partial<Project>):
   if (updates.coverIndex !== undefined) dbUpdates.cover_index = updates.coverIndex;
   if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId;
   if (updates.likes !== undefined) dbUpdates.likes = updates.likes;
+  if (updates.hidden !== undefined) dbUpdates.hidden = updates.hidden;
 
   const { error } = await supabase
     .from('projects')
@@ -237,7 +241,8 @@ export async function getProjectBySlugAsync(slug: string): Promise<Project | nul
 
     return {
       ...data,
-      categoryId: data.category_id
+      categoryId: data.category_id,
+      hidden: data.hidden || false
     };
   } catch (err) {
     console.error('Critical failure in getProjectBySlugAsync:', err);

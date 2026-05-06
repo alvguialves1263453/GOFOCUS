@@ -5,6 +5,7 @@ import {
   getProjectsAsync,
   saveProjectAsync,
   deleteProjectAsync,
+  updateProjectAsync,
   getCategoriesAsync,
   saveCategoryAsync,
   deleteCategoryAsync,
@@ -17,6 +18,7 @@ import {
   Plus, FolderOpen, Trash2, Image as ImageIcon,
   Loader2, LogOut, Link as LinkIcon, Check, QrCode,
   Tag, ExternalLink, X, ArrowUpRight, LayoutGrid, Layers,
+  Search, Eye, EyeOff, Filter,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -44,6 +46,10 @@ const AdminDashboard = () => {
   const [qrProject, setQrProject] = useState<{ name: string; url: string } | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editCategoryName, setEditCategoryName] = useState("");
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "visible" | "hidden">("all");
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -182,6 +188,29 @@ const AdminDashboard = () => {
     navigate("/login");
   };
 
+  const handleToggleVisibility = async (e: React.MouseEvent, project: Project) => {
+    e.stopPropagation();
+    try {
+      const newHiddenStatus = !project.hidden;
+      await updateProjectAsync(project.id, { hidden: newHiddenStatus });
+      toast.success(newHiddenStatus ? "Projeto ocultado" : "Projeto visível");
+      loadProjects();
+    } catch {
+      toast.error("Erro ao alterar visibilidade");
+    }
+  };
+
+  const filteredProjects = projects.filter((p) => {
+    const matchesSearch = p.clientName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = filterCategory === "all" || p.categoryId === filterCategory;
+    const matchesStatus = 
+      filterStatus === "all" || 
+      (filterStatus === "visible" && !p.hidden) || 
+      (filterStatus === "hidden" && p.hidden);
+    
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
@@ -274,24 +303,57 @@ const AdminDashboard = () => {
         {activeTab === "projects" && (
           <div>
             {/* Section header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                <div className="w-px h-4 bg-white/30" />
-                <span className="text-[9px] uppercase tracking-[0.4em] text-white/35 font-medium">
-                  {projects.length} {projects.length === 1 ? "Projeto" : "Projetos"}
-                </span>
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                <div className="relative w-full sm:w-64">
+                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20" />
+                   <input 
+                      type="text" 
+                      placeholder="Buscar por nome…" 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-white/3 border border-white/8 pl-9 pr-4 py-2 text-[11px] rounded-sm focus:outline-none focus:border-white/20 transition-colors"
+                   />
+                </div>
+                
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <Select value={filterCategory} onValueChange={setFilterCategory}>
+                    <SelectTrigger className="h-[34px] bg-white/3 border-white/8 text-[10px] w-full sm:w-[130px] focus:ring-0">
+                      <Filter className="h-3 w-3 mr-2 text-white/20" />
+                      <SelectValue placeholder="Categoria" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#111] border-white/10 text-white">
+                      <SelectItem value="all" className="text-[10px] uppercase">Todas Categorias</SelectItem>
+                      {categories.map(c => (
+                        <SelectItem key={c.id} value={c.id} className="text-[10px] uppercase">{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filterStatus} onValueChange={(v: any) => setFilterStatus(v)}>
+                    <SelectTrigger className="h-[34px] bg-white/3 border-white/8 text-[10px] w-full sm:w-[110px] focus:ring-0">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#111] border-white/10 text-white">
+                      <SelectItem value="all" className="text-[10px] uppercase">Todos</SelectItem>
+                      <SelectItem value="visible" className="text-[10px] uppercase font-bold">Visíveis</SelectItem>
+                      <SelectItem value="hidden" className="text-[10px] uppercase text-white/40">Ocultos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
+
+              <div className="flex items-center gap-3 w-full md:w-auto">
                 <button
                   onClick={() => setActiveTab("categories")}
-                  className="flex items-center gap-1.5 px-3 py-2 text-[9px] font-semibold uppercase tracking-wider text-white/40 hover:text-white transition-colors border border-white/5 hover:border-white/20 rounded-sm"
+                  className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-[9px] font-semibold uppercase tracking-wider text-white/40 hover:text-white transition-colors border border-white/5 hover:border-white/20 rounded-sm"
                 >
                   <Tag className="h-3 w-3" />
                   Gerenciar Categorias
                 </button>
                 <button
                   onClick={() => setShowForm(!showForm)}
-                  className={`flex items-center gap-2 px-5 py-2.5 text-[9px] font-semibold uppercase tracking-wider rounded-sm transition-all duration-300 ${
+                  className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-[9px] font-semibold uppercase tracking-wider rounded-sm transition-all duration-300 ${
                     showForm
                       ? "border border-white/15 text-white/50 hover:text-white"
                       : "bg-white text-black hover:opacity-80"
@@ -367,7 +429,7 @@ const AdminDashboard = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
-                {projects.map((project, i) => (
+                {filteredProjects.map((project, i) => (
                   <ProjectCard
                     key={project.id}
                     project={project}
@@ -377,6 +439,7 @@ const AdminDashboard = () => {
                     onCopyLink={handleCopyLink}
                     onShowQr={handleShowQr}
                     onDelete={handleDelete}
+                    onToggleVisibility={handleToggleVisibility}
                     copiedId={copiedId}
                   />
                 ))}
@@ -554,15 +617,17 @@ const AdminDashboard = () => {
   );
 };
 
-/* ─── PROJECT CARD ─── */
-function ProjectCard({ project, categories, index, onClick, onCopyLink, onShowQr, onDelete, copiedId }: any) {
+     /* ─── PROJECT CARD ─── */
+function ProjectCard({ project, categories, index, onClick, onCopyLink, onShowQr, onDelete, onToggleVisibility, copiedId }: any) {
   const [isLoaded, setIsLoaded] = useState(false);
   const photo = project.photos?.[project.coverIndex || 0];
   const category = categories.find((c: any) => c.id === project.categoryId);
 
   return (
     <motion.div
-      className="group relative cursor-pointer bg-white/3 border border-white/6 hover:border-white/15 transition-all duration-300 rounded-sm overflow-hidden"
+      className={`group relative cursor-pointer bg-white/3 border transition-all duration-300 rounded-sm overflow-hidden ${
+        project.hidden ? 'opacity-50 border-white/5 grayscale-[0.5]' : 'border-white/6 hover:border-white/15'
+      }`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: index * 0.04, duration: 0.4 }}
@@ -618,6 +683,13 @@ function ProjectCard({ project, categories, index, onClick, onCopyLink, onShowQr
             }
           </button>
           <button
+            onClick={(e) => { e.stopPropagation(); onToggleVisibility(e, project); }}
+            title={project.hidden ? "Mostrar Projeto" : "Ocultar Projeto"}
+            className="flex h-10 md:h-8 w-10 md:w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors active:scale-90 md:active:scale-100"
+          >
+            {project.hidden ? <EyeOff className="h-4 md:h-3.5 w-4 md:w-3.5" /> : <Eye className="h-4 md:h-3.5 w-4 md:w-3.5" />}
+          </button>
+          <button
             onClick={(e) => { e.stopPropagation(); onShowQr(e, project.clientName, project.slug); }}
             title="QR Code"
             className="flex h-10 md:h-8 w-10 md:w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors active:scale-90 md:active:scale-100"
@@ -639,7 +711,7 @@ function ProjectCard({ project, categories, index, onClick, onCopyLink, onShowQr
         <div className="min-w-0">
           <p className="text-xs font-medium text-white/80 truncate leading-tight">{project.clientName}</p>
           <p className="text-[8px] uppercase tracking-widest text-white/28 mt-0.5">
-            {project.photos?.length || 0} capturas
+            {project.photos?.length || 0} capturas {project.hidden && <span className="ml-1 text-white/40">(Oculto)</span>}
           </p>
         </div>
         <ExternalLink className="h-3 w-3 text-white/20 shrink-0 group-hover:text-white/50 transition-colors" />
