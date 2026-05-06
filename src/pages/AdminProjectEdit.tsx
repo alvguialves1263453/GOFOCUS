@@ -344,6 +344,24 @@ const AdminProjectEdit = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* Category Select */}
+            <div className="hidden md:block">
+              <Select value={project.categoryId || "none"} onValueChange={updateCategory}>
+                <SelectTrigger className="h-8 w-[140px] bg-transparent border-white/10 text-[9px] font-semibold uppercase tracking-wider text-white/50 focus:ring-0 focus:ring-offset-0">
+                  <Tag className="h-3 w-3 mr-2 text-white/30" />
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#111] border-white/10 text-white">
+                  <SelectItem value="none" className="text-[9px] uppercase tracking-wider focus:bg-white/10 focus:text-white">Sem Categoria</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id} className="text-[9px] uppercase tracking-wider focus:bg-white/10 focus:text-white">
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <button onClick={handleCopyLink} className="flex items-center gap-1.5 px-3 py-1.5 border border-white/8 rounded-sm text-[9px] font-semibold uppercase tracking-wider text-white/40 hover:text-white hover:border-white/20 transition-colors">
               {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
               <span className="hidden sm:inline">{copied ? "Copiado" : "Copiar link"}</span>

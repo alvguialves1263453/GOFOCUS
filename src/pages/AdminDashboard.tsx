@@ -42,6 +42,8 @@ const AdminDashboard = () => {
   const [categorySaving, setCategorySaving] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [qrProject, setQrProject] = useState<{ name: string; url: string } | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [editCategoryName, setEditCategoryName] = useState("");
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -107,6 +109,25 @@ const AdminDashboard = () => {
       loadCategories();
     } catch (err: any) {
       toast.error(err.message || "Erro ao salvar categoria");
+    } finally {
+      setCategorySaving(false);
+    }
+  };
+
+  const handleUpdateCategory = async () => {
+    if (!editingCategory || !editCategoryName.trim()) return;
+    setCategorySaving(true);
+    try {
+      const { updateCategoryAsync, generateSlug } = await import("@/lib/storage");
+      await updateCategoryAsync(editingCategory.id, { 
+        name: editCategoryName.trim(),
+        slug: generateSlug(editCategoryName.trim())
+      });
+      toast.success("Categoria atualizada!");
+      setEditingCategory(null);
+      loadCategories();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao atualizar categoria");
     } finally {
       setCategorySaving(false);
     }
@@ -260,17 +281,26 @@ const AdminDashboard = () => {
                   {projects.length} {projects.length === 1 ? "Projeto" : "Projetos"}
                 </span>
               </div>
-              <button
-                onClick={() => setShowForm(!showForm)}
-                className={`flex items-center gap-2 px-5 py-2.5 text-[9px] font-semibold uppercase tracking-wider rounded-sm transition-all duration-300 ${
-                  showForm
-                    ? "border border-white/15 text-white/50 hover:text-white"
-                    : "bg-white text-black hover:opacity-80"
-                }`}
-              >
-                {showForm ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
-                {showForm ? "Fechar" : "Novo Projeto"}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setActiveTab("categories")}
+                  className="flex items-center gap-1.5 px-3 py-2 text-[9px] font-semibold uppercase tracking-wider text-white/40 hover:text-white transition-colors border border-white/5 hover:border-white/20 rounded-sm"
+                >
+                  <Tag className="h-3 w-3" />
+                  Gerenciar Categorias
+                </button>
+                <button
+                  onClick={() => setShowForm(!showForm)}
+                  className={`flex items-center gap-2 px-5 py-2.5 text-[9px] font-semibold uppercase tracking-wider rounded-sm transition-all duration-300 ${
+                    showForm
+                      ? "border border-white/15 text-white/50 hover:text-white"
+                      : "bg-white text-black hover:opacity-80"
+                  }`}
+                >
+                  {showForm ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                  {showForm ? "Fechar" : "Novo Projeto"}
+                </button>
+              </div>
             </div>
 
             {/* New project form */}
@@ -442,12 +472,23 @@ const AdminDashboard = () => {
                         <p className="text-[8px] uppercase tracking-widest text-white/25 mt-0.5">/{cat.slug}</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleDeleteCategory(cat.id)}
-                      className="flex h-8 w-8 items-center justify-center text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setEditingCategory(cat);
+                          setEditCategoryName(cat.name);
+                        }}
+                        className="flex h-8 w-8 items-center justify-center text-white/20 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Tag className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCategory(cat.id)}
+                        className="flex h-8 w-8 items-center justify-center text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </motion.div>
                 ))}
               </div>
@@ -477,6 +518,35 @@ const AdminDashboard = () => {
             <p className="text-[9px] text-center uppercase tracking-[0.3em] text-white/30 px-4 leading-relaxed">
               Aponte a câmera para abrir o portfólio
             </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Category Dialog ── */}
+      <Dialog open={!!editingCategory} onOpenChange={(open) => !open && setEditingCategory(null)}>
+        <DialogContent className="sm:max-w-md bg-[#111] border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-lg font-normal text-white">
+              Editar Categoria
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-[9px] uppercase tracking-[0.3em] text-white/35 font-medium">Nome da Categoria</label>
+              <input
+                type="text"
+                value={editCategoryName}
+                onChange={(e) => setEditCategoryName(e.target.value)}
+                className="w-full bg-transparent border border-white/10 px-4 py-3 rounded-sm text-sm text-white focus:outline-none focus:border-white/30"
+              />
+            </div>
+            <button
+              onClick={handleUpdateCategory}
+              disabled={categorySaving || !editCategoryName.trim()}
+              className="w-full py-3 bg-white text-black text-[9px] font-bold uppercase tracking-widest rounded-sm hover:opacity-80 transition-opacity disabled:opacity-30"
+            >
+              {categorySaving ? "Salvando…" : "Atualizar Categoria"}
+            </button>
           </div>
         </DialogContent>
       </Dialog>

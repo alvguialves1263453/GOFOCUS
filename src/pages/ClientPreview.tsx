@@ -186,35 +186,66 @@ const ClientPreview = () => {
     }
   };
 
-  const handleDownload = async (url: string, index: number) => {
-    const fileName = `${project?.clientName || "foto"}-${index + 1}.jpg`;
-    if (navigator.share) {
-      try {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const file = new File([blob], fileName, { type: "image/jpeg" });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `GoFocus - ${project?.clientName || "Foto"}`,
-            text: "Salvar foto em alta qualidade",
-          });
-          return;
+  /* ─── Protection Logic ─── */
+  const [isProtected, setIsProtected] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent PrintScreen, Ctrl+P, Ctrl+S, etc.
+      if (
+        e.key === "PrintScreen" || 
+        (e.ctrlKey && (e.key === "p" || e.key === "s" || e.key === "u")) ||
+        (e.metaKey && (e.key === "p" || e.key === "s"))
+      ) {
+        e.preventDefault();
+        setIsProtected(true);
+        setTimeout(() => setIsProtected(false), 2000);
+        return false;
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "PrintScreen") {
+        setIsProtected(true);
+        setTimeout(() => setIsProtected(false), 2000);
+        if (navigator.clipboard) {
+           navigator.clipboard.writeText(""); // Try to clear clipboard
         }
-      } catch {}
-    }
-    try {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    } catch {
-      window.open(url, "_blank");
-    }
-  };
+      }
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      toast.error("Salvamento de fotos desativado pelo fotógrafo.", {
+        position: "bottom-center",
+        duration: 2000,
+      });
+    };
+
+    // More aggressive: black screen on blur (losing focus)
+    const handleBlur = () => {
+      setIsProtected(true);
+    };
+
+    const handleFocus = () => {
+      setIsProtected(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("contextmenu", handleContextMenu);
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("contextmenu", handleContextMenu);
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
+
 
   /* ── Loading / not found states ── */
   if (loading) {
@@ -236,15 +267,21 @@ const ClientPreview = () => {
   }
 
   const photos = project.photos || [];
-  const selectedIndex = selectedPhoto
-    ? photos.findIndex((p) => p.url === selectedPhoto)
-    : -1;
 
   return (
     <>
       <meta name="robots" content="noindex, nofollow" />
 
-      <div className="min-h-screen bg-[#0a0a0a] text-white">
+      {/* ── PROTECTION OVERLAY ── */}
+      <div className={`no-screenshot-message ${isProtected ? "active" : ""}`}>
+         <X className="h-12 w-12 text-white/20 mb-6" />
+         <h2 className="text-2xl font-serif mb-2">Acesso Protegido</h2>
+         <p className="text-[10px] uppercase tracking-[0.4em] text-white/40">
+           Prints e salvamentos proibidos para sua segurança
+         </p>
+      </div>
+
+      <div className={`min-h-screen bg-[#0a0a0a] text-white transition-opacity duration-500 ${isProtected ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
 
         {/* ── HEADER ── */}
         <motion.header
@@ -421,13 +458,6 @@ const ClientPreview = () => {
               />
 
               <div className="absolute -top-16 right-0 left-0 flex justify-center gap-3 sm:top-4 sm:right-4 sm:left-auto sm:justify-end">
-                <button
-                  onClick={() => handleDownload(selectedPhoto, selectedIndex)}
-                  className="flex h-12 w-12 items-center justify-center rounded-sm bg-white/10 border border-white/12 text-white hover:bg-white/20 active:scale-95 transition-all"
-                  title="Baixar foto"
-                >
-                  <Download className="h-5 w-5" />
-                </button>
                 <button
                   onClick={() => setSelectedPhoto(null)}
                   className="flex h-12 w-12 items-center justify-center rounded-sm bg-white/10 border border-white/12 text-white hover:bg-white/20 active:scale-95 transition-all"
