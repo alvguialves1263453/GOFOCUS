@@ -265,7 +265,7 @@ const ClientPreview = () => {
             <button
               onClick={handleLike}
               disabled={liked}
-              className={`relative flex items-center justify-center gap-3 px-8 py-3.5 text-[10px] font-semibold uppercase tracking-[0.3em] rounded-sm transition-all duration-500 overflow-hidden ${
+              className={`relative flex items-center justify-center gap-3 px-8 py-3.5 w-full sm:w-auto text-[10px] font-semibold uppercase tracking-[0.3em] rounded-sm transition-all duration-500 overflow-hidden ${
                 liked
                   ? "border border-white/10 text-white/30 cursor-default"
                   : "bg-white text-black hover:opacity-80 active:scale-95"
@@ -316,7 +316,7 @@ const ClientPreview = () => {
             {/* QR button */}
             <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
               <DialogTrigger asChild>
-                <button className="flex items-center gap-2.5 px-6 py-3.5 border border-white/10 text-white/40 text-[10px] uppercase tracking-[0.3em] rounded-sm hover:border-white/25 hover:text-white/60 transition-all duration-300">
+                <button className="flex items-center justify-center gap-2.5 px-6 py-3.5 w-full sm:w-auto border border-white/10 text-white/40 text-[10px] uppercase tracking-[0.3em] rounded-sm hover:border-white/25 hover:text-white/60 transition-all duration-300">
                   <QrCode className="h-4 w-4" />
                   Compartilhar via QR
                 </button>
@@ -420,20 +420,20 @@ const ClientPreview = () => {
                 className="max-h-[90vh] w-auto max-w-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.8)]"
               />
 
-              <div className="absolute -top-14 right-0 flex gap-2 sm:top-4 sm:right-4">
+              <div className="absolute -top-16 right-0 left-0 flex justify-center gap-3 sm:top-4 sm:right-4 sm:left-auto sm:justify-end">
                 <button
                   onClick={() => handleDownload(selectedPhoto, selectedIndex)}
-                  className="flex h-11 w-11 items-center justify-center rounded-sm bg-white/8 border border-white/12 text-white hover:bg-white/15 transition-colors"
+                  className="flex h-12 w-12 items-center justify-center rounded-sm bg-white/10 border border-white/12 text-white hover:bg-white/20 active:scale-95 transition-all"
                   title="Baixar foto"
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => setSelectedPhoto(null)}
-                  className="flex h-11 w-11 items-center justify-center rounded-sm bg-white/8 border border-white/12 text-white hover:bg-white/15 transition-colors"
+                  className="flex h-12 w-12 items-center justify-center rounded-sm bg-white/10 border border-white/12 text-white hover:bg-white/20 active:scale-95 transition-all"
                   title="Fechar"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
             </motion.div>

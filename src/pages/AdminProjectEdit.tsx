@@ -77,16 +77,16 @@ const SortablePhoto = ({ photo, index, isSelected, isCover, toggleSelect, handle
          </div>
       </div>
 
-      <div className={`absolute inset-0 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto ${isSelected ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
+      <div className={`absolute inset-0 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto ${isSelected ? 'opacity-0' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'}`}>
         <button
-          className="action-btn absolute top-2 left-2 flex h-7 w-7 items-center justify-center rounded-sm transition-all shadow-xl bg-black/60 text-white/70 hover:bg-white hover:text-black opacity-0 group-hover:opacity-100"
+          className="action-btn absolute top-2 left-2 flex h-8 w-8 items-center justify-center rounded-sm transition-all shadow-xl bg-black/60 text-white/70 hover:bg-white hover:text-black active:scale-90 md:active:scale-100"
           onClick={(e) => { e.stopPropagation(); handleSetCover(index, e); }} title="Definir capa">
-          <ImageIcon className="h-3 w-3" />
+          <ImageIcon className="h-3.5 w-3.5" />
         </button>
         <button
-          className="action-btn absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-sm text-red-400 hover:bg-red-500 hover:text-white transition-all shadow-xl bg-black/40"
+          className="action-btn absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-sm text-red-400 hover:bg-red-500 hover:text-white transition-all shadow-xl bg-black/40 active:scale-90 md:active:scale-100"
           onClick={(e) => { e.stopPropagation(); handleRemoveSingle(index, e); }} title="Remover foto">
-          <Trash2 className="h-3 w-3" />
+          <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
 
@@ -361,16 +361,16 @@ const AdminProjectEdit = () => {
         <AnimatePresence>
           {selectedIndices.size > 0 && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-6">
-              <div className="bg-white/[0.03] border border-white/10 p-4 rounded-sm flex items-center justify-between">
+              <div className="bg-white/[0.03] border border-white/10 p-4 rounded-sm flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                    <div className="bg-white text-black text-[10px] font-bold px-2 py-0.5 rounded-sm">{selectedIndices.size}</div>
                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/60">Fotos Selecionadas</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setSelectedIndices(new Set())} className="text-[9px] uppercase tracking-widest text-white/30 hover:text-white transition-colors px-4">Cancelar</button>
-                  <button onClick={handleRemoveSelected} disabled={isDeletingBulk} className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-sm text-[9px] font-bold uppercase tracking-widest hover:bg-red-600 transition-colors disabled:opacity-50">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <button onClick={() => setSelectedIndices(new Set())} className="flex-1 sm:flex-none text-[9px] uppercase tracking-widest text-white/30 hover:text-white transition-colors px-4 py-2">Cancelar</button>
+                  <button onClick={handleRemoveSelected} disabled={isDeletingBulk} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-sm text-[9px] font-bold uppercase tracking-widest hover:bg-red-600 transition-colors disabled:opacity-50 active:scale-95">
                     {isDeletingBulk ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                    Excluir Selecionadas
+                    Excluir
                   </button>
                 </div>
               </div>

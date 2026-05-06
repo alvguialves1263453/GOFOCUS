@@ -356,11 +356,11 @@ function PortfolioCard({ project, index }: { project: Project; index: number }) 
       />
 
       {/* bottom info */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400 p-5 z-20">
-        <h3 className="text-sm font-medium text-white leading-tight truncate">
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-400 p-3 sm:p-5 z-20">
+        <h3 className="text-[11px] sm:text-sm font-medium text-white leading-tight truncate">
           {project.clientName}
         </h3>
-        <p className="text-[9px] uppercase tracking-[0.2em] text-white/40 mt-1.5 font-medium">
+        <p className="text-[7px] sm:text-[9px] uppercase tracking-[0.2em] text-white/40 mt-1 sm:mt-1.5 font-medium">
           {project.photos?.length || 0} fotos
         </p>
       </div>

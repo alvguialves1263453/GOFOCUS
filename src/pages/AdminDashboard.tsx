@@ -174,20 +174,20 @@ const AdminDashboard = () => {
 
       {/* ── TOP BAR ── */}
       <header className="sticky top-0 z-50 border-b border-white/6 bg-[#0a0a0a]/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <span className="font-serif text-base text-white">GoFocus</span>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <span className="font-serif text-sm sm:text-base text-white">GoFocus</span>
             <span className="hidden sm:block text-white/15">|</span>
-            <span className="hidden sm:block text-[9px] uppercase tracking-[0.4em] text-white/30 font-medium">
+            <span className="hidden xs:block text-[8px] sm:text-[9px] uppercase tracking-[0.4em] text-white/30 font-medium whitespace-nowrap">
               Painel Admin
             </span>
           </div>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-3 sm:gap-5">
             <a
               href="/links"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 border border-white/10 rounded-sm text-[9px] uppercase tracking-[0.3em] text-white hover:bg-white hover:text-black transition-colors"
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 border border-white/10 rounded-sm text-[9px] uppercase tracking-[0.3em] text-white hover:bg-white hover:text-black transition-colors"
             >
               Página de Links
               <ArrowUpRight className="h-3 w-3" />
@@ -196,17 +196,18 @@ const AdminDashboard = () => {
               href="/"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-sm text-[9px] uppercase tracking-[0.3em] text-white/50 hover:text-white transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-white/5 rounded-sm text-[8px] sm:text-[9px] uppercase tracking-[0.2em] sm:tracking-[0.3em] text-white/50 hover:text-white transition-colors"
             >
-              Ver Site
-              <ArrowUpRight className="h-3 w-3" />
+              <span className="hidden xs:inline">Ver Site</span>
+              <ExternalLink className="h-3 w-3 sm:hidden" />
+              <ArrowUpRight className="hidden sm:block h-3 w-3" />
             </a>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.3em] text-white/35 hover:text-white transition-colors"
+              className="flex items-center gap-1 text-[8px] sm:text-[9px] uppercase tracking-[0.2em] sm:tracking-[0.3em] text-white/35 hover:text-white transition-colors"
             >
               <LogOut className="h-3 w-3" />
-              Sair
+              <span className="hidden xs:inline">Sair</span>
             </button>
           </div>
         </div>
@@ -222,10 +223,10 @@ const AdminDashboard = () => {
           </div>
 
           {/* Tab switcher */}
-          <div className="flex items-center border border-white/10 rounded-sm overflow-hidden self-start sm:self-auto">
+          <div className="flex items-center border border-white/10 rounded-sm overflow-hidden self-start w-full sm:w-auto">
             <button
               onClick={() => setActiveTab("projects")}
-              className={`flex items-center gap-2 px-5 py-2.5 text-[9px] font-semibold uppercase tracking-wider transition-colors ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 text-[9px] font-semibold uppercase tracking-wider transition-colors ${
                 activeTab === "projects"
                   ? "bg-white text-black"
                   : "text-white/40 hover:text-white/70"
@@ -236,7 +237,7 @@ const AdminDashboard = () => {
             </button>
             <button
               onClick={() => setActiveTab("categories")}
-              className={`flex items-center gap-2 px-5 py-2.5 text-[9px] font-semibold uppercase tracking-wider transition-colors border-l border-white/10 ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 text-[9px] font-semibold uppercase tracking-wider transition-colors border-l border-white/10 ${
                 activeTab === "categories"
                   ? "bg-white text-black"
                   : "text-white/40 hover:text-white/70"
@@ -535,30 +536,30 @@ function ProjectCard({ project, categories, index, onClick, onCopyLink, onShowQr
         )}
 
         {/* Hover overlay with actions */}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
+        <div className="absolute inset-0 bg-black/60 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); onCopyLink(e, project.slug, project.id); }}
             title="Copiar link"
-            className="flex h-8 w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors"
+            className="flex h-10 md:h-8 w-10 md:w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors active:scale-90 md:active:scale-100"
           >
             {copiedId === project.id
-              ? <Check className="h-3.5 w-3.5" />
-              : <LinkIcon className="h-3.5 w-3.5" />
+              ? <Check className="h-4 md:h-3.5 w-4 md:w-3.5" />
+              : <LinkIcon className="h-4 md:h-3.5 w-4 md:w-3.5" />
             }
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onShowQr(e, project.clientName, project.slug); }}
             title="QR Code"
-            className="flex h-8 w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors"
+            className="flex h-10 md:h-8 w-10 md:w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors active:scale-90 md:active:scale-100"
           >
-            <QrCode className="h-3.5 w-3.5" />
+            <QrCode className="h-4 md:h-3.5 w-4 md:w-3.5" />
           </button>
           <button
-            onClick={(e) => onDelete(e, project.id)}
+            onClick={(e) => { e.stopPropagation(); onDelete(e, project.id); }}
             title="Excluir"
-            className="flex h-8 w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-red-500/30 text-white hover:text-red-300 border border-white/15 transition-colors"
+            className="flex h-10 md:h-8 w-10 md:w-8 items-center justify-center rounded-sm bg-white/10 hover:bg-red-500/30 text-white hover:text-red-300 border border-white/15 transition-colors active:scale-90 md:active:scale-100"
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-4 md:h-3.5 w-4 md:w-3.5" />
           </button>
         </div>
       </div>
