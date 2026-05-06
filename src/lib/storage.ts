@@ -58,7 +58,14 @@ export async function getProjectsAsync(): Promise<Project[]> {
 
     // Merge with local projects for resilience
     const localProjects = getProjectsLocal();
-    const allProjects = [...remoteProjects];
+    const allProjects = remoteProjects.map(proj => {
+      const local = localProjects.find(l => l.id === proj.id);
+      if (local && local.hidden !== undefined && proj.hidden === false) {
+        // Fallback to local hidden status if remote is false (often the default if column missing)
+        return { ...proj, hidden: local.hidden };
+      }
+      return proj;
+    });
 
     localProjects.forEach(local => {
       if (!allProjects.find(p => p.id === local.id)) {

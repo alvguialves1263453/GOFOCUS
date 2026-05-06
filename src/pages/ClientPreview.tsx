@@ -234,18 +234,44 @@ const ClientPreview = () => {
       setIsProtected(false);
     };
 
+    const handleMouseLeave = () => {
+      setIsProtected(true);
+    };
+
+    const handleMouseEnter = () => {
+      setIsProtected(false);
+    };
+
+    // DevTools detection (basic)
+    const checkDevTools = () => {
+      const threshold = 160;
+      const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+      const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+      
+      if (widthThreshold || heightThreshold) {
+        setIsProtected(true);
+      }
+    };
+
+    const devToolsInterval = setInterval(checkDevTools, 1000);
+
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
     window.addEventListener("contextmenu", handleContextMenu);
     window.addEventListener("blur", handleBlur);
     window.addEventListener("focus", handleFocus);
+    window.addEventListener("mouseleave", handleMouseLeave);
+    window.addEventListener("mouseenter", handleMouseEnter);
 
     return () => {
+      clearInterval(devToolsInterval);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("contextmenu", handleContextMenu);
       window.removeEventListener("blur", handleBlur);
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("mouseleave", handleMouseLeave);
+      window.removeEventListener("mouseenter", handleMouseEnter);
     };
   }, []);
 

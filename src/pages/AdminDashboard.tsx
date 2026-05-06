@@ -212,12 +212,23 @@ const AdminDashboard = () => {
 
   const handleToggleVisibility = async (e: React.MouseEvent, project: Project) => {
     e.stopPropagation();
+    const newHiddenStatus = !project.hidden;
+    
+    // Optimistic update
+    setProjects(prev => prev.map(p => 
+      p.id === project.id ? { ...p, hidden: newHiddenStatus } : p
+    ));
+
     try {
-      const newHiddenStatus = !project.hidden;
       await updateProjectAsync(project.id, { hidden: newHiddenStatus });
       toast.success(newHiddenStatus ? "Projeto ocultado" : "Projeto visível");
+      // loadProjects() is called to ensure consistency, but optimistic update handles the UI
       loadProjects();
     } catch {
+      // Rollback on error
+      setProjects(prev => prev.map(p => 
+        p.id === project.id ? { ...p, hidden: !newHiddenStatus } : p
+      ));
       toast.error("Erro ao alterar visibilidade");
     }
   };
@@ -773,9 +784,16 @@ function ProjectCard({ project, categories, index, onClick, onCopyLink, onShowQr
       <div className="px-3 py-2.5 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-xs font-medium text-white/80 truncate leading-tight">{project.clientName}</p>
-          <p className="text-[8px] uppercase tracking-widest text-white/28 mt-0.5">
-            {project.photos?.length || 0} capturas {project.hidden && <span className="ml-1 text-white/40">(Oculto)</span>}
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-[8px] uppercase tracking-widest text-white/28 whitespace-nowrap">
+              {project.photos?.length || 0} capturas
+            </p>
+            {project.hidden && (
+              <span className="text-[7px] font-bold uppercase tracking-widest bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-sm">
+                Ocultado
+              </span>
+            )}
+          </div>
         </div>
         <ExternalLink className="h-3 w-3 text-white/20 shrink-0 group-hover:text-white/50 transition-colors" />
       </div>
