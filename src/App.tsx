@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminProjectEdit from "./pages/AdminProjectEdit";
+import AdminTasks from "./pages/AdminTasks";
 import ClientPreview from "./pages/ClientPreview";
 import NotFound from "./pages/NotFound";
 import Links from "./pages/Links";
@@ -37,6 +38,14 @@ const App = () => (
           />
           <Route path="/projeto/:id" element={<ClientPreview />} />
           <Route path="/cliente/:slug" element={<ClientPreview />} />
+          <Route
+            path="/admin/planner"
+            element={
+              <ProtectedRoute>
+                <AdminTasks />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/links" element={<Links />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

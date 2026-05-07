@@ -18,7 +18,7 @@ import {
   Plus, FolderOpen, Trash2, Image as ImageIcon,
   Loader2, LogOut, Link as LinkIcon, Check, QrCode,
   Tag, ExternalLink, X, ArrowUpRight, LayoutGrid, Layers,
-  Search, Eye, EyeOff, Filter, Edit2, MoreVertical,
+  Search, Eye, EyeOff, Filter, Edit2, MoreVertical, Calendar,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -34,7 +34,7 @@ const AdminDashboard = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [activeTab, setActiveTab] = useState<"projects" | "categories">("projects");
+  const [activeTab, setActiveTab] = useState<"projects" | "categories" | "planner">("projects");
   const [showForm, setShowForm] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [projectName, setProjectName] = useState("");
@@ -333,6 +333,13 @@ const AdminDashboard = () => {
             >
               <Layers className="h-3 w-3" />
               Categorias
+            </button>
+            <button
+              onClick={() => navigate("/admin/planner")}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 text-[9px] font-semibold uppercase tracking-wider transition-colors border-l border-white/10 text-white/40 hover:text-white/70"
+            >
+              <Calendar className="h-3 w-3" />
+              Planner
             </button>
           </div>
         </div>
