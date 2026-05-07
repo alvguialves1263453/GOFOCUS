@@ -130,42 +130,42 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
           <div
             key={day.toString()}
             className={cn(
-              "relative min-h-[85px] border border-white/5 p-1 transition-all group overflow-hidden",
-              !isSameMonth(day, monthStart) ? "bg-muted/10 opacity-30" : "hover:bg-primary/5",
+              "relative min-h-[60px] sm:min-h-[85px] border border-white/5 p-1 transition-all group overflow-hidden",
+              !isSameMonth(day, monthStart) ? "bg-muted/10 opacity-20" : "hover:bg-primary/5",
               isToday(day) && "bg-primary/5 ring-1 ring-inset ring-primary/20",
             )}
             onClick={() => onSelectDate(cloneDay)}
           >
             <div className="flex items-center justify-between mb-0.5">
               <span className={cn(
-                "text-[10px] font-semibold w-5 h-5 flex items-center justify-center rounded-full transition-colors",
+                "text-[9px] sm:text-[10px] font-semibold w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full transition-colors",
                 isToday(day) ? "bg-primary text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
               )}>
                 {formattedDate}
               </span>
               {dayTasks.length > 0 && (
-                <span className="text-[8px] font-black text-muted-foreground bg-muted/50 px-1 py-0.5 rounded">
+                <span className="text-[7px] sm:text-[8px] font-black text-muted-foreground bg-muted/50 px-1 py-0.5 rounded">
                   {dayTasks.length}
                 </span>
               )}
             </div>
 
-            <ScrollArea className="h-14">
-              <div className="space-y-0.5 pr-1">
-                {dayTasks.slice(0, 4).map((task) => (
+            <ScrollArea className="h-10 sm:h-14">
+              <div className="space-y-0.5 pr-0.5 sm:pr-1">
+                {dayTasks.slice(0, 3).map((task) => (
                   <motion.div
                     key={task.id}
                     layoutId={task.id}
-                    initial={{ opacity: 0, y: 2 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     onClick={(e) => {
                       e.stopPropagation();
                       onEditTask(task);
                     }}
                     className={cn(
-                      "task-item group/task p-1 rounded text-[8px] font-medium border border-transparent transition-all cursor-pointer truncate flex items-center gap-1",
-                      task.urgent ? "animate-pulse ring-1 ring-red-500/50 bg-red-500/10 text-red-500 border-red-500/20" : "",
-                      task.completed ? "opacity-50 line-through grayscale bg-muted/50 text-muted-foreground" : ""
+                      "task-item group/task p-0.5 sm:p-1 rounded text-[7px] sm:text-[8px] font-medium border border-transparent transition-all cursor-pointer truncate flex items-center gap-0.5 sm:gap-1",
+                      task.urgent ? "ring-1 ring-red-500/50 bg-red-500/10 text-red-500 border-red-500/20" : "",
+                      task.completed ? "opacity-30 line-through grayscale bg-muted/50 text-muted-foreground" : ""
                     )}
                     style={{ 
                       backgroundColor: !task.urgent && !task.completed ? `${task.color}10` : undefined,
@@ -174,12 +174,14 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
                     }}
                   >
                     <div 
-                      className="w-1 h-1 rounded-full shrink-0" 
+                      className="w-0.5 h-0.5 sm:w-1 sm:h-1 rounded-full shrink-0" 
                       style={{ backgroundColor: task.color }}
                     />
-                    <span className="truncate">{task.title}</span>
+                    <span className="truncate hidden xs:inline">{task.title}</span>
                   </motion.div>
                 ))}
+              </div>
+            </ScrollArea>
                 {dayTasks.length > 4 && (
                   <div className="text-[7px] text-muted-foreground opacity-50 px-1 font-bold">
                     +{dayTasks.length - 4}
