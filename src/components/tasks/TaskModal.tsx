@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Tag, Calendar as CalendarIcon, Clock, AlertTriangle, CheckCircle2, Plus, X, Trash2 } from 'lucide-react';
 import { Task, TaskInsert, Priority, ChecklistItem } from '@/hooks/useTasks';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfDay } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import { ptBR } from 'date-fns/locale';
 
@@ -41,7 +41,7 @@ const COLORS = [
 ];
 
 export function TaskModal({ isOpen, onClose, onSave, onDelete, initialTask, initialDate }: TaskModalProps) {
-  const getCurrentLocalDate = () => formatInTimeZone(new Date(), TIME_ZONE, 'yyyy-MM-dd');
+  const getCurrentLocalDate = () => formatInTimeZone(startOfDay(new Date()), TIME_ZONE, 'yyyy-MM-dd');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -71,7 +71,7 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, initialTask, init
       setCompleted(initialTask.completed || false);
     } else if (initialDate) {
       // Ensure initialDate is treated as the correct local date string
-      const dateStr = formatInTimeZone(initialDate, TIME_ZONE, 'yyyy-MM-dd');
+      const dateStr = formatInTimeZone(startOfDay(initialDate), TIME_ZONE, 'yyyy-MM-dd');
       setDate(dateStr);
       setTitle('');
       setDescription('');

@@ -11,10 +11,17 @@ import {
   Hash,
   Filter
 } from 'lucide-react';
-import { format, isToday, isAfter, addDays, isSameDay, parseISO } from 'date-fns';
+import { format, isToday, isAfter, addDays, isSameDay, parseISO, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 import { Calendar } from '@/components/ui/calendar';
+
+// Helper to parse YYYY-MM-DD string to local Date object
+const parseLocalDate = (dateStr: string) => {
+  if (!dateStr) return new Date();
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
 
 interface TaskSidebarProps {
   tasks: Task[];
@@ -22,9 +29,9 @@ interface TaskSidebarProps {
 }
 
 export function TaskSidebar({ tasks, onSelectTask }: TaskSidebarProps) {
-  const todayTasks = tasks.filter(t => isSameDay(parseISO(t.date), new Date()) && !t.completed);
+  const todayTasks = tasks.filter(t => isSameDay(parseLocalDate(t.date), new Date()) && !t.completed);
   const upcomingTasks = tasks
-    .filter(t => isAfter(parseISO(t.date), new Date()) && !t.completed)
+    .filter(t => isAfter(parseLocalDate(t.date), startOfDay(new Date())) && !t.completed)
     .slice(0, 4);
   
   const completedCount = tasks.filter(t => t.completed).length;
@@ -88,8 +95,8 @@ export function TaskSidebar({ tasks, onSelectTask }: TaskSidebarProps) {
         </div>
       </div>
 
-      {/* Mini Calendar */}
-      <div className="p-1 rounded-xl bg-background/30 border border-white/5 shadow-inner">
+      {/* Mini Calendar - Hidden on mobile */}
+      <div className="hidden sm:block p-1 rounded-xl bg-background/30 border border-white/5 shadow-inner">
         <Calendar
           mode="single"
           selected={new Date()}
@@ -120,8 +127,8 @@ export function TaskSidebar({ tasks, onSelectTask }: TaskSidebarProps) {
               onClick={() => onSelectTask(task)}
             >
               <div className="mt-0.5 space-y-0 min-w-[24px]">
-                <p className="text-[8px] font-black uppercase text-muted-foreground leading-none">{format(new Date(task.date), 'EEE', { locale: ptBR })}</p>
-                <p className="text-[11px] font-black leading-none">{format(new Date(task.date), 'dd')}</p>
+                <p className="text-[8px] font-black uppercase text-muted-foreground leading-none">{format(parseLocalDate(task.date), 'EEE', { locale: ptBR })}</p>
+                <p className="text-[11px] font-black leading-none">{format(parseLocalDate(task.date), 'dd')}</p>
               </div>
               <div className="flex-1 p-2 rounded-xl bg-muted/20 border border-white/5 group-hover:bg-muted/30 transition-all">
                 <p className="text-[10px] font-bold truncate leading-none">{task.title}</p>

@@ -240,8 +240,8 @@ export default function AdminTasks() {
               </motion.div>
             </div>
 
-            {/* Right Sidebar Area */}
-            <aside className="w-full lg:w-[280px] xl:w-[320px] border-t lg:border-t-0 lg:border-l border-white/5 bg-background/30 backdrop-blur-md overflow-y-auto p-4 sm:p-6 scrollbar-hide z-10 shrink-0">
+            {/* Right Sidebar Area - Desktop Only */}
+            <aside className="hidden lg:block w-[280px] xl:w-[320px] border-l border-white/5 bg-background/30 backdrop-blur-md overflow-y-auto p-6 scrollbar-hide z-10 shrink-0">
               <TaskSidebar 
                 tasks={tasks}
                 onSelectTask={(task) => handleOpenEditModal(task)}

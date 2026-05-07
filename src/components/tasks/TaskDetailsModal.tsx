@@ -24,10 +24,17 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { Task } from '@/hooks/useTasks';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
+
+// Helper to parse YYYY-MM-DD string to local Date object
+const parseLocalDate = (dateStr: string) => {
+  if (!dateStr) return new Date();
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
 import { Separator } from '@/components/ui/separator';
 import * as htmlToImage from 'html-to-image';
 import { toast } from 'sonner';
@@ -74,7 +81,7 @@ export function TaskDetailsModal({ isOpen, onClose, task, onEdit, onDelete, onAd
   };
 
   const handleShareWhatsApp = () => {
-    const dateStr = format(new Date(task.date), "dd/MM/yyyy", { locale: ptBR });
+    const dateStr = format(parseLocalDate(task.date), "dd/MM/yyyy", { locale: ptBR });
     const text = `📌 *Agendamento Confirmado*\n\n📅 *Dia:* ${dateStr}${task.time ? `\n⏰ *Hora:* ${task.time}` : ''}\n📝 *Tarefa:* ${task.title}\n📂 *Categoria:* ${task.category}\n\n${task.description ? `*Descrição:* ${task.description}\n\n` : ''}🔗 *Link:* ${window.location.origin}/admin/planner?id=${task.id}`;
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
@@ -92,7 +99,7 @@ export function TaskDetailsModal({ isOpen, onClose, task, onEdit, onDelete, onAd
       if (navigator.share) {
         await navigator.share({
           title: `Agendamento: ${task.title}`,
-          text: `Agendamento para o dia ${format(new Date(task.date), "dd/MM/yyyy")}`,
+          text: `Agendamento para o dia ${format(parseLocalDate(task.date), "dd/MM/yyyy")}`,
           files: [file]
         });
       } else {
@@ -136,7 +143,7 @@ export function TaskDetailsModal({ isOpen, onClose, task, onEdit, onDelete, onAd
             <div className="flex items-center gap-2 mb-2 text-muted-foreground">
               <CalendarIcon className="w-3.5 h-3.5" />
               <span className="text-xs font-bold uppercase tracking-wider">
-                {format(new Date(task.date), "dd 'de' MMMM, yyyy", { locale: ptBR })}
+                {format(parseLocalDate(task.date), "dd 'de' MMMM, yyyy", { locale: ptBR })}
               </span>
               {task.time && (
                 <>
@@ -258,7 +265,7 @@ export function TaskDetailsModal({ isOpen, onClose, task, onEdit, onDelete, onAd
               variant="ghost"
               onClick={() => {
                 onClose();
-                onAddAnother(new Date(task.date));
+                onAddAnother(parseLocalDate(task.date));
               }}
               className="h-10 text-muted-foreground hover:text-primary transition-all gap-2 text-xs font-bold"
             >
