@@ -153,23 +153,23 @@ export default function AdminTasks() {
               <h1 className="text-sm sm:text-base font-black tracking-tight">Planner Pro</h1>
             </div>
 
-            <div className="flex items-center gap-6">
-              <div className="relative group hidden md:block">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className="hidden sm:block relative group">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input 
-                  placeholder="Pesquisar tarefas..." 
-                  className="w-64 pl-10 bg-muted/30 border-white/5 focus:border-primary/50 transition-all rounded-xl h-10 text-sm"
+                  placeholder="Pesquisar..." 
+                  className="w-48 xl:w-64 pl-10 bg-muted/30 border-white/5 focus:border-primary/50 transition-all rounded-xl h-10 text-sm"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-10 gap-2 border-white/5 bg-muted/20 rounded-xl hover:bg-muted/30">
-                      <SlidersHorizontal className="w-4 h-4" />
-                      Filtros
+                    <Button variant="outline" size="sm" className="h-9 sm:h-10 px-2 sm:px-3 gap-1.5 border-white/5 bg-muted/20 rounded-xl">
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                      <span className="hidden xs:inline">Filtros</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56 bg-background/95 backdrop-blur-xl border-white/10 p-2 rounded-2xl shadow-2xl">
@@ -211,9 +211,11 @@ export default function AdminTasks() {
 
                 <Button 
                   onClick={() => handleOpenCreateModal()}
-                  className="h-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 rounded-xl px-5 gap-2"
+                  className="h-9 sm:h-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 rounded-xl px-3 sm:px-4 gap-1.5 text-xs sm:text-sm font-bold"
                 >
-                  <Plus className="w-4 h-4" /> Nova Tarefa
+                  <Plus className="w-4 h-4" /> 
+                  <span className="hidden xs:inline">Novo</span>
+                  <span className="xs:hidden">Tarefa</span>
                 </Button>
               </div>
             </div>

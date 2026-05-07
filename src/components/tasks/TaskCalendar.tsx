@@ -31,6 +31,7 @@ import { Task } from '@/hooks/useTasks';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Calendar } from '@/components/ui/calendar';
 
 interface TaskCalendarProps {
   tasks: Task[];
@@ -263,6 +264,73 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
     );
   };
 
+  const renderMobileCalendar = () => {
+    return (
+      <div className="space-y-4">
+        <div className="p-2 rounded-2xl bg-muted/10 border border-white/5 shadow-inner">
+          <Calendar
+            mode="single"
+            selected={currentMonth}
+            onSelect={(date) => date && onSelectDate(date)}
+            className="w-full"
+            classNames={{
+              day_today: "bg-primary/20 text-primary font-black ring-1 ring-primary/40",
+              day_selected: "bg-primary text-primary-foreground hover:bg-primary/90",
+            }}
+            modifiers={{
+              hasTask: (date) => tasks.some(t => isSameDay(new Date(t.date), date))
+            }}
+            modifiersStyles={{
+              hasTask: { 
+                fontWeight: '900',
+                textDecoration: 'underline',
+                textDecorationColor: 'hsl(var(--primary))',
+                textDecorationThickness: '2px',
+                textUnderlineOffset: '4px'
+              }
+            }}
+            locale={ptBR}
+          />
+        </div>
+
+        <div className="space-y-3">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Compromissos do Dia</h3>
+          <div className="space-y-2">
+            {tasks.filter(t => isSameDay(new Date(t.date), currentMonth)).length === 0 ? (
+              <div className="p-8 text-center rounded-2xl bg-muted/5 border border-dashed border-white/10">
+                <p className="text-xs text-muted-foreground">Nenhum compromisso para este dia.</p>
+                <Button 
+                  variant="link" 
+                  onClick={() => onSelectDate(currentMonth)}
+                  className="text-primary text-[10px] font-black uppercase mt-2 h-auto p-0"
+                >
+                  + Adicionar novo
+                </Button>
+              </div>
+            ) : (
+              tasks.filter(t => isSameDay(new Date(t.date), currentMonth)).map(task => (
+                <motion.div
+                  key={task.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={() => onEditTask(task)}
+                  className="p-3 rounded-2xl bg-muted/20 border border-white/5 flex items-center gap-4 active:scale-95 transition-all"
+                >
+                  <div className="w-1.5 h-8 rounded-full" style={{ backgroundColor: task.color }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold truncate">{task.title}</p>
+                    <p className="text-[10px] text-muted-foreground font-medium">{task.time || 'Sem horário'}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
+                </motion.div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderWeekView = () => {
     const today = new Date();
     const startOfWeekDate = startOfWeek(currentMonth);
@@ -328,11 +396,16 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
   return (
     <div className="w-full">
       {renderHeader()}
-      <div className="bg-background/40 backdrop-blur-md rounded-3xl p-6 border border-white/10 shadow-2xl">
+      <div className="bg-background/40 backdrop-blur-md rounded-3xl p-4 sm:p-6 border border-white/10 shadow-2xl">
         {view === 'month' && (
           <>
-            {renderDays()}
-            {renderCells()}
+            <div className="hidden sm:block">
+              {renderDays()}
+              {renderCells()}
+            </div>
+            <div className="sm:hidden">
+              {renderMobileCalendar()}
+            </div>
           </>
         )}
         {view === 'week' && renderWeekView()}
