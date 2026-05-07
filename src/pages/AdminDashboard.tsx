@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   getProjectsAsync,
@@ -19,6 +19,7 @@ import {
   Loader2, LogOut, Link as LinkIcon, Check, QrCode,
   Tag, ExternalLink, X, ArrowUpRight, LayoutGrid, Layers,
   Search, Eye, EyeOff, Filter, Edit2, MoreVertical, Calendar,
+  SlidersHorizontal, Bell, Settings as SettingsIcon
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -27,6 +28,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useTasks, type Task as TaskType, type Priority } from '@/hooks/useTasks';
+import { TaskCalendar } from '@/components/tasks/TaskCalendar';
+import { TaskModal } from '@/components/tasks/TaskModal';
+import { TaskSidebar } from '@/components/tasks/TaskSidebar';
+import { TaskDetailsModal } from '@/components/tasks/TaskDetailsModal';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 
 // NAO MEXER PQ DEU CERTO! (NAO SABER COMO TA FEITO, MAS FUNCIONA)
 const AdminDashboard = () => {
@@ -54,12 +61,43 @@ const AdminDashboard = () => {
   const [filterStatus, setFilterStatus] = useState<"all" | "visible" | "hidden">("all");
   const [mobileActionProject, setMobileActionProject] = useState<Project | null>(null);
 
+  // Planner States
+  const { tasks, isLoading: tasksLoading, createTask, updateTask, deleteTask } = useTasks();
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<TaskType | null>(null);
+  const [selectedTaskDate, setSelectedTaskDate] = useState<Date | undefined>(undefined);
+  const [taskView, setTaskView] = useState<'month' | 'week' | 'agenda'>('month');
+  const [taskSearchQuery, setTaskSearchQuery] = useState('');
+  const [taskFilterPriority, setTaskFilterPriority] = useState<Priority[]>([]);
+  const [taskShowCompleted, setTaskShowCompleted] = useState<boolean | null>(null);
+
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+
   useEffect(() => {
     if (!authLoading && user) {
       loadProjects();
       loadCategories();
     }
-  }, [user, authLoading]);
+  }, [authLoading, user]);
+
+  useEffect(() => {
+    const tabItem = searchParams.get("tab");
+    const taskId = searchParams.get("id");
+    
+    if (tabItem === "planner" || taskId) {
+      setActiveTab("planner");
+      
+      if (taskId && !tasksLoading && tasks.length > 0) {
+        const task = tasks.find(t => t.id === taskId);
+        if (task) {
+          setSelectedTask(task);
+          setIsTaskDetailsOpen(true);
+        }
+      }
+    }
+  }, [searchParams, tasksLoading, tasks.length]);
 
   const loadProjects = async () => {
     const data = await getProjectsAsync();
@@ -159,6 +197,42 @@ const AdminDashboard = () => {
       toast.error("Erro ao renomear álbum");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Planner Handlers
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      const matchesSearch = task.title.toLowerCase().includes(taskSearchQuery.toLowerCase()) || 
+                          task.description?.toLowerCase().includes(taskSearchQuery.toLowerCase());
+      const matchesPriority = taskFilterPriority.length === 0 || taskFilterPriority.includes(task.priority);
+      const matchesCompleted = taskShowCompleted === null || task.completed === taskShowCompleted;
+      
+      return matchesSearch && matchesPriority && matchesCompleted;
+    });
+  }, [tasks, taskSearchQuery, taskFilterPriority, taskShowCompleted]);
+
+  const handleOpenTaskCreateModal = (date?: Date) => {
+    setSelectedTask(null);
+    setSelectedTaskDate(date || new Date());
+    setIsTaskModalOpen(true);
+  };
+
+  const handleOpenTaskEditModal = (task: TaskType) => {
+    setSelectedTask(task);
+    setIsTaskDetailsOpen(true);
+  };
+
+  const handleTaskEditFromDetails = () => {
+    setIsTaskDetailsOpen(false);
+    setIsTaskModalOpen(true);
+  };
+
+  const handleSaveTask = (taskData: any) => {
+    if (taskData.id) {
+      updateTask.mutate(taskData);
+    } else {
+      createTask.mutate(taskData);
     }
   };
 
@@ -314,9 +388,9 @@ const AdminDashboard = () => {
           <div className="flex items-center border border-white/10 rounded-sm overflow-hidden self-start w-full sm:w-auto">
             <button
               onClick={() => setActiveTab("projects")}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 text-[9px] font-semibold uppercase tracking-wider transition-colors ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all ${
                 activeTab === "projects"
-                  ? "bg-white text-black"
+                  ? "bg-white text-black shadow-lg"
                   : "text-white/40 hover:text-white/70"
               }`}
             >
@@ -325,9 +399,9 @@ const AdminDashboard = () => {
             </button>
             <button
               onClick={() => setActiveTab("categories")}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 text-[9px] font-semibold uppercase tracking-wider transition-colors border-l border-white/10 ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 ${
                 activeTab === "categories"
-                  ? "bg-white text-black"
+                  ? "bg-white text-black shadow-lg"
                   : "text-white/40 hover:text-white/70"
               }`}
             >
@@ -335,8 +409,12 @@ const AdminDashboard = () => {
               Categorias
             </button>
             <button
-              onClick={() => navigate("/admin/planner")}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 text-[9px] font-semibold uppercase tracking-wider transition-colors border-l border-white/10 text-white/40 hover:text-white/70"
+              onClick={() => setActiveTab("planner")}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 ${
+                activeTab === "planner"
+                  ? "bg-white text-black shadow-lg"
+                  : "text-white/40 hover:text-white/70"
+              }`}
             >
               <Calendar className="h-3 w-3" />
               Planner
@@ -713,7 +791,131 @@ const AdminDashboard = () => {
             )}
           </div>
         )}
+
+        {/* ── PLANNER TAB ── */}
+        {activeTab === "planner" && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/3 p-4 rounded-xl border border-white/8">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                 <div className="relative flex-1 sm:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20" />
+                    <input 
+                       type="text" 
+                       placeholder="Buscar tarefas…" 
+                       value={taskSearchQuery}
+                       onChange={(e) => setTaskSearchQuery(e.target.value)}
+                       className="w-full bg-white/3 border border-white/8 pl-9 pr-4 py-2.5 text-[11px] rounded-lg focus:outline-none focus:border-white/20 transition-colors"
+                    />
+                 </div>
+                 
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center gap-2 px-4 py-2.5 bg-white/3 border border-white/8 text-[9px] font-bold uppercase tracking-widest rounded-lg hover:bg-white/5 transition-all">
+                        <SlidersHorizontal className="w-3 h-3 text-white/40" />
+                        Filtros
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56 bg-[#111] border-white/10 p-2 rounded-xl shadow-2xl text-white">
+                      <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-white/30 px-2 py-2">Prioridade</DropdownMenuLabel>
+                      {['Baixa', 'Média', 'Alta', 'Urgente'].map((p) => (
+                        <DropdownMenuCheckboxItem
+                          key={p}
+                          checked={taskFilterPriority.includes(p as Priority)}
+                          onCheckedChange={() => {
+                            setTaskFilterPriority(prev => 
+                              prev.includes(p as Priority) 
+                                ? prev.filter(x => x !== p) 
+                                : [...prev, p as Priority]
+                            );
+                          }}
+                          className="rounded-lg mb-1 focus:bg-white/10"
+                        >
+                          {p}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                      <DropdownMenuSeparator className="bg-white/5 my-2" />
+                      <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-white/30 px-2 py-2">Status</DropdownMenuLabel>
+                      <DropdownMenuCheckboxItem
+                        checked={taskShowCompleted === true}
+                        onCheckedChange={() => setTaskShowCompleted(taskShowCompleted === true ? null : true)}
+                        className="rounded-lg focus:bg-white/10"
+                      >
+                        Concluídas
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={taskShowCompleted === false}
+                        onCheckedChange={() => setTaskShowCompleted(taskShowCompleted === false ? null : false)}
+                        className="rounded-lg focus:bg-white/10"
+                      >
+                        Pendentes
+                      </DropdownMenuCheckboxItem>
+                    </DropdownMenuContent>
+                 </DropdownMenu>
+              </div>
+
+              <button
+                onClick={() => handleOpenTaskCreateModal()}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-white text-black text-[9px] font-bold uppercase tracking-widest rounded-lg hover:opacity-90 transition-all shadow-xl shadow-white/5"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Nova Tarefa
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
+              <div className="bg-white/2 rounded-3xl border border-white/5 p-1 relative min-h-[400px]">
+                {tasksLoading ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm rounded-3xl z-10">
+                    <Loader2 className="w-8 h-8 animate-spin text-white/20" />
+                  </div>
+                ) : null}
+                <TaskCalendar 
+                  tasks={filteredTasks}
+                  onSelectDate={(date) => handleOpenTaskCreateModal(date)}
+                  onEditTask={(task) => handleOpenTaskEditModal(task)}
+                  view={taskView}
+                  setView={setTaskView}
+                />
+              </div>
+              <div className="hidden lg:block space-y-6">
+                 <TaskSidebar 
+                   tasks={tasks}
+                   onSelectTask={(task) => handleOpenTaskEditModal(task)}
+                 />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Floating Add Button for Mobile - Only for Project or Planner tab */}
+        {(activeTab === "projects" || activeTab === "planner") && (
+          <button 
+            className="sm:hidden fixed bottom-6 right-6 w-14 h-14 rounded-full bg-white text-black shadow-2xl flex items-center justify-center p-0 z-50 hover:scale-110 active:scale-95 transition-all"
+            onClick={() => activeTab === "projects" ? setShowForm(true) : handleOpenTaskCreateModal()}
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+        )}
       </div>
+
+      {/* Task Modals */}
+      <TaskDetailsModal
+        isOpen={isTaskDetailsOpen}
+        onClose={() => setIsTaskDetailsOpen(false)}
+        task={selectedTask}
+        onEdit={handleTaskEditFromDetails}
+        onDelete={(id) => deleteTask.mutate(id)}
+        onAddAnother={(date) => handleOpenTaskCreateModal(date)}
+      />
+
+      <TaskModal 
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+        onSave={handleSaveTask}
+        onDelete={(id) => deleteTask.mutate(id)}
+        initialTask={selectedTask}
+        initialDate={selectedTaskDate}
+      />
 
       {/* ── QR Dialog ── */}
       <Dialog open={!!qrProject} onOpenChange={(open) => !open && setQrProject(null)}>

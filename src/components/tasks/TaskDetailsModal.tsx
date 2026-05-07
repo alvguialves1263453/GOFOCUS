@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -82,7 +82,7 @@ export function TaskDetailsModal({ isOpen, onClose, task, onEdit, onDelete, onAd
 
   const handleShareWhatsApp = () => {
     const dateStr = format(parseLocalDate(task.date), "dd/MM/yyyy", { locale: ptBR });
-    const text = `📌 *Agendamento Confirmado*\n\n📅 *Dia:* ${dateStr}${task.time ? `\n⏰ *Hora:* ${task.time}` : ''}\n📝 *Tarefa:* ${task.title}\n📂 *Categoria:* ${task.category}\n\n${task.description ? `*Descrição:* ${task.description}\n\n` : ''}🔗 *Link:* ${window.location.origin}/admin/planner?id=${task.id}`;
+    const text = `📌 *Agendamento Confirmado*\n\n📅 *Dia:* ${dateStr}${task.time ? `\n⏰ *Hora:* ${task.time}` : ''}\n📝 *Tarefa:* ${task.title}\n📂 *Categoria:* ${task.category}\n\n${task.description ? `*Descrição:* ${task.description}\n\n` : ''}🔗 *Link:* ${window.location.origin}/admin/dashboard?tab=planner&id=${task.id}`;
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
   };
