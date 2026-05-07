@@ -130,7 +130,7 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
           <div
             key={day.toString()}
             className={cn(
-              "relative min-h-[60px] sm:min-h-[85px] border border-white/5 p-1 transition-all group overflow-hidden",
+              "relative min-h-[65px] sm:min-h-[85px] border border-white/5 p-1 transition-all group overflow-hidden",
               !isSameMonth(day, monthStart) ? "bg-muted/10 opacity-20" : "hover:bg-primary/5",
               isToday(day) && "bg-primary/5 ring-1 ring-inset ring-primary/20",
             )}
@@ -182,16 +182,9 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
                 ))}
               </div>
             </ScrollArea>
-                {dayTasks.length > 4 && (
-                  <div className="text-[7px] text-muted-foreground opacity-50 px-1 font-bold">
-                    +{dayTasks.length - 4}
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
             
-            <button className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md bg-primary text-primary-foreground">
-              <Plus className="w-3 h-3" />
+            <button className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded bg-primary text-primary-foreground hidden sm:block">
+              <Plus className="w-2.5 h-2.5" />
             </button>
           </div>
         );
@@ -204,7 +197,7 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
       );
       days = [];
     }
-    return <div className="rounded-2xl border border-white/5 overflow-hidden shadow-2xl bg-muted/5 backdrop-blur-sm">{rows}</div>;
+    return <div className="rounded-xl border border-white/5 overflow-hidden shadow-2xl bg-muted/5 backdrop-blur-sm">{rows}</div>;
   };
 
   const renderAgenda = () => {

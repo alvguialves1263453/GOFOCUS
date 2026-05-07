@@ -114,39 +114,43 @@ export default function AdminTasks() {
 
       <div className="relative flex flex-col lg:flex-row h-screen">
         {/* Navigation Sidebar (Vertical - slim) */}
-        <aside className="hidden lg:flex flex-col w-20 items-center py-8 border-r border-white/5 bg-background/50 backdrop-blur-xl z-20">
+        <aside className="hidden lg:flex flex-col w-16 xl:w-20 items-center py-6 border-r border-white/5 bg-background/50 backdrop-blur-xl z-20">
           <button 
             onClick={() => navigate("/admin/dashboard")}
-            className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mb-12 shadow-lg shadow-primary/20 hover:scale-110 transition-all cursor-pointer"
+            className="w-10 h-10 xl:w-12 xl:h-12 rounded-2xl bg-primary flex items-center justify-center mb-10 shadow-lg shadow-primary/20 hover:scale-110 transition-all cursor-pointer"
           >
-            <LayoutDashboard className="text-primary-foreground w-6 h-6" />
+            <LayoutDashboard className="text-primary-foreground w-5 h-5 xl:w-6 xl:h-6" />
           </button>
           
-          <div className="space-y-6 flex-1">
-            <nav className="flex flex-col gap-4">
-              <Button variant="ghost" size="icon" className="w-12 h-12 rounded-2xl hover:bg-white/5 hover:text-primary transition-all">
-                <Bell className="w-5 h-5" />
+          <div className="space-y-4 xl:space-y-6 flex-1">
+            <nav className="flex flex-col gap-3 xl:gap-4">
+              <Button variant="ghost" size="icon" className="w-10 h-10 xl:w-12 xl:h-12 rounded-2xl hover:bg-white/5 hover:text-primary transition-all">
+                <Bell className="w-4 h-4 xl:w-5 xl:h-5" />
               </Button>
-              <Button variant="ghost" size="icon" className="w-12 h-12 rounded-2xl bg-primary/10 text-primary border border-primary/20">
-                <CalendarIcon className="w-5 h-5" />
+              <Button variant="ghost" size="icon" className="w-10 h-10 xl:w-12 xl:h-12 rounded-2xl bg-primary/10 text-primary border border-primary/20">
+                <CalendarIcon className="w-4 h-4 xl:w-5 xl:h-5" />
               </Button>
-              <Button variant="ghost" size="icon" className="w-12 h-12 rounded-2xl hover:bg-white/5 transition-all">
-                <Settings className="w-5 h-5" />
+              <Button variant="ghost" size="icon" className="w-10 h-10 xl:w-12 xl:h-12 rounded-2xl hover:bg-white/5 transition-all">
+                <Settings className="w-4 h-4 xl:w-5 xl:h-5" />
               </Button>
             </nav>
           </div>
           
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-purple-500 border border-white/20 shadow-xl" />
+          <div className="w-8 h-8 xl:w-10 xl:h-10 rounded-full bg-gradient-to-tr from-primary to-purple-500 border border-white/20 shadow-xl" />
         </aside>
 
         {/* Main Content Area */}
         <main className="flex-1 flex flex-col h-screen overflow-hidden">
           {/* Header */}
-          <header className="h-12 flex items-center justify-between px-4 bg-background/20 backdrop-blur-md border-b border-white/5 z-10 shrink-0">
+          <header className="h-14 sm:h-16 flex items-center justify-between px-4 sm:px-6 bg-background/20 backdrop-blur-md border-b border-white/5 z-10 shrink-0">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-50">Admin</span>
-              <ChevronRight className="w-3 h-3 text-muted-foreground/30" />
-              <h1 className="text-base font-black tracking-tight">Planner Pro</h1>
+              <button 
+                onClick={() => navigate("/admin/dashboard")}
+                className="lg:hidden w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+              </button>
+              <h1 className="text-sm sm:text-base font-black tracking-tight">Planner Pro</h1>
             </div>
 
             <div className="flex items-center gap-6">
@@ -218,11 +222,11 @@ export default function AdminTasks() {
           {/* Page Content */}
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
             {/* Scrollable Calendar Area */}
-            <div className="flex-1 overflow-y-auto p-2 scrollbar-hide">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 scrollbar-hide">
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="max-w-6xl mx-auto"
               >
                 <TaskCalendar 
                   tasks={filteredTasks}
@@ -235,7 +239,7 @@ export default function AdminTasks() {
             </div>
 
             {/* Right Sidebar Area */}
-            <aside className="w-full lg:w-[280px] border-l border-white/5 bg-background/30 backdrop-blur-md overflow-y-auto p-4 scrollbar-hide z-10 shrink-0">
+            <aside className="w-full lg:w-[280px] xl:w-[320px] border-t lg:border-t-0 lg:border-l border-white/5 bg-background/30 backdrop-blur-md overflow-y-auto p-4 sm:p-6 scrollbar-hide z-10 shrink-0">
               <TaskSidebar 
                 tasks={tasks}
                 onSelectTask={(task) => handleOpenEditModal(task)}
