@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, addDays, eachDayOfInterval, isToday, parseISO } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, addDays, eachDayOfInterval, isToday, parseISO, startOfDay } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import { ptBR } from 'date-fns/locale';
 
 const TIME_ZONE = 'America/Sao_Paulo';
+
+// Helper to parse YYYY-MM-DD string to local Date object
+const parseLocalDate = (dateStr: string) => {
+  if (!dateStr) return new Date();
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -13,7 +19,10 @@ import {
   ChevronDown,
   LayoutGrid,
   Rows,
-  CalendarDays
+  CalendarDays,
+  ListTodo,
+  Calendar as CalendarIconSmall,
+  Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +42,7 @@ interface TaskCalendarProps {
 
 export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }: TaskCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
@@ -116,7 +126,7 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
         const formattedDate = format(day, 'd');
         const cloneDay = day;
         const dayTasks = tasks.filter(t => {
-          const taskDate = parseISO(t.date);
+          const taskDate = parseLocalDate(t.date);
           return isSameDay(taskDate, cloneDay);
         });
         
@@ -197,7 +207,7 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
   const renderAgenda = () => {
     const agendaTasks = tasks
       .filter(t => !t.completed)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
 
     return (
       <div className="space-y-6 max-h-[600px] overflow-y-auto px-1 scrollbar-hide">
@@ -216,8 +226,8 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
               className="group relative flex items-center gap-6 p-4 rounded-2xl bg-muted/20 border border-white/5 hover:bg-muted/30 transition-all cursor-pointer"
             >
               <div className="flex flex-col items-center justify-center min-w-[60px] p-2 rounded-xl bg-background/50 border border-white/5">
-                <span className="text-xs font-bold text-muted-foreground uppercase">{format(new Date(task.date), 'MMM', { locale: ptBR })}</span>
-                <span className="text-2xl font-black text-foreground">{format(new Date(task.date), 'dd')}</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase">{format(parseLocalDate(task.date), 'MMM', { locale: ptBR })}</span>
+                <span className="text-2xl font-black text-foreground">{format(parseLocalDate(task.date), 'dd')}</span>
               </div>
               
               <div className="flex-1 space-y-2">
@@ -258,66 +268,157 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
   };
 
   const renderMobileCalendar = () => {
-    return (
-      <div className="space-y-4">
-        <div className="p-2 rounded-2xl bg-muted/10 border border-white/5 shadow-inner">
-          <Calendar
-            mode="single"
-            selected={currentMonth}
-            onSelect={(date) => date && onSelectDate(date)}
-            className="w-full"
-            classNames={{
-              day_today: "bg-primary/20 text-primary font-black ring-1 ring-primary/40",
-              day_selected: "bg-primary text-primary-foreground hover:bg-primary/90",
-            }}
-            modifiers={{
-              hasTask: (date) => tasks.some(t => isSameDay(parseISO(t.date), date))
-            }}
-            modifiersStyles={{
-              hasTask: { 
-                fontWeight: '900',
-                textDecoration: 'underline',
-                textDecorationColor: 'hsl(var(--primary))',
-                textDecorationThickness: '2px',
-                textUnderlineOffset: '4px'
-              }
-            }}
-            locale={ptBR}
-          />
-        </div>
+    // We'll replace the full calendar with a more compact and useful mobile view
+    // as requested by the user.
 
-        <div className="space-y-3">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Compromissos do Dia</h3>
-          <div className="space-y-2">
-            {tasks.filter(t => isSameDay(parseISO(t.date), currentMonth)).length === 0 ? (
-              <div className="p-8 text-center rounded-2xl bg-muted/5 border border-dashed border-white/10">
-                <p className="text-xs text-muted-foreground">Nenhum compromisso para este dia.</p>
-                <Button 
-                  variant="link" 
-                  onClick={() => onSelectDate(currentMonth)}
-                  className="text-primary text-[10px] font-black uppercase mt-2 h-auto p-0"
-                >
-                  + Adicionar novo
-                </Button>
+    const weekDays = eachDayOfInterval({
+      start: startOfWeek(selectedDate, { locale: ptBR }),
+      end: endOfWeek(selectedDate, { locale: ptBR })
+    });
+
+    return (
+      <div className="flex flex-col h-full">
+        {/* Navigation Sidebar for Mobile */}
+        <div className="flex gap-2 mb-6">
+          <div className="flex flex-col gap-2 w-12 shrink-0">
+            <Button 
+              variant={view === 'agenda' ? 'default' : 'ghost'} 
+              size="icon" 
+              onClick={() => setView('agenda')}
+              className={cn("w-10 h-10 rounded-xl", view === 'agenda' ? "bg-primary shadow-lg shadow-primary/20" : "bg-muted/20")}
+            >
+              <Rows className="w-5 h-5" />
+            </Button>
+            <Button 
+              variant={view === 'month' ? 'default' : 'ghost'} 
+              size="icon" 
+              onClick={() => setView('month')}
+              className={cn("w-10 h-10 rounded-xl", view === 'month' ? "bg-primary shadow-lg shadow-primary/20" : "bg-muted/20")}
+            >
+              <CalendarIconSmall className="w-5 h-5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => {
+                const today = new Date();
+                setSelectedDate(today);
+                onSelectDate(today);
+              }}
+              className="w-10 h-10 rounded-xl bg-muted/20"
+            >
+              <span className="text-[10px] font-black">HOJE</span>
+            </Button>
+          </div>
+
+          <div className="flex-1 space-y-4">
+            {/* Horizontal Date Strip */}
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              {weekDays.map((day) => {
+                const isSelected = isSameDay(day, selectedDate);
+                const hasTasks = tasks.some(t => isSameDay(parseLocalDate(t.date), day));
+                
+                return (
+                  <button
+                    key={day.toString()}
+                    onClick={() => {
+                      setSelectedDate(day);
+                      onSelectDate(day);
+                    }}
+                    className={cn(
+                      "flex flex-col items-center justify-center min-w-[50px] py-3 rounded-2xl transition-all border",
+                      isSelected 
+                        ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20" 
+                        : "bg-muted/10 border-white/5 hover:bg-muted/20"
+                    )}
+                  >
+                    <span className="text-[10px] font-bold uppercase opacity-60 mb-1">
+                      {format(day, 'EEE', { locale: ptBR }).replace('.', '')}
+                    </span>
+                    <span className="text-lg font-black">{format(day, 'd')}</span>
+                    {hasTasks && !isSelected && (
+                      <div className="w-1 h-1 rounded-full bg-primary mt-1" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Daily Agenda */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                  {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
+                </h3>
               </div>
-            ) : (
-              tasks.filter(t => isSameDay(parseISO(t.date), currentMonth)).map(task => (
-                <motion.div
-                  key={task.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  onClick={() => onEditTask(task)}
-                  className="p-3 rounded-2xl bg-muted/20 border border-white/5 flex items-center gap-4 active:scale-95 transition-all"
-                >
-                  <div className="w-1.5 h-8 rounded-full" style={{ backgroundColor: task.color }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold truncate">{task.title}</p>
-                    <p className="text-[10px] text-muted-foreground font-medium">{task.time || 'Sem horário'}</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
-                </motion.div>
-              ))
-            )}
+              
+              <ScrollArea className="h-[45vh]">
+                <div className="space-y-2 pr-2">
+                  {tasks.filter(t => isSameDay(parseLocalDate(t.date), selectedDate)).length === 0 ? (
+                    <div className="py-12 text-center rounded-3xl bg-muted/5 border border-dashed border-white/10">
+                      <p className="text-xs text-muted-foreground font-medium">Nenhum compromisso.</p>
+                      <Button 
+                        variant="link" 
+                        onClick={() => onSelectDate(selectedDate)}
+                        className="text-primary text-[10px] font-black uppercase mt-2 h-auto p-0"
+                      >
+                        + Adicionar
+                      </Button>
+                    </div>
+                  ) : (
+                    tasks
+                      .filter(t => isSameDay(parseLocalDate(t.date), selectedDate))
+                      .sort((a, b) => (a.time || '23:59').localeCompare(b.time || '23:59'))
+                      .map(task => (
+                        <motion.div
+                          key={task.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          onClick={() => onEditTask(task)}
+                          className={cn(
+                            "p-4 rounded-3xl bg-muted/20 border border-white/5 flex items-center gap-4 active:scale-[0.98] transition-all",
+                            task.completed && "opacity-50 grayscale bg-muted/10"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-1.5 h-10 rounded-full",
+                            task.completed ? "bg-muted-foreground" : ""
+                          )} style={{ backgroundColor: !task.completed ? task.color : undefined }} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <p className={cn("text-sm font-bold truncate", task.completed && "line-through")}>{task.title}</p>
+                              {task.urgent && !task.completed && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-muted-foreground font-bold flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {task.time || 'Sem horário'}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground/40">•</span>
+                              <span className="text-[10px] text-muted-foreground font-bold">{task.category}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                             <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
+                             {task.priority === 'Alta' || task.priority === 'Urgente' ? (
+                               <Badge className="bg-red-500/10 text-red-500 border-none text-[8px] h-4">!</Badge>
+                             ) : null}
+                          </div>
+                        </motion.div>
+                      ))
+                  )}
+                </div>
+              </ScrollArea>
+              
+              <Button 
+                onClick={() => onSelectDate(selectedDate)}
+                className="w-full h-12 rounded-2xl bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 font-bold gap-2 text-xs"
+              >
+                <Plus className="w-4 h-4" /> NOVO COMPROMISSO
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -335,7 +436,7 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
     return (
       <div className="grid grid-cols-7 gap-4">
         {daysInWeek.map((dayOfWeek) => {
-          const dayTasks = tasks.filter(t => isSameDay(new Date(t.date), dayOfWeek));
+          const dayTasks = tasks.filter(t => isSameDay(parseLocalDate(t.date), dayOfWeek));
           return (
             <div key={dayOfWeek.toString()} className="space-y-4">
               <div className={cn(
