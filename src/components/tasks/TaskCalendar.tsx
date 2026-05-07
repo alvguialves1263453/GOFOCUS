@@ -22,8 +22,7 @@ import {
   Rows,
   CalendarDays,
   ListTodo,
-  Calendar as CalendarIconSmall,
-  Plus
+  Calendar as CalendarIconSmall
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
