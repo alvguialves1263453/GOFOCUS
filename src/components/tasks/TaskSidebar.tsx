@@ -11,7 +11,7 @@ import {
   Hash,
   Filter
 } from 'lucide-react';
-import { format, isToday, isAfter, addDays, isSameDay } from 'date-fns';
+import { format, isToday, isAfter, addDays, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 import { Calendar } from '@/components/ui/calendar';
@@ -22,9 +22,9 @@ interface TaskSidebarProps {
 }
 
 export function TaskSidebar({ tasks, onSelectTask }: TaskSidebarProps) {
-  const todayTasks = tasks.filter(t => isSameDay(new Date(t.date), new Date()) && !t.completed);
+  const todayTasks = tasks.filter(t => isSameDay(parseISO(t.date), new Date()) && !t.completed);
   const upcomingTasks = tasks
-    .filter(t => isAfter(new Date(t.date), new Date()) && !t.completed)
+    .filter(t => isAfter(parseISO(t.date), new Date()) && !t.completed)
     .slice(0, 4);
   
   const completedCount = tasks.filter(t => t.completed).length;
@@ -131,8 +131,8 @@ export function TaskSidebar({ tasks, onSelectTask }: TaskSidebarProps) {
         </div>
       </div>
 
-      {/* Categories Widget */}
-      <div className="space-y-4 pt-4 border-t border-white/5">
+      {/* Categories Widget - Hidden Toggle/Mobile */}
+      <div className="hidden sm:block space-y-4 pt-4 border-t border-white/5">
         <h3 className="font-bold text-sm tracking-widest uppercase text-muted-foreground flex items-center gap-2">
           <Filter className="w-4 h-4" />
           Categorias

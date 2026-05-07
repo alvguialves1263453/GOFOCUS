@@ -9,8 +9,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Tag, Calendar as CalendarIcon, Clock, AlertTriangle, CheckCircle2, Plus, X, Trash2 } from 'lucide-react';
 import { Task, TaskInsert, Priority, ChecklistItem } from '@/hooks/useTasks';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { ptBR } from 'date-fns/locale';
+
+const TIME_ZONE = 'America/Sao_Paulo';
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -38,9 +41,11 @@ const COLORS = [
 ];
 
 export function TaskModal({ isOpen, onClose, onSave, onDelete, initialTask, initialDate }: TaskModalProps) {
+  const getCurrentLocalDate = () => formatInTimeZone(new Date(), TIME_ZONE, 'yyyy-MM-dd');
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [date, setDate] = useState(getCurrentLocalDate());
   const [time, setTime] = useState('');
   const [category, setCategory] = useState('Geral');
   const [priority, setPriority] = useState<Priority>('Média');
@@ -65,7 +70,9 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, initialTask, init
       setChecklist(initialTask.checklist || []);
       setCompleted(initialTask.completed || false);
     } else if (initialDate) {
-      setDate(format(initialDate, 'yyyy-MM-dd'));
+      // Ensure initialDate is treated as the correct local date string
+      const dateStr = formatInTimeZone(initialDate, TIME_ZONE, 'yyyy-MM-dd');
+      setDate(dateStr);
       setTitle('');
       setDescription('');
       setTime('');
@@ -164,7 +171,7 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, initialTask, init
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="pl-10 bg-muted/50 border-white/5"
+                  className="pl-10 bg-muted/50 border-white/5 h-11"
                 />
               </div>
             </div>

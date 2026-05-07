@@ -1,19 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  format, 
-  addMonths, 
-  subMonths, 
-  startOfMonth, 
-  endOfMonth, 
-  startOfWeek, 
-  endOfWeek, 
-  isSameMonth, 
-  isSameDay, 
-  addDays, 
-  eachDayOfInterval,
-  isToday
-} from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, addDays, eachDayOfInterval, isToday, parseISO } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { ptBR } from 'date-fns/locale';
+
+const TIME_ZONE = 'America/Sao_Paulo';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -125,7 +115,10 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
       for (let i = 0; i < 7; i++) {
         const formattedDate = format(day, 'd');
         const cloneDay = day;
-        const dayTasks = tasks.filter(t => isSameDay(new Date(t.date), cloneDay));
+        const dayTasks = tasks.filter(t => {
+          const taskDate = parseISO(t.date);
+          return isSameDay(taskDate, cloneDay);
+        });
         
         days.push(
           <div
@@ -278,7 +271,7 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
               day_selected: "bg-primary text-primary-foreground hover:bg-primary/90",
             }}
             modifiers={{
-              hasTask: (date) => tasks.some(t => isSameDay(new Date(t.date), date))
+              hasTask: (date) => tasks.some(t => isSameDay(parseISO(t.date), date))
             }}
             modifiersStyles={{
               hasTask: { 
@@ -296,7 +289,7 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
         <div className="space-y-3">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Compromissos do Dia</h3>
           <div className="space-y-2">
-            {tasks.filter(t => isSameDay(new Date(t.date), currentMonth)).length === 0 ? (
+            {tasks.filter(t => isSameDay(parseISO(t.date), currentMonth)).length === 0 ? (
               <div className="p-8 text-center rounded-2xl bg-muted/5 border border-dashed border-white/10">
                 <p className="text-xs text-muted-foreground">Nenhum compromisso para este dia.</p>
                 <Button 
@@ -308,7 +301,7 @@ export function TaskCalendar({ tasks, onSelectDate, onEditTask, view, setView }:
                 </Button>
               </div>
             ) : (
-              tasks.filter(t => isSameDay(new Date(t.date), currentMonth)).map(task => (
+              tasks.filter(t => isSameDay(parseISO(t.date), currentMonth)).map(task => (
                 <motion.div
                   key={task.id}
                   initial={{ opacity: 0, y: 10 }}
