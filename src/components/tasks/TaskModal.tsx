@@ -141,7 +141,7 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, initialTask, init
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] bg-background/95 backdrop-blur-xl border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto scrollbar-hide">
+      <DialogContent className="sm:max-w-[600px] bg-background/95 backdrop-blur-xl border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden scrollbar-hide">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             {initialTask ? <CheckCircle2 className="w-6 h-6 text-primary" /> : <Plus className="w-6 h-6 text-primary" />}
@@ -150,68 +150,68 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, initialTask, init
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="title" className="text-sm font-medium">Título</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="title" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Título</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ex: Reunião com cliente"
-              className="bg-muted/50 border-white/5 focus:border-primary/50 transition-all"
+              className="bg-muted/30 border-white/5 focus:border-primary/50 transition-all h-10 rounded-xl"
               required
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Data</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Data</Label>
               <div className="relative">
                 <CalendarIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="pl-10 bg-muted/50 border-white/5 h-11"
+                  className="pl-10 bg-muted/30 border-white/5 h-10 rounded-xl"
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Horário (Opcional)</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Horário (Opcional)</Label>
               <div className="relative">
                 <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="time"
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
-                  className="pl-10 bg-muted/50 border-white/5"
+                  className="pl-10 bg-muted/30 border-white/5 h-10 rounded-xl"
                 />
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Categoria</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Categoria</Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="bg-muted/50 border-white/5">
+                <SelectTrigger className="bg-muted/30 border-white/5 h-10 rounded-xl">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#111] border-white/10 text-white rounded-xl">
                   {CATEGORIES.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    <SelectItem key={cat} value={cat} className="rounded-lg focus:bg-white/10">{cat}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Prioridade</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Prioridade</Label>
               <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
-                <SelectTrigger className="bg-muted/50 border-white/5">
+                <SelectTrigger className="bg-muted/30 border-white/5 h-10 rounded-xl">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#111] border-white/10 text-white rounded-xl">
                   {PRIORITIES.map(p => (
-                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                    <SelectItem key={p} value={p} className="rounded-lg focus:bg-white/10">{p}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -234,23 +234,27 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, initialTask, init
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 bg-muted/30 p-3 rounded-lg border border-white/5">
-            <Checkbox
-              id="urgent"
-              checked={urgent}
-              onCheckedChange={(checked) => setUrgent(checked === true)}
-            />
-            <Label htmlFor="urgent" className="flex items-center gap-2 cursor-pointer text-sm font-bold text-red-500">
-              <AlertTriangle className="w-4 h-4" /> Marcar como URGENTE
-            </Label>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-muted/30 p-4 rounded-2xl border border-white/5">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="urgent"
+                checked={urgent}
+                onCheckedChange={(checked) => setUrgent(checked === true)}
+                className="rounded-md border-white/10"
+              />
+              <Label htmlFor="urgent" className="flex items-center gap-2 cursor-pointer text-[10px] font-black uppercase tracking-widest text-red-500">
+                <AlertTriangle className="w-3.5 h-3.5" /> Marcar como URGENTE
+              </Label>
+            </div>
             
-            <div className="ml-auto flex items-center space-x-2">
+            <div className="sm:ml-auto flex items-center space-x-2">
               <Checkbox
                 id="completed"
                 checked={completed}
                 onCheckedChange={(checked) => setCompleted(checked === true)}
+                className="rounded-md border-white/10"
               />
-              <Label htmlFor="completed" className="cursor-pointer text-sm font-medium">Concluída</Label>
+              <Label htmlFor="completed" className="cursor-pointer text-[10px] font-black uppercase tracking-widest text-muted-foreground">Concluída</Label>
             </div>
           </div>
 
@@ -260,7 +264,7 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, initialTask, init
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Detalhes da tarefa..."
-              className="bg-muted/50 border-white/5 min-h-[100px]"
+              className="bg-muted/30 border-white/5 min-h-[100px] rounded-xl"
             />
           </div>
 
@@ -314,15 +318,15 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, initialTask, init
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
                 placeholder="Adicionar tag..."
-                className="bg-muted/50 border-white/5 h-9"
+                className="bg-muted/30 border-white/5 h-10 rounded-xl"
               />
-              <Button type="button" size="sm" onClick={handleAddTag} variant="outline" className="shrink-0">
+              <Button type="button" size="sm" onClick={handleAddTag} variant="outline" className="shrink-0 h-10 w-10 p-0 rounded-xl">
                 <Tag className="w-4 h-4" />
               </Button>
             </div>
           </div>
 
-          <DialogFooter className="flex justify-between items-center sm:justify-between px-0 pt-4 border-t border-white/10">
+          <DialogFooter className="flex justify-between items-center sm:justify-between px-0 pt-4 border-t border-white/10 mt-2">
             {initialTask && onDelete && (
               <Button
                 type="button"
@@ -332,14 +336,14 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, initialTask, init
                   onDelete(initialTask.id);
                   onClose();
                 }}
-                className="gap-2"
+                className="gap-2 h-9 rounded-xl"
               >
-                <Trash2 className="w-4 h-4" /> Excluir
+                <Trash2 className="w-3.5 h-3.5" /> Excluir
               </Button>
             )}
             <div className="flex gap-2 ml-auto">
-              <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-              <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[100px]">
+              <Button type="button" variant="ghost" size="sm" onClick={onClose} className="h-9 rounded-xl">Cancelar</Button>
+              <Button type="submit" size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[90px] h-9 rounded-xl">
                 {initialTask ? 'Salvar' : 'Criar'}
               </Button>
             </div>

@@ -96,8 +96,6 @@ const ImageWithLoader = ({
         decoding="async"
       />
 
-      {/* Mobile Protection Layer: blocks long-press save menu */}
-      <div className="photo-protect-layer absolute inset-0 z-30 touch-none pointer-events-auto bg-transparent" />
     </div>
   );
 };
@@ -189,93 +187,6 @@ const ClientPreview = () => {
     }
   };
 
-  /* ─── Protection Logic ─── */
-  const [isProtected, setIsProtected] = useState(false);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent PrintScreen, Ctrl+P, Ctrl+S, etc.
-      if (
-        e.key === "PrintScreen" || 
-        (e.ctrlKey && (e.key === "p" || e.key === "s" || e.key === "u")) ||
-        (e.metaKey && (e.key === "p" || e.key === "s"))
-      ) {
-        e.preventDefault();
-        setIsProtected(true);
-        setTimeout(() => setIsProtected(false), 2000);
-        return false;
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "PrintScreen") {
-        setIsProtected(true);
-        setTimeout(() => setIsProtected(false), 2000);
-        if (navigator.clipboard) {
-           navigator.clipboard.writeText(""); // Try to clear clipboard
-        }
-      }
-    };
-
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-      toast.error("Salvamento de fotos desativado pelo fotógrafo.", {
-        position: "bottom-center",
-        duration: 2000,
-      });
-    };
-
-    // More aggressive: black screen on blur (losing focus)
-    const handleBlur = () => {
-      setIsProtected(true);
-    };
-
-    const handleFocus = () => {
-      setIsProtected(false);
-    };
-
-    const handleMouseLeave = () => {
-      setIsProtected(true);
-    };
-
-    const handleMouseEnter = () => {
-      setIsProtected(false);
-    };
-
-    // DevTools detection (basic)
-    const checkDevTools = () => {
-      const threshold = 160;
-      const widthThreshold = window.outerWidth - window.innerWidth > threshold;
-      const heightThreshold = window.outerHeight - window.innerHeight > threshold;
-      
-      if (widthThreshold || heightThreshold) {
-        setIsProtected(true);
-      }
-    };
-
-    const devToolsInterval = setInterval(checkDevTools, 1000);
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    window.addEventListener("contextmenu", handleContextMenu);
-    window.addEventListener("blur", handleBlur);
-    window.addEventListener("focus", handleFocus);
-    window.addEventListener("mouseleave", handleMouseLeave);
-    window.addEventListener("mouseenter", handleMouseEnter);
-
-    return () => {
-      clearInterval(devToolsInterval);
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("contextmenu", handleContextMenu);
-      window.removeEventListener("blur", handleBlur);
-      window.removeEventListener("focus", handleFocus);
-      window.removeEventListener("mouseleave", handleMouseLeave);
-      window.removeEventListener("mouseenter", handleMouseEnter);
-    };
-  }, []);
-
-
   /* ── Loading / not found states ── */
   if (loading) {
     return (
@@ -301,17 +212,7 @@ const ClientPreview = () => {
     <>
       <meta name="robots" content="noindex, nofollow" />
 
-      {/* ── PROTECTION OVERLAY ── */}
-      <div className={`no-screenshot-message ${isProtected ? "active" : ""}`}>
-         <X className="h-16 w-16 text-white/5 mb-8 animate-pulse" />
-         <h2 className="text-3xl font-serif mb-4">PROIBIDO PRINTS!</h2>
-         <p className="text-[10px] uppercase tracking-[0.5em] text-white/40 max-w-xs leading-loose">
-           Esta galeria é protegida por direitos autorais.<br/>
-           O uso de capturas de tela e salvamento de fotos é estritamente proibido.
-         </p>
-      </div>
-
-      <div className={`min-h-screen bg-[#0a0a0a] text-white transition-opacity duration-500 ${isProtected ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
+      <div className="min-h-screen bg-[#0a0a0a] text-white transition-opacity duration-500 opacity-100">
 
         {/* ── HEADER ── */}
         <motion.header

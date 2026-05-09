@@ -795,71 +795,70 @@ const AdminDashboard = () => {
         {/* ── PLANNER TAB ── */}
         {activeTab === "planner" && (
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/3 p-4 rounded-xl border border-white/8">
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                 <div className="relative flex-1 sm:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20" />
-                    <input 
-                       type="text" 
-                       placeholder="Buscar tarefas…" 
-                       value={taskSearchQuery}
-                       onChange={(e) => setTaskSearchQuery(e.target.value)}
-                       className="w-full bg-white/3 border border-white/8 pl-9 pr-4 py-2.5 text-[11px] rounded-lg focus:outline-none focus:border-white/20 transition-colors"
-                    />
-                 </div>
-                 
-                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="flex items-center gap-2 px-4 py-2.5 bg-white/3 border border-white/8 text-[9px] font-bold uppercase tracking-widest rounded-lg hover:bg-white/5 transition-all">
-                        <SlidersHorizontal className="w-3 h-3 text-white/40" />
-                        Filtros
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 bg-[#111] border-white/10 p-2 rounded-xl shadow-2xl text-white">
-                      <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-white/30 px-2 py-2">Prioridade</DropdownMenuLabel>
-                      {['Baixa', 'Média', 'Alta', 'Urgente'].map((p) => (
-                        <DropdownMenuCheckboxItem
-                          key={p}
-                          checked={taskFilterPriority.includes(p as Priority)}
-                          onCheckedChange={() => {
-                            setTaskFilterPriority(prev => 
-                              prev.includes(p as Priority) 
-                                ? prev.filter(x => x !== p) 
-                                : [...prev, p as Priority]
-                            );
-                          }}
-                          className="rounded-lg mb-1 focus:bg-white/10"
-                        >
-                          {p}
-                        </DropdownMenuCheckboxItem>
-                      ))}
-                      <DropdownMenuSeparator className="bg-white/5 my-2" />
-                      <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-white/30 px-2 py-2">Status</DropdownMenuLabel>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20" />
+                  <input 
+                    type="text" 
+                    placeholder="Buscar agendamentos…" 
+                    value={taskSearchQuery}
+                    onChange={(e) => setTaskSearchQuery(e.target.value)}
+                    className="w-full bg-white/3 border border-white/8 pl-9 pr-4 py-3 text-xs rounded-2xl focus:outline-none focus:border-white/20 transition-all placeholder:text-white/10"
+                  />
+                </div>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex h-[46px] w-[46px] items-center justify-center bg-white/3 border border-white/8 rounded-2xl hover:bg-white/5 active:scale-95 transition-all outline-none">
+                      <SlidersHorizontal className="w-4 h-4 text-white/40" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56 bg-[#111] border-white/10 p-2 rounded-2xl shadow-2xl text-white">
+                    <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 px-3 py-2">Prioridade</DropdownMenuLabel>
+                    {['Baixa', 'Média', 'Alta', 'Urgente'].map((p) => (
                       <DropdownMenuCheckboxItem
-                        checked={taskShowCompleted === true}
-                        onCheckedChange={() => setTaskShowCompleted(taskShowCompleted === true ? null : true)}
-                        className="rounded-lg focus:bg-white/10"
+                        key={p}
+                        checked={taskFilterPriority.includes(p as Priority)}
+                        onCheckedChange={() => {
+                          setTaskFilterPriority(prev => 
+                            prev.includes(p as Priority) 
+                              ? prev.filter(x => x !== p) 
+                              : [...prev, p as Priority]
+                          );
+                        }}
+                        className="rounded-xl mb-1 focus:bg-white/10"
                       >
-                        Concluídas
+                        {p}
                       </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={taskShowCompleted === false}
-                        onCheckedChange={() => setTaskShowCompleted(taskShowCompleted === false ? null : false)}
-                        className="rounded-lg focus:bg-white/10"
-                      >
-                        Pendentes
-                      </DropdownMenuCheckboxItem>
-                    </DropdownMenuContent>
-                 </DropdownMenu>
-              </div>
+                    ))}
+                    <DropdownMenuSeparator className="bg-white/5 my-2" />
+                    <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 px-3 py-2">Status</DropdownMenuLabel>
+                    <DropdownMenuCheckboxItem
+                      checked={taskShowCompleted === true}
+                      onCheckedChange={() => setTaskShowCompleted(taskShowCompleted === true ? null : true)}
+                      className="rounded-xl focus:bg-white/10"
+                    >
+                      Concluídas
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={taskShowCompleted === false}
+                      onCheckedChange={() => setTaskShowCompleted(taskShowCompleted === false ? null : false)}
+                      className="rounded-xl focus:bg-white/10"
+                    >
+                      Pendentes
+                    </DropdownMenuCheckboxItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-              <button
-                onClick={() => handleOpenTaskCreateModal()}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-white text-black text-[9px] font-bold uppercase tracking-widest rounded-lg hover:opacity-90 transition-all shadow-xl shadow-white/5"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Nova Tarefa
-              </button>
+                <button
+                  onClick={() => handleOpenTaskCreateModal()}
+                  className="hidden sm:flex items-center justify-center gap-2 px-6 py-2.5 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-2xl hover:opacity-90 transition-all shadow-xl shadow-white/5"
+                >
+                  <Plus className="h-4 w-4" />
+                  Nova Tarefa
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">

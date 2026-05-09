@@ -45,6 +45,9 @@
 
   html {
     scroll-behavior: smooth;
+    overflow-x: hidden;
+    width: 100%;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
@@ -55,6 +58,10 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overscroll-behavior-y: contain;
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
+    touch-action: manipulation;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -135,6 +142,7 @@
 }
 
 /* ── GRAIN TEXTURE overlay (subtle, no blobs) ── */
+
 body::before {
   content: '';
   position: fixed;
@@ -151,8 +159,16 @@ body::before {
   body {
     font-size: 14px;
   }
+  
+  /* Prevent iOS auto-zoom on inputs by forcing 16px */
+  input:not([type="checkbox"]):not([type="radio"]), 
+  textarea, 
+  select {
+    font-size: 16px !important;
+  }
 }
 
+/* ── SHIMMER ── */
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
@@ -160,80 +176,4 @@ body::before {
 
 .animate-shimmer {
   animation: shimmer 1.8s infinite linear;
-}
-
-/* ── PROTECTION against saving/printing ── */
-img {
-  -webkit-user-drag: none;
-  -khtml-user-drag: none;
-  -moz-user-drag: none;
-  -o-user-drag: none;
-  user-select: none;
-}
-
-@media print {
-  body {
-    display: none !important;
-  }
-  
-  html::after {
-    content: "PROIBIDO PRINT / IMPRESSÃO";
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 40px;
-    font-family: serif;
-    color: black;
-    z-index: 9999999;
-    text-transform: uppercase;
-    letter-spacing: 0.5em;
-  }
-}
-
-.no-screenshot-message {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: #000;
-  color: white;
-  z-index: 999999999;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  font-family: 'Playfair Display', serif;
-  padding: 40px;
-}
-
-.no-screenshot-message.active {
-  display: flex !important;
-}
-
-.no-screenshot-message h2 {
-  font-size: 2.5rem;
-  letter-spacing: 0.1em;
-  margin-bottom: 1rem;
-  color: #fff;
-}
-
-.no-screenshot-message p {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.4em;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-/* Prevent mobile selection/long-press */
-* {
-  -webkit-touch-callout: none !important;
-  -webkit-user-select: none !important;
-  -khtml-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-  user-select: none !important;
-}
-
-img, .photo-protect-layer {
-  pointer-events: auto;
-}
+}
