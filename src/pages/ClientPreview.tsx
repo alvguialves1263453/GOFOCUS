@@ -8,7 +8,7 @@ import {
   checkIfLikedAsync,
   type Project,
 } from "@/lib/storage";
-import { Download, X, Heart, QrCode, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Download, X, Heart, QrCode, ChevronLeft, ChevronRight, Loader2, MessageCircle, Instagram, Share2 } from "lucide-react";
 import { getOptimizedUrl } from "@/lib/imagekit";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
@@ -217,6 +217,29 @@ const ClientPreview = () => {
     setSelectedIndex(newIndex);
   };
 
+  const handleShare = async (url: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const file = new File([blob], `${project?.clientName || "foto"}.jpg`, { type: "image/jpeg" });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Foto - ${project?.clientName}`,
+          text: "Confira este trabalho incrível da GoFocus!",
+        });
+      } else {
+        // Fallback for desktop or unsupported browsers
+        const shareUrl = window.location.href;
+        window.open(`https://wa.me/?text=${encodeURIComponent("Confira esta foto: " + shareUrl)}`, "_blank");
+      }
+    } catch (error) {
+      console.error("Erro ao compartilhar:", error);
+      toast.error("Não foi possível abrir o compartilhamento.");
+    }
+  };
+
   /* ── Loading / not found states ── */
   if (loading) {
     return (
@@ -412,6 +435,16 @@ const ClientPreview = () => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    handleShare(photos[selectedIndex].url);
+                  }}
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white/5 border border-white/10 text-white hover:bg-white/10 active:scale-90 transition-all"
+                  title="Compartilhar"
+                >
+                  <Share2 className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
                     handleDownload(photos[selectedIndex].url);
                   }}
                   disabled={isDownloading}
@@ -489,10 +522,32 @@ const ClientPreview = () => {
             </motion.div>
 
             {/* Mobile Swipe Indicator */}
-            <div className="absolute bottom-10 left-0 right-0 z-[110] flex justify-center sm:hidden pointer-events-none">
+            <div className="absolute bottom-10 left-0 right-0 z-[110] flex flex-col items-center gap-4 sm:hidden">
+              <div className="flex gap-3">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleShare(photos[selectedIndex].url);
+                  }}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[#25D366] text-white rounded-full font-bold text-[10px] uppercase tracking-wider shadow-lg active:scale-95 transition-all"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Status
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleShare(photos[selectedIndex].url);
+                  }}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] text-white rounded-full font-bold text-[10px] uppercase tracking-wider shadow-lg active:scale-95 transition-all"
+                >
+                  <Instagram className="w-4 h-4" />
+                  Stories
+                </button>
+              </div>
               <div className="px-4 py-2 bg-white/5 backdrop-blur-md rounded-full border border-white/5">
                 <p className="text-[8px] uppercase tracking-[0.3em] text-white/40">
-                  Arraste para o lado para navegar
+                  Arraste para navegar
                 </p>
               </div>
             </div>
