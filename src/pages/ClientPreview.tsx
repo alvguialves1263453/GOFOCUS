@@ -8,7 +8,7 @@ import {
   checkIfLikedAsync,
   type Project,
 } from "@/lib/storage";
-import { Loader2, Download, X, Heart, QrCode } from "lucide-react";
+import { Download, X, Heart, QrCode, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { getOptimizedUrl } from "@/lib/imagekit";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
@@ -106,11 +106,12 @@ const ClientPreview = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [liked, setLiked] = useState(false);
   const [showThanks, setShowThanks] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [isQrOpen, setIsQrOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [activeHearts, setActiveHearts] = useState<
     { id: number; x: number; y: number; size: number }[]
   >([]);
@@ -185,6 +186,35 @@ const ClientPreview = () => {
     } catch {
       toast.error("Não foi possível processar seu like agora.");
     }
+  };
+
+  const handleDownload = async (url: string) => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `${project?.clientName || "photo"}-${Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success("Download concluído");
+    } catch (error) {
+      toast.error("Erro ao baixar imagem");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const navigateGallery = (direction: number) => {
+    if (selectedIndex === null || !project?.photos) return;
+    const count = project.photos.length;
+    const newIndex = (selectedIndex + direction + count) % count;
+    setSelectedIndex(newIndex);
   };
 
   /* ── Loading / not found states ── */
@@ -342,7 +372,7 @@ const ClientPreview = () => {
                   alt={`${project.clientName} - Foto ${index + 1}`}
                   width={1200}
                   className="w-full aspect-[4/5] object-cover transition-transform duration-500 group-hover:scale-105 opacity-85 group-hover:opacity-100"
-                  onClick={() => setSelectedPhoto(photo.url)}
+                  onClick={() => setSelectedIndex(index)}
                 />
               </motion.div>
             ))}
@@ -358,46 +388,114 @@ const ClientPreview = () => {
       </div>
 
       {/* ── LIGHTBOX ── */}
-      <AnimatePresence>
-        {selectedPhoto && (
+      <AnimatePresence initial={false}>
+        {selectedIndex !== null && (
           <motion.div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-3 sm:p-6"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/98 backdrop-blur-xl"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setSelectedPhoto(null)}
+            onClick={() => setSelectedIndex(null)}
           >
+            {/* Top Bar */}
+            <div className="absolute top-0 left-0 right-0 z-[110] flex items-center justify-between px-4 py-6 sm:px-8">
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium">
+                  {project.clientName}
+                </span>
+                <span className="text-[11px] text-white/20 font-mono mt-1">
+                  {selectedIndex + 1} / {photos.length}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownload(photos[selectedIndex].url);
+                  }}
+                  disabled={isDownloading}
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white/5 border border-white/10 text-white hover:bg-white/10 active:scale-90 transition-all"
+                  title="Baixar para galeria"
+                >
+                  {isDownloading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-white/50" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setSelectedIndex(null)}
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white/5 border border-white/10 text-white hover:bg-white/10 active:scale-90 transition-all"
+                  title="Fechar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Navigation Arrows (Desktop) */}
+            <button
+              className="absolute left-4 z-[110] hidden sm:flex h-12 w-12 items-center justify-center rounded-full bg-white/5 text-white hover:bg-white/10 transition-all"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigateGallery(-1);
+              }}
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+            <button
+              className="absolute right-4 z-[110] hidden sm:flex h-12 w-12 items-center justify-center rounded-full bg-white/5 text-white hover:bg-white/10 transition-all"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigateGallery(1);
+              }}
+            >
+              <ChevronRight className="h-6 w-6" />
+            </button>
+
+            {/* Image Container with Swipe Support */}
             <motion.div
-              className="relative z-10 w-full max-w-5xl flex items-center justify-center"
-              initial={{ scale: 0.9, opacity: 0, filter: "blur(20px)" }}
-              animate={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
-              exit={{ scale: 0.9, opacity: 0, filter: "blur(20px)" }}
+              key={selectedIndex}
+              className="relative z-[105] h-full w-full flex items-center justify-center p-4 sm:p-12 cursor-grab active:cursor-grabbing"
+              initial={{ opacity: 0, x: 20, scale: 0.98 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: -20, scale: 0.98 }}
               transition={{ 
                 type: "spring", 
-                damping: 30, 
-                stiffness: 150,
-                filter: { duration: 0.8 } 
+                damping: 25, 
+                stiffness: 200 
+              }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.6}
+              onDragEnd={(_, info) => {
+                const swipeThreshold = 50;
+                if (info.offset.x > swipeThreshold) {
+                  navigateGallery(-1);
+                } else if (info.offset.x < -swipeThreshold) {
+                  navigateGallery(1);
+                }
               }}
               onClick={(e) => e.stopPropagation()}
             >
               <ImageWithLoader
-                src={selectedPhoto}
+                src={photos[selectedIndex].url}
                 width={2560}
-                alt="Foto ampliada"
-                loadingMessage="Revelando em alta fidelidade"
-                className="max-h-[90vh] w-auto max-w-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.8)]"
+                alt={`Foto ${selectedIndex + 1}`}
+                loadingMessage="Carregando em alta fidelidade..."
+                className="max-h-full w-auto max-w-full object-contain shadow-[0_0_80px_rgba(0,0,0,0.5)] select-none pointer-events-none"
               />
-
-              <div className="absolute -top-16 right-0 left-0 flex justify-center gap-3 sm:top-4 sm:right-4 sm:left-auto sm:justify-end">
-                <button
-                  onClick={() => setSelectedPhoto(null)}
-                  className="flex h-12 w-12 items-center justify-center rounded-sm bg-white/10 border border-white/12 text-white hover:bg-white/20 active:scale-95 transition-all"
-                  title="Fechar"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
             </motion.div>
+
+            {/* Mobile Swipe Indicator */}
+            <div className="absolute bottom-10 left-0 right-0 z-[110] flex justify-center sm:hidden pointer-events-none">
+              <div className="px-4 py-2 bg-white/5 backdrop-blur-md rounded-full border border-white/5">
+                <p className="text-[8px] uppercase tracking-[0.3em] text-white/40">
+                  Arraste para o lado para navegar
+                </p>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
