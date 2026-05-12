@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 export interface ProjectPhoto {
   url: string;
   publicId: string;
+  isDivider?: boolean;
+  date?: string;
 }
 
 export interface Category {

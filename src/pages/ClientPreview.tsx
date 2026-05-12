@@ -8,7 +8,7 @@ import {
   checkIfLikedAsync,
   type Project,
 } from "@/lib/storage";
-import { Download, X, Heart, QrCode, ChevronLeft, ChevronRight, Loader2, MessageCircle, Instagram, Share2 } from "lucide-react";
+import { Download, X, Heart, QrCode, ChevronLeft, ChevronRight, Loader2, MessageCircle, Instagram, Share2, Calendar } from "lucide-react";
 import { getOptimizedUrl } from "@/lib/imagekit";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
@@ -212,9 +212,15 @@ const ClientPreview = () => {
 
   const navigateGallery = (direction: number) => {
     if (selectedIndex === null || !project?.photos) return;
-    const count = project.photos.length;
-    const newIndex = (selectedIndex + direction + count) % count;
-    setSelectedIndex(newIndex);
+    const actualPhotos = project.photos.filter(p => !p.isDivider);
+    const currentPhoto = project.photos[selectedIndex];
+    const currentActualIndex = actualPhotos.findIndex(p => p.url === currentPhoto.url);
+    
+    const nextActualIndex = (currentActualIndex + direction + actualPhotos.length) % actualPhotos.length;
+    const nextPhoto = actualPhotos[nextActualIndex];
+    const nextIndexInFullList = project.photos.findIndex(p => p.url === nextPhoto.url);
+    
+    setSelectedIndex(nextIndexInFullList);
   };
 
   const handleShare = async (url: string) => {
@@ -382,22 +388,37 @@ const ClientPreview = () => {
         <main className="px-2 sm:px-4 py-8 sm:py-12 max-w-7xl mx-auto">
           <div className="grid grid-cols-2 gap-1.5 sm:gap-2.5 lg:grid-cols-3 xl:grid-cols-4">
             {photos.map((photo, index) => (
-              <motion.div
-                key={`${photo.url}-${index}`}
-                className="group relative cursor-pointer overflow-hidden bg-white/3"
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: (index % 4) * 0.06, duration: 0.5 }}
-              >
-                <ImageWithLoader
-                  src={photo.url}
-                  alt={`${project.clientName} - Foto ${index + 1}`}
-                  width={1200}
-                  className="w-full aspect-[4/5] object-cover transition-transform duration-500 group-hover:scale-105 opacity-85 group-hover:opacity-100"
-                  onClick={() => setSelectedIndex(index)}
-                />
-              </motion.div>
+              photo.isDivider ? (
+                <div key={photo.url} className="col-span-full py-16 sm:py-24 flex flex-col items-center gap-4">
+                  <div className="flex items-center gap-6 w-full max-w-2xl px-4">
+                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-white/5"></div>
+                    <div className="flex items-center gap-4 px-8 py-3.5 border border-white/5 bg-white/[0.02] rounded-sm backdrop-blur-sm">
+                       <Calendar className="h-3.5 w-3.5 text-white/20" />
+                       <span className="text-[10px] sm:text-xs font-serif italic tracking-[0.3em] text-white/50 uppercase">
+                         {photo.date}
+                       </span>
+                    </div>
+                    <div className="flex-1 h-px bg-gradient-to-l from-transparent via-white/10 to-white/5"></div>
+                  </div>
+                </div>
+              ) : (
+                <motion.div
+                  key={`${photo.url}-${index}`}
+                  className="group relative cursor-pointer overflow-hidden bg-white/3"
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: (index % 4) * 0.06, duration: 0.5 }}
+                >
+                  <ImageWithLoader
+                    src={photo.url}
+                    alt={`${project.clientName} - Foto ${index + 1}`}
+                    width={1200}
+                    className="w-full aspect-[4/5] object-cover transition-transform duration-500 group-hover:scale-105 opacity-85 group-hover:opacity-100"
+                    onClick={() => setSelectedIndex(index)}
+                  />
+                </motion.div>
+              )
             ))}
           </div>
         </main>
@@ -427,7 +448,7 @@ const ClientPreview = () => {
                   {project.clientName}
                 </span>
                 <span className="text-[11px] text-white/20 font-mono mt-1">
-                  {selectedIndex + 1} / {photos.length}
+                  {project.photos.filter((p, i) => !p.isDivider && i <= selectedIndex).length} / {project.photos.filter(p => !p.isDivider).length}
                 </span>
               </div>
               
