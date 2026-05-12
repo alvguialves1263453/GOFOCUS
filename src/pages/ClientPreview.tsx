@@ -158,6 +158,22 @@ const ClientPreview = () => {
     loadProject();
   }, [id, slug]);
 
+  // Handle deep links (e.g., ?photo=5)
+  useEffect(() => {
+    if (project?.photos && !loading) {
+      const params = new URLSearchParams(window.location.search);
+      const photoIndex = params.get('photo');
+      if (photoIndex !== null) {
+        const idx = parseInt(photoIndex);
+        if (!isNaN(idx) && idx >= 0 && idx < project.photos.length) {
+          setSelectedIndex(idx);
+          // Clean up URL without reload
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      }
+    }
+  }, [project, loading]);
+
   const spawnHearts = () => {
     const newHearts = Array.from({ length: 8 }).map((_, i) => ({
       id: Date.now() + i,
@@ -223,26 +239,46 @@ const ClientPreview = () => {
     setSelectedIndex(nextIndexInFullList);
   };
 
-  const handleShare = async (url: string) => {
+  const handleShare = async (url: string, target?: 'whatsapp' | 'instagram') => {
     try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const file = new File([blob], `${project?.clientName || "foto"}.jpg`, { type: "image/jpeg" });
+      const shareUrl = `${window.location.origin}${window.location.pathname}?photo=${selectedIndex}`;
+      const message = `Veja esta foto incrível de ${project?.clientName}:`;
 
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: `Foto - ${project?.clientName}`,
-          text: "Confira este trabalho incrível da GoFocus!",
-        });
+      // Try native sharing first (best experience for images)
+      if (navigator.share && navigator.canShare) {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const file = new File([blob], `GoFocus-${project?.clientName}.jpg`, { type: "image/jpeg" });
+
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: `Foto - ${project?.clientName}`,
+            text: `${message} ${shareUrl}`,
+          });
+          return;
+        }
+      }
+
+      // Fallbacks if native share fails or isn't available
+      if (target === 'whatsapp') {
+        const waUrl = `https://wa.me/?text=${encodeURIComponent(message + "\n\n" + shareUrl)}`;
+        window.open(waUrl, "_blank");
+      } else if (target === 'instagram') {
+        // Instagram doesn't have a direct share URL for stories from web
+        // Best we can do is copy the link and tell them to post
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copiado! Poste no seu Instagram Stories.");
+        setTimeout(() => {
+          window.open("https://instagram.com", "_blank");
+        }, 1500);
       } else {
-        // Fallback for desktop or unsupported browsers
-        const shareUrl = window.location.href;
-        window.open(`https://wa.me/?text=${encodeURIComponent("Confira esta foto: " + shareUrl)}`, "_blank");
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copiado para a área de transferência!");
       }
     } catch (error) {
       console.error("Erro ao compartilhar:", error);
-      toast.error("Não foi possível abrir o compartilhamento.");
+      toast.error("Não foi possível compartilhar no momento.");
     }
   };
 
@@ -548,7 +584,7 @@ const ClientPreview = () => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleShare(photos[selectedIndex].url);
+                    handleShare(photos[selectedIndex].url, 'whatsapp');
                   }}
                   className="flex items-center gap-2 px-5 py-2.5 bg-[#25D366] text-white rounded-full font-bold text-[10px] uppercase tracking-wider shadow-lg active:scale-95 transition-all"
                 >
@@ -558,7 +594,7 @@ const ClientPreview = () => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleShare(photos[selectedIndex].url);
+                    handleShare(photos[selectedIndex].url, 'instagram');
                   }}
                   className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] text-white rounded-full font-bold text-[10px] uppercase tracking-wider shadow-lg active:scale-95 transition-all"
                 >
