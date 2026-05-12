@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
 import {
   getProjectBySlugAsync,
@@ -19,6 +19,86 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+
+/* ─── Image with skeleton loader ─── */
+const ImageWithLoader = ({
+  src,
+  alt,
+  className,
+  onClick,
+  width = 800,
+  loadingMessage,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  onClick?: () => void;
+  width?: number;
+  loadingMessage?: string;
+}) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsLoaded(false);
+  }, [src]);
+
+  return (
+    <div
+      className={`relative overflow-hidden bg-[#111] ${className} ${
+        !isLoaded && loadingMessage ? "min-h-[40vh] w-full" : ""
+      }`}
+      onClick={onClick}
+    >
+      <AnimatePresence>
+        {!isLoaded && (
+          <motion.div
+            key="loader"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#111]"
+          >
+            {/* Shimmer Skeleton */}
+            <div className="absolute inset-0 overflow-hidden">
+               <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent animate-shimmer" />
+            </div>
+            
+            <motion.div 
+               initial={{ scale: 0.9, opacity: 0 }}
+               animate={{ scale: 1, opacity: 1 }}
+               className="flex flex-col items-center gap-4"
+            >
+               <Loader2 className="h-6 w-6 animate-spin text-white/20" />
+               {loadingMessage && (
+                 <p className="text-[9px] uppercase tracking-[0.5em] text-white/25 px-6 text-center font-medium">
+                   {loadingMessage}
+                 </p>
+               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.img
+        key={src}
+        src={getOptimizedUrl(src, width)}
+        alt={alt}
+        initial={{ opacity: 0, filter: "blur(10px) brightness(0.5)" }}
+        animate={{ 
+           opacity: isLoaded ? 1 : 0, 
+           filter: isLoaded ? "blur(0px) brightness(1)" : "blur(10px) brightness(0.5)",
+           scale: isLoaded ? 1 : 1.05
+        }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className={`h-full w-full object-cover ${className}`}
+        onLoad={() => setIsLoaded(true)}
+        loading="lazy"
+        decoding="async"
+      />
+
+    </div>
+  );
+};
 
 /* ─── Pinch to Zoom Image ─── */
 const PinchZoomImage = ({ src, alt, onSwipe, onZoomChange }: { 
