@@ -271,7 +271,7 @@ const ClientPreview = () => {
     <>
       <meta name="robots" content="noindex, nofollow" />
 
-      <div className="min-h-screen bg-[#0a0a0a] text-white transition-opacity duration-500 opacity-100">
+      <div className="min-h-screen bg-[#0a0a0a] text-white transition-opacity duration-500 opacity-100" style={{ touchAction: 'pan-y' }}>
 
         {/* ── HEADER ── */}
         <motion.header

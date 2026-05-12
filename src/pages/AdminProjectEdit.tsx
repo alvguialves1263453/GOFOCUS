@@ -564,7 +564,7 @@ const AdminProjectEdit = () => {
   const activePhoto = activeId ? photos.find(p => p.url === activeId) : null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-white/10 pb-24">
+    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-white/10 pb-24" style={{ touchAction: 'pan-y' }}>
       <header className="sticky top-0 z-50 border-b border-white/6 bg-[#0a0a0a]/95 backdrop-blur-sm">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
