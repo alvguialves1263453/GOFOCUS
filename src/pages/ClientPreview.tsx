@@ -8,7 +8,7 @@ import {
   checkIfLikedAsync,
   type Project,
 } from "@/lib/storage";
-import { Download, X, Heart, QrCode, ChevronLeft, ChevronRight, Loader2, MessageCircle, Instagram, Share2, Calendar, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { Download, X, Heart, QrCode, ChevronLeft, ChevronRight, Loader2, MessageCircle, Instagram, Share2, Calendar, ZoomIn, ZoomOut, Maximize2, Coffee, Copy } from "lucide-react";
 import { getOptimizedUrl } from "@/lib/imagekit";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
@@ -219,9 +219,8 @@ const ClientPreview = () => {
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isGalleryZoomed, setIsGalleryZoomed] = useState(false);
-  const [activeHearts, setActiveHearts] = useState<
-    { id: number; x: number; y: number; size: number }[]
-  >([]);
+  const [isDonationOpen, setIsDonationOpen] = useState(false);
+  const [activeHearts, setActiveHearts] = useState<{ id: number; x: number; y: number; size: number }[]>([]);
 
   useEffect(() => {
     async function loadProject() {
@@ -430,7 +429,31 @@ const ClientPreview = () => {
             {project.clientName}
           </h1>
 
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+          {/* ── SEÇÃO DE APOIO ── */}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-10 max-w-lg mx-auto px-6 py-8 border border-white/5 bg-white/[0.01] rounded-sm backdrop-blur-sm"
+          >
+            <div className="flex flex-col items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center mb-2">
+                <Coffee className="h-5 w-5 text-white/40" />
+              </div>
+              <h3 className="text-[11px] uppercase tracking-[0.3em] text-white/80 font-semibold">Gostou das fotos?</h3>
+              <p className="text-[11px] text-white/40 leading-relaxed font-serif italic">
+                Sua contribuição, de qualquer valor, nos ajuda a continuar capturando histórias e evoluindo nosso trabalho. É sempre muito bem-vinda!
+              </p>
+              <button 
+                onClick={() => setIsDonationOpen(true)}
+                className="mt-4 px-8 py-3 bg-white/5 border border-white/10 hover:bg-white hover:text-black transition-all duration-500 rounded-sm text-[10px] font-bold uppercase tracking-[0.3em]"
+              >
+                Fazer uma Doação
+              </button>
+            </div>
+          </motion.div>
+
+          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
             {/* Like button */}
             <button
               onClick={handleLike}
@@ -508,6 +531,49 @@ const ClientPreview = () => {
                   <p className="text-[9px] text-center uppercase tracking-[0.3em] text-white/30 px-4 leading-relaxed">
                     Escaneie para abrir este projeto em outro dispositivo
                   </p>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* ── DONATION MODAL ── */}
+            <Dialog open={isDonationOpen} onOpenChange={setIsDonationOpen}>
+              <DialogContent className="bg-[#0f0f0f] border-white/10 text-white max-w-sm">
+                <DialogHeader>
+                  <DialogTitle className="text-center text-sm font-serif italic tracking-widest uppercase text-white/80">
+                    Apoie nosso trabalho
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col items-center gap-8 py-6">
+                   <div className="p-4 bg-white rounded-lg shadow-2xl overflow-hidden">
+                     {/* QR CODE PIX */}
+                     <img 
+                       src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=00020126360014br.gov.bcb.pix0114577222120001085204000053039865802BR5915GoFocus%20Fotogr6009Sao%20Paulo62070503***63047B4A" 
+                       alt="PIX QR Code" 
+                       className="w-48 h-48 sm:w-56 sm:h-56"
+                     />
+                   </div>
+                   
+                   <div className="w-full space-y-3">
+                     <div className="text-center">
+                       <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1">Chave PIX (CNPJ)</p>
+                       <p className="text-xs font-mono text-white/90">57.722.212/0001-08</p>
+                     </div>
+                     
+                     <button
+                       onClick={() => {
+                         navigator.clipboard.writeText("57722212000108");
+                         toast.success("Chave PIX copiada!");
+                       }}
+                       className="w-full flex items-center justify-center gap-3 py-4 bg-white text-black rounded-sm text-[10px] font-bold uppercase tracking-[0.3em] hover:opacity-90 active:scale-95 transition-all"
+                     >
+                       <Copy className="h-4 w-4" />
+                       Copiar Chave PIX
+                     </button>
+                   </div>
+                   
+                   <p className="text-[9px] text-white/20 uppercase tracking-[0.3em] text-center leading-relaxed">
+                     Obrigado por fazer parte<br/> da nossa história.
+                   </p>
                 </div>
               </DialogContent>
             </Dialog>
