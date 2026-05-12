@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
 import {
   getProjectBySlugAsync,
   getProjectsAsync,
@@ -8,7 +8,7 @@ import {
   checkIfLikedAsync,
   type Project,
 } from "@/lib/storage";
-import { Download, X, Heart, QrCode, ChevronLeft, ChevronRight, Loader2, MessageCircle, Instagram, Share2, Calendar } from "lucide-react";
+import { Download, X, Heart, QrCode, ChevronLeft, ChevronRight, Loader2, MessageCircle, Instagram, Share2, Calendar, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { getOptimizedUrl } from "@/lib/imagekit";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
@@ -20,82 +20,108 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-/* ─── Image with skeleton loader ─── */
-const ImageWithLoader = ({
-  src,
-  alt,
-  className,
-  onClick,
-  width = 800,
-  loadingMessage,
-}: {
-  src: string;
-  alt: string;
-  className?: string;
-  onClick?: () => void;
-  width?: number;
-  loadingMessage?: string;
+/* ─── Pinch to Zoom Image ─── */
+const PinchZoomImage = ({ src, alt, onSwipe, onZoomChange }: { 
+  src: string; 
+  alt: string; 
+  onSwipe: (dir: number) => void;
+  onZoomChange?: (isZoomed: boolean) => void;
 }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
+  const scale = useMotionValue(1);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  
+  const [isZoomed, setIsZoomed] = useState(false);
+  const lastTouchTime = useRef(0);
+  const initialDist = useRef(0);
+  const initialScale = useRef(1);
 
   useEffect(() => {
-    setIsLoaded(false);
-  }, [src]);
+    onZoomChange?.(isZoomed);
+  }, [isZoomed, onZoomChange]);
+
+  const resetZoom = () => {
+    scale.set(1);
+    x.set(0);
+    y.set(0);
+    setIsZoomed(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const d = Math.hypot(
+        e.touches[0].pageX - e.touches[1].pageX,
+        e.touches[0].pageY - e.touches[1].pageY
+      );
+      initialDist.current = d;
+      initialScale.current = scale.get();
+    } else if (e.touches.length === 1) {
+      const now = Date.now();
+      if (now - lastTouchTime.current < 300) {
+        // Double tap
+        if (scale.get() > 1) resetZoom();
+        else {
+          scale.set(2.5);
+          setIsZoomed(true);
+        }
+      }
+      lastTouchTime.current = now;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const d = Math.hypot(
+        e.touches[0].pageX - e.touches[1].pageX,
+        e.touches[0].pageY - e.touches[1].pageY
+      );
+      const newScale = Math.max(1, Math.min(initialScale.current * (d / initialDist.current), 5));
+      scale.set(newScale);
+      setIsZoomed(newScale > 1.05);
+    }
+  };
 
   return (
-    <div
-      className={`relative overflow-hidden bg-[#111] ${className} ${
-        !isLoaded && loadingMessage ? "min-h-[40vh] w-full" : ""
-      }`}
-      onClick={onClick}
+    <div 
+      className="relative w-full h-full flex items-center justify-center overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
     >
-      <AnimatePresence>
-        {!isLoaded && (
-          <motion.div
-            key="loader"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
-            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#111]"
-          >
-            {/* Shimmer Skeleton */}
-            <div className="absolute inset-0 overflow-hidden">
-               <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent animate-shimmer" />
-            </div>
-            
-            <motion.div 
-               initial={{ scale: 0.9, opacity: 0 }}
-               animate={{ scale: 1, opacity: 1 }}
-               className="flex flex-col items-center gap-4"
-            >
-               <Loader2 className="h-6 w-6 animate-spin text-white/20" />
-               {loadingMessage && (
-                 <p className="text-[9px] uppercase tracking-[0.5em] text-white/25 px-6 text-center font-medium">
-                   {loadingMessage}
-                 </p>
-               )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <motion.img
-        key={src}
-        src={getOptimizedUrl(src, width)}
-        alt={alt}
-        initial={{ opacity: 0, filter: "blur(10px) brightness(0.5)" }}
-        animate={{ 
-           opacity: isLoaded ? 1 : 0, 
-           filter: isLoaded ? "blur(0px) brightness(1)" : "blur(10px) brightness(0.5)",
-           scale: isLoaded ? 1 : 1.05
+      <motion.div
+        style={{ scale, x, y }}
+        drag={isZoomed ? true : "x"}
+        dragConstraints={isZoomed ? false : { left: 0, right: 0 }}
+        dragElastic={isZoomed ? 0.1 : 0.6}
+        onDragEnd={(_, info) => {
+          if (!isZoomed) {
+            const swipeThreshold = 50;
+            if (info.offset.x > swipeThreshold) onSwipe(-1);
+            else if (info.offset.x < -swipeThreshold) onSwipe(1);
+          } else {
+             // If zoomed and dragged back near center, maybe reset? No, let user pan.
+             if (scale.get() < 1.05) resetZoom();
+          }
         }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className={`h-full w-full object-cover ${className}`}
-        onLoad={() => setIsLoaded(true)}
-        loading="lazy"
-        decoding="async"
-      />
-
+        className="w-full h-full flex items-center justify-center"
+      >
+        <ImageWithLoader
+          src={src}
+          width={2560}
+          alt={alt}
+          loadingMessage="Carregando alta fidelidade..."
+          className="max-h-full w-auto max-w-full object-contain pointer-events-none select-none"
+        />
+      </motion.div>
+      
+      {isZoomed && (
+        <button 
+          onClick={resetZoom}
+          className="absolute bottom-32 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[10px] font-bold uppercase tracking-widest text-white/70 hover:bg-white/20 transition-all"
+        >
+          <ZoomOut className="w-3 h-3" />
+          Resetar Zoom
+        </button>
+      )}
     </div>
   );
 };
@@ -112,6 +138,7 @@ const ClientPreview = () => {
   const [likeCount, setLikeCount] = useState(0);
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isGalleryZoomed, setIsGalleryZoomed] = useState(false);
   const [activeHearts, setActiveHearts] = useState<
     { id: number; x: number; y: number; size: number }[]
   >([]);
@@ -544,70 +571,46 @@ const ClientPreview = () => {
               <ChevronRight className="h-6 w-6" />
             </button>
 
-            {/* Image Container with Swipe Support */}
-            <motion.div
-              key={selectedIndex}
-              className="relative z-[105] h-full w-full flex items-center justify-center p-4 sm:p-12 cursor-grab active:cursor-grabbing"
-              initial={{ opacity: 0, x: 20, scale: 0.98 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: -20, scale: 0.98 }}
-              transition={{ 
-                type: "spring", 
-                damping: 25, 
-                stiffness: 200 
-              }}
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.6}
-              onDragEnd={(_, info) => {
-                const swipeThreshold = 50;
-                if (info.offset.x > swipeThreshold) {
-                  navigateGallery(-1);
-                } else if (info.offset.x < -swipeThreshold) {
-                  navigateGallery(1);
-                }
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ImageWithLoader
-                src={photos[selectedIndex].url}
-                width={2560}
-                alt={`Foto ${selectedIndex + 1}`}
-                loadingMessage="Carregando em alta fidelidade..."
-                className="max-h-full w-auto max-w-full object-contain shadow-[0_0_80px_rgba(0,0,0,0.5)] select-none pointer-events-none"
-              />
-            </motion.div>
+            {/* Image Container with Pinch-to-Zoom */}
+            <PinchZoomImage 
+              src={photos[selectedIndex].url}
+              alt={`Foto ${selectedIndex + 1}`}
+              onSwipe={navigateGallery}
+              onZoomChange={setIsGalleryZoomed}
+            />
 
             {/* Mobile Swipe Indicator */}
-            <div className="absolute bottom-10 left-0 right-0 z-[110] flex flex-col items-center gap-4 sm:hidden">
-              <div className="flex gap-3">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleShare(photos[selectedIndex].url, 'whatsapp');
-                  }}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[#25D366] text-white rounded-full font-bold text-[10px] uppercase tracking-wider shadow-lg active:scale-95 transition-all"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  Status
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleShare(photos[selectedIndex].url, 'instagram');
-                  }}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] text-white rounded-full font-bold text-[10px] uppercase tracking-wider shadow-lg active:scale-95 transition-all"
-                >
-                  <Instagram className="w-4 h-4" />
-                  Stories
-                </button>
+            {!isGalleryZoomed && (
+              <div className="absolute bottom-10 left-0 right-0 z-[110] flex flex-col items-center gap-4 sm:hidden">
+                <div className="flex gap-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShare(photos[selectedIndex].url, 'whatsapp');
+                    }}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[#25D366] text-white rounded-full font-bold text-[10px] uppercase tracking-wider shadow-lg active:scale-95 transition-all"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Status
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShare(photos[selectedIndex].url, 'instagram');
+                    }}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] text-white rounded-full font-bold text-[10px] uppercase tracking-wider shadow-lg active:scale-95 transition-all"
+                  >
+                    <Instagram className="w-4 h-4" />
+                    Stories
+                  </button>
+                </div>
+                <div className="px-4 py-2 bg-white/5 backdrop-blur-md rounded-full border border-white/5">
+                  <p className="text-[8px] uppercase tracking-[0.3em] text-white/40">
+                    Arraste ou Pinça para Zoom
+                  </p>
+                </div>
               </div>
-              <div className="px-4 py-2 bg-white/5 backdrop-blur-md rounded-full border border-white/5">
-                <p className="text-[8px] uppercase tracking-[0.3em] text-white/40">
-                  Arraste para navegar
-                </p>
-              </div>
-            </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
