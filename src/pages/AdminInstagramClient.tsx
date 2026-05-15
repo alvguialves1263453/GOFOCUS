@@ -8,7 +8,7 @@ import {
   Plus, MoreVertical, Edit2, Trash2, 
   LayoutDashboard, FileText, BarChart3, 
   Settings, ChevronRight, Download, Filter,
-  Link as LinkIcon, Camera, Eye, Info,
+  Link as LinkIcon, Camera, Eye, Info, Image as ImageIcon,
   LogOut, ArrowUpRight, BadgeDollarSign, ExternalLink,
   Wallet, Receipt, CreditCard, Send, Ban, Target, ArrowDownRight,
   AlertCircle, PieChart as PieChartIcon
@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
