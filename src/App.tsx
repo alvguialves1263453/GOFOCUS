@@ -8,6 +8,8 @@ import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminProjectEdit from "./pages/AdminProjectEdit";
 import AdminTasks from "./pages/AdminTasks";
+import AdminInstagram from "./pages/AdminInstagram";
+import AdminInstagramClient from "./pages/AdminInstagramClient";
 import ClientPreview from "./pages/ClientPreview";
 import NotFound from "./pages/NotFound";
 import Links from "./pages/Links";
@@ -43,6 +45,22 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <AdminTasks />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/instagram"
+            element={
+              <ProtectedRoute>
+                <AdminInstagram />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/instagram/cliente/:id"
+            element={
+              <ProtectedRoute>
+                <AdminInstagramClient />
               </ProtectedRoute>
             }
           />

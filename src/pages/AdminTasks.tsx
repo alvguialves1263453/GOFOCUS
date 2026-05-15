@@ -15,7 +15,8 @@ import {
   Search as SearchIcon,
   X,
   SlidersHorizontal,
-  ChevronRight
+  ChevronRight,
+  Instagram
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
@@ -129,6 +130,14 @@ export default function AdminTasks() {
               </Button>
               <Button variant="ghost" size="icon" className="w-10 h-10 xl:w-12 xl:h-12 rounded-2xl bg-primary/10 text-primary border border-primary/20">
                 <CalendarIcon className="w-4 h-4 xl:w-5 xl:h-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="w-10 h-10 xl:w-12 xl:h-12 rounded-2xl hover:bg-white/5 transition-all"
+                onClick={() => navigate("/admin/instagram")}
+              >
+                <Instagram className="w-4 h-4 xl:w-5 xl:h-5" />
               </Button>
               <Button variant="ghost" size="icon" className="w-10 h-10 xl:w-12 xl:h-12 rounded-2xl hover:bg-white/5 transition-all">
                 <Settings className="w-4 h-4 xl:w-5 xl:h-5" />

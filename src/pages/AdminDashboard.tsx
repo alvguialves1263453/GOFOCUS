@@ -19,8 +19,9 @@ import {
   Loader2, LogOut, Link as LinkIcon, Check, QrCode,
   Tag, ExternalLink, X, ArrowUpRight, LayoutGrid, Layers,
   Search, Eye, EyeOff, Filter, Edit2, MoreVertical, Calendar,
-  SlidersHorizontal, Bell, Settings as SettingsIcon
+  SlidersHorizontal, Bell, Settings as SettingsIcon, Instagram
 } from "lucide-react";
+import logoImg from "@/assets/logo.png";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -338,7 +339,7 @@ const AdminDashboard = () => {
       <header className="sticky top-0 z-50 border-b border-white/6 bg-[#0a0a0a]/95 backdrop-blur-sm">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <span className="font-serif text-sm sm:text-base text-white">GoFocus</span>
+            <img src={logoImg} alt="GoFocus" className="h-6 w-auto object-contain" />
             <span className="hidden sm:block text-white/15">|</span>
             <span className="hidden xs:block text-[8px] sm:text-[9px] uppercase tracking-[0.4em] text-white/30 font-medium whitespace-nowrap">
               Painel Admin
@@ -418,6 +419,13 @@ const AdminDashboard = () => {
             >
               <Calendar className="h-3 w-3" />
               Planner
+            </button>
+            <button
+              onClick={() => navigate("/admin/instagram")}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 text-white/40 hover:text-white/70"
+            >
+              <Instagram className="h-3 w-3" />
+              Instagram
             </button>
           </div>
         </div>
