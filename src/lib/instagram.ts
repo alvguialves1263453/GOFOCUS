@@ -49,7 +49,7 @@ export interface InstagramTask {
   id: string;
   client_id: string;
   title: string;
-  description: string;
+  description?: string;
   due_date: string;
   priority: 'baixa' | 'média' | 'alta' | 'urgente';
   completed: boolean;
@@ -249,5 +249,50 @@ export const updateInstagramTask = async (id: string, updates: Partial<Instagram
 
 export const deleteInstagramTask = async (id: string) => {
   const { error } = await supabase.from('instagram_tasks').delete().eq('id', id);
+  if (error) throw error;
+};
+export interface InstagramExpense {
+  id: string;
+  client_id: string;
+  description: string;
+  amount: number;
+  date: string;
+  category: string;
+}
+
+// Expenses
+export const getInstagramExpenses = async (clientId: string) => {
+  const { data, error } = await supabase
+    .from('instagram_expenses')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('date', { ascending: false });
+  if (error) throw error;
+  return data as InstagramExpense[];
+};
+
+export const addInstagramExpense = async (expense: Omit<InstagramExpense, 'id'>) => {
+  const { data, error } = await supabase
+    .from('instagram_expenses')
+    .insert([expense])
+    .select()
+    .single();
+  if (error) throw error;
+  return data as InstagramExpense;
+};
+
+export const updateInstagramExpense = async (id: string, updates: Partial<InstagramExpense>) => {
+  const { data, error } = await supabase
+    .from('instagram_expenses')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as InstagramExpense;
+};
+
+export const deleteInstagramExpense = async (id: string) => {
+  const { error } = await supabase.from('instagram_expenses').delete().eq('id', id);
   if (error) throw error;
 };

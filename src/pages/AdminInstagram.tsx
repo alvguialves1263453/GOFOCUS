@@ -9,7 +9,7 @@ import {
   TrendingDown, Briefcase, MessageSquare,
   ShieldAlert, BadgeDollarSign, UserPlus,
   ExternalLink, Trash2, Camera, LogOut, ArrowUpRight,
-  Layers, Tag
+  Layers, Tag, Eye, EyeOff
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -32,13 +32,8 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InstagramIntegrationsModal } from "@/components/instagram/InstagramIntegrationsModal";
 import { toast } from "sonner";
 import { 
   getInstagramClients, 
@@ -57,6 +52,9 @@ const AdminInstagram = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<InstagramClient | null>(null);
+  const [isIntegrationsModalOpen, setIsIntegrationsModalOpen] = useState(false);
   
   // Form State
   const [newClient, setNewClient] = useState({
@@ -69,6 +67,7 @@ const AdminInstagram = () => {
     status: "ativo" as any,
     notes: ""
   });
+  const [showRevenue, setShowRevenue] = useState(true);
 
   useEffect(() => {
     loadClients();
@@ -116,6 +115,36 @@ const AdminInstagram = () => {
     }
   };
 
+  const handleEditClick = (client: InstagramClient) => {
+    setEditingClient({...client});
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateClient = async () => {
+    if (!editingClient || !editingClient.name || !editingClient.username) {
+      toast.error("Nome e @ são obrigatórios");
+      return;
+    }
+
+    try {
+      await updateInstagramClient(editingClient.id, {
+        name: editingClient.name,
+        username: editingClient.username,
+        niche: editingClient.niche,
+        monthly_value: editingClient.monthly_value,
+        payment_day: editingClient.payment_day,
+        status: editingClient.status,
+        notes: editingClient.notes,
+        profile_picture: editingClient.profile_picture
+      });
+      toast.success("Cliente atualizado com sucesso!");
+      setIsEditDialogOpen(false);
+      loadClients();
+    } catch (error) {
+      toast.error("Erro ao atualizar cliente");
+    }
+  };
+
   const handleDeleteClient = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este cliente?")) return;
     try {
@@ -124,6 +153,62 @@ const AdminInstagram = () => {
       loadClients();
     } catch (error) {
       toast.error("Erro ao excluir cliente");
+    }
+  };
+
+  const fetchInstagramPhoto = async (username: string, isEdit: boolean = false) => {
+    if (!username) {
+      toast.error("Insira o @ do Instagram primeiro");
+      return;
+    }
+    
+    const cleanUsername = username.replace('@', '').trim();
+    const SCRAPPA_KEY = 'eyJpdiI6IkFvZWk5dGNYOTRCajdlR1JTQm5aY1E9PSIsInZhbHVlIjoiK3hZRVpTOUQyYlIxOW1sc3c2U1VGRXZ1ZFUrSHE3cnVFdG12Q1B0aHZRNTl3NnVtd2t0QkdzMiswaUlZT0EvbTNHajUvWmQybVIwdE5lR3duZXAyUEE9PSIsIm1hYyI6IjczYmZkYWJlNjMwOTNjZWU4NTVjYWVjODg0MWY5MTA1MDBlODk3ZWM2ZDBmNTg1OWZkYzQwY2NiZDYwMTlmNzUiLCJ0YWciOiIifQ==';
+
+    try {
+      const response = await fetch(`https://scrappa.co/api/instagram/user?username=${cleanUsername}`, {
+        headers: {
+          'x-api-key': SCRAPPA_KEY,
+          'Accept': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      console.log("Scrappa response:", data);
+      
+      // Extraction based on Scrappa Docs: data.user.profile_pic_url_hd
+      const profilePic = data?.user?.profile_pic_url_hd || 
+                        data?.user?.profile_pic_url || 
+                        data?.profile_pic_url ||
+                        data?.data?.profile_pic_url ||
+                        data?.avatar;
+
+      if (data?.success && profilePic) {
+        if (isEdit && editingClient) {
+          setEditingClient({ ...editingClient, profile_picture: profilePic });
+        } else {
+          setNewClient({ ...newClient, profile_picture: profilePic });
+        }
+        toast.success("Foto do Instagram vinculada!");
+      } else {
+        // Fallback to DiceBear if API fails to find the photo
+        const fallbackUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${cleanUsername}&backgroundColor=a855f7&fontFamily=Arial&fontWeight=600`;
+        
+        if (isEdit && editingClient) {
+          setEditingClient({ ...editingClient, profile_picture: fallbackUrl });
+        } else {
+          setNewClient({ ...newClient, profile_picture: fallbackUrl });
+        }
+        
+        if (data?.success === false) {
+          toast.error(`Scrappa: ${data.message || "Erro desconhecido"}`);
+        } else {
+          toast.info("Não foi possível extrair a foto real, usando avatar padrão.");
+        }
+      }
+    } catch (error) {
+      console.error("Scrappa Error:", error);
+      toast.error("Erro ao conectar com Scrappa");
     }
   };
 
@@ -258,6 +343,15 @@ const AdminInstagram = () => {
               />
             </div>
             
+            <Button 
+              variant="outline" 
+              onClick={() => setIsIntegrationsModalOpen(true)}
+              className="bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500 hover:text-white px-6 rounded-xl font-bold transition-all gap-2"
+            >
+              <TrendingUp className="w-4 h-4" />
+              Integrações Avançadas
+            </Button>
+
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-purple-600 hover:bg-purple-700 text-white gap-2 shadow-lg shadow-purple-600/20">
@@ -310,8 +404,8 @@ const AdminInstagram = () => {
                       <Input 
                         type="number"
                         placeholder="0.00" 
-                        value={newClient.monthly_value}
-                        onChange={(e) => setNewClient({...newClient, monthly_value: Number(e.target.value)})}
+                        value={newClient.monthly_value || ""}
+                        onChange={(e) => setNewClient({...newClient, monthly_value: e.target.value === "" ? 0 : Number(e.target.value)})}
                         className="bg-white/5 border-white/10"
                       />
                     </div>
@@ -325,8 +419,8 @@ const AdminInstagram = () => {
                         min="1"
                         max="31"
                         placeholder="10" 
-                        value={newClient.payment_day}
-                        onChange={(e) => setNewClient({...newClient, payment_day: Number(e.target.value)})}
+                        value={newClient.payment_day || ""}
+                        onChange={(e) => setNewClient({...newClient, payment_day: e.target.value === "" ? 0 : Number(e.target.value)})}
                         className="bg-white/5 border-white/10"
                       />
                     </div>
@@ -346,6 +440,26 @@ const AdminInstagram = () => {
                           <SelectItem value="cancelado">Cancelado</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase tracking-widest text-white/40">URL Foto de Perfil</label>
+                    <div className="flex gap-2">
+                      <Input 
+                        placeholder="https://..." 
+                        value={newClient.profile_picture}
+                        onChange={(e) => setNewClient({...newClient, profile_picture: e.target.value})}
+                        className="bg-white/5 border-white/10"
+                      />
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 text-[10px] uppercase tracking-widest px-3 h-10"
+                        onClick={() => fetchInstagramPhoto(newClient.username)}
+                      >
+                        Puxar Foto
+                      </Button>
                     </div>
                   </div>
 
@@ -384,9 +498,20 @@ const AdminInstagram = () => {
 
           <Card className="bg-white/[0.02] border-white/5 overflow-hidden group hover:bg-white/[0.04] transition-all">
             <CardHeader className="pb-2">
-              <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/30 font-bold">Faturamento Mensal</CardDescription>
+              <div className="flex items-center justify-between mb-1">
+                <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/30 font-bold">Faturamento Mensal</CardDescription>
+                <button 
+                  onClick={() => setShowRevenue(!showRevenue)}
+                  className="text-white/20 hover:text-white transition-colors p-1"
+                >
+                  {showRevenue ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                </button>
+              </div>
               <CardTitle className="text-3xl font-serif flex items-end gap-3 text-emerald-400">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.revenue)}
+                {showRevenue ? 
+                  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.revenue) : 
+                  "R$ ••••••"
+                }
                 <TrendingUp className="w-5 h-5 mb-1 opacity-50" />
               </CardTitle>
             </CardHeader>
@@ -445,16 +570,31 @@ const AdminInstagram = () => {
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 rounded-full bg-gradient-to-br from-white/10 to-white/5 p-0.5 border border-white/10 overflow-hidden">
                           {client.profile_picture ? (
-                            <img src={client.profile_picture} alt={client.name} className="w-full h-full object-cover rounded-full" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-white/5 text-white/20">
-                              <Camera className="w-6 h-6" />
-                            </div>
-                          )}
+                            <img 
+                              src={client.profile_picture} 
+                              alt={client.name} 
+                              className="w-full h-full object-cover rounded-full"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
+                              }}
+                            />
+                          ) : null}
+                          <div className={`fallback-icon w-full h-full flex items-center justify-center bg-white/5 text-white/20 ${client.profile_picture ? 'hidden' : ''}`}>
+                            <Camera className="w-6 h-6" />
+                          </div>
                         </div>
                         <div>
                           <h3 className="font-serif text-lg leading-tight">{client.name}</h3>
-                          <p className="text-purple-400 text-sm">{client.username}</p>
+                          <a 
+                            href={`https://instagram.com/${client.username.replace('@', '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-purple-400 text-sm hover:text-purple-300 transition-colors flex items-center gap-1 group/link"
+                          >
+                            {client.username}
+                            <ExternalLink className="w-3 h-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                          </a>
                         </div>
                       </div>
                       
@@ -465,7 +605,10 @@ const AdminInstagram = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="bg-[#1a1a1a] border-white/10 text-white">
-                          <DropdownMenuItem className="gap-2 focus:bg-white/10 cursor-pointer">
+                          <DropdownMenuItem 
+                            className="gap-2 focus:bg-white/10 cursor-pointer"
+                            onClick={() => handleEditClick(client)}
+                          >
                             <Edit2 className="w-3.5 h-3.5" /> Editar Cliente
                           </DropdownMenuItem>
                           <DropdownMenuItem 
@@ -519,7 +662,7 @@ const AdminInstagram = () => {
 
                   <CardFooter className="pt-2">
                     <Button 
-                      className="w-full bg-white/5 hover:bg-purple-600 hover:text-white border-white/5 transition-all gap-2"
+                      className="w-full bg-white/10 text-white/70 hover:bg-purple-600 hover:text-white border border-white/10 transition-all gap-2"
                       onClick={() => navigate(`/admin/instagram/cliente/${client.id}`)}
                     >
                       Abrir Dashboard Individual
@@ -532,6 +675,137 @@ const AdminInstagram = () => {
           </div>
         )}
       </div>
+
+      {/* Edit Client Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="bg-[#0f0f0f] border-white/10 text-white sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl">Editar Cliente</DialogTitle>
+            <DialogDescription className="text-white/40">
+              Atualize os dados do cliente de social media.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingClient && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase tracking-widest text-white/40">Nome do Cliente</label>
+                  <Input 
+                    placeholder="Ex: João Silva" 
+                    value={editingClient.name}
+                    onChange={(e) => setEditingClient({...editingClient, name: e.target.value})}
+                    className="bg-white/5 border-white/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase tracking-widest text-white/40">@ do Instagram</label>
+                  <Input 
+                    placeholder="Ex: @joaosilva" 
+                    value={editingClient.username}
+                    onChange={(e) => setEditingClient({...editingClient, username: e.target.value})}
+                    className="bg-white/5 border-white/10"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase tracking-widest text-white/40">Nicho</label>
+                  <Input 
+                    placeholder="Ex: Moda, Gastronomia" 
+                    value={editingClient.niche}
+                    onChange={(e) => setEditingClient({...editingClient, niche: e.target.value})}
+                    className="bg-white/5 border-white/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase tracking-widest text-white/40">Valor Mensal (R$)</label>
+                  <Input 
+                    type="number"
+                    placeholder="0.00" 
+                    value={editingClient.monthly_value || ""}
+                    onChange={(e) => setEditingClient({...editingClient, monthly_value: e.target.value === "" ? 0 : Number(e.target.value)})}
+                    className="bg-white/5 border-white/10"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase tracking-widest text-white/40">Dia de Pagamento</label>
+                  <Input 
+                    type="number"
+                    min="1"
+                    max="31"
+                    placeholder="10" 
+                    value={editingClient.payment_day || ""}
+                    onChange={(e) => setEditingClient({...editingClient, payment_day: e.target.value === "" ? 0 : Number(e.target.value)})}
+                    className="bg-white/5 border-white/10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase tracking-widest text-white/40">Status</label>
+                  <Select 
+                    value={editingClient.status} 
+                    onValueChange={(v: any) => setEditingClient({...editingClient, status: v})}
+                  >
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                      <SelectValue placeholder="Selecione o status" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+                      <SelectItem value="ativo">Ativo</SelectItem>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                      <SelectItem value="pausado">Pausado</SelectItem>
+                      <SelectItem value="cancelado">Cancelado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-widest text-white/40">URL Foto de Perfil</label>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="https://..." 
+                    value={editingClient.profile_picture || ""}
+                    onChange={(e) => setEditingClient({...editingClient, profile_picture: e.target.value})}
+                    className="bg-white/5 border-white/10"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 text-[10px] uppercase tracking-widest px-3 h-10"
+                    onClick={() => fetchInstagramPhoto(editingClient.username, true)}
+                  >
+                    Puxar Foto
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-widest text-white/40">Observações</label>
+                <Input 
+                  placeholder="Alguma nota importante..." 
+                  value={editingClient.notes}
+                  onChange={(e) => setEditingClient({...editingClient, notes: e.target.value})}
+                  className="bg-white/5 border-white/10"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUpdateClient} className="bg-purple-600 hover:bg-purple-700">Salvar Alterações</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <InstagramIntegrationsModal 
+        isOpen={isIntegrationsModalOpen} 
+        onClose={() => setIsIntegrationsModalOpen(false)} 
+      />
 
       {/* Style overrides for premium look */}
       <style dangerouslySetInnerHTML={{ __html: `
