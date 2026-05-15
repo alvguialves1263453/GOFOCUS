@@ -48,10 +48,23 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { 
+  getInstagramClients, 
+  createInstagramClient, 
+  addFollowerEntry, 
+  addInstagramPost,
+  getFollowerHistory,
+  getInstagramPosts,
+  InstagramClient
+} from '@/lib/instagram';
+import { 
+  Clock,
+} from "lucide-react";
 
 interface InstagramIntegrationsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 interface ScrappaUserData {
@@ -70,7 +83,7 @@ interface ScrappaUserData {
 
 const SCRAPPA_KEY = 'eyJpdiI6IkFvZWk5dGNYOTRCajdlR1JTQm5aY1E9PSIsInZhbHVlIjoiK3hZRVpTOUQyYlIxOW1sc3c2U1VGRXZ1ZFUrSHE3cnVFdG12Q1B0aHZRNTl3NnVtd2t0QkdzMiswaUlZT0EvbTNHajUvWmQybVIwdE5lR3duZXAyUEE9PSIsIm1hYyI6IjczYmZkYWJlNjMwOTNjZWU4NTVjYWVjODg0MWY5MTA1MDBlODk3ZWM2ZDBmNTg1OWZkYzQwY2NiZDYwMTlmNzUiLCJ0YWciOiIifQ==';
 
-export function InstagramIntegrationsModal({ isOpen, onClose }: InstagramIntegrationsModalProps) {
+export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: InstagramIntegrationsModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<ScrappaUserData | null>(null);
@@ -78,26 +91,62 @@ export function InstagramIntegrationsModal({ isOpen, onClose }: InstagramIntegra
   const [selectedAccount, setSelectedAccount] = useState<ScrappaUserData | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Growth Chart Mock Data (Real data would come from periodic syncs)
-  const growthData = [
-    { date: '2024-05-01', followers: 1200 },
-    { date: '2024-05-05', followers: 1250 },
-    { date: '2024-05-10', followers: 1320 },
-    { date: '2024-05-15', followers: 1450 },
-    { date: '2024-05-20', followers: 1480 },
-    { date: '2024-05-25', followers: 1550 },
-    { date: '2024-05-30', followers: 1620 },
-  ];
+  const [selectedHistory, setSelectedHistory] = useState<any[]>([]);
+  const [selectedPosts, setSelectedPosts] = useState<any[]>([]);
 
-  const engagementData = [
-    { name: 'Seg', posts: 12, engagement: 4.5 },
-    { name: 'Ter', posts: 8, engagement: 5.2 },
-    { name: 'Qua', posts: 15, engagement: 3.8 },
-    { name: 'Qui', posts: 10, engagement: 6.1 },
-    { name: 'Sex', posts: 18, engagement: 4.9 },
-    { name: 'Sáb', posts: 5, engagement: 7.2 },
-    { name: 'Dom', posts: 3, engagement: 8.5 },
-  ];
+  useEffect(() => {
+    if (isOpen) {
+      loadConnectedAccounts();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (selectedAccount) {
+      loadAccountDetails();
+    }
+  }, [selectedAccount]);
+
+  const loadAccountDetails = async () => {
+    if (!selectedAccount) return;
+    try {
+      const clients = await getInstagramClients();
+      const client = clients.find(c => c.username.replace('@', '').toLowerCase() === selectedAccount.username.toLowerCase());
+      
+      if (client) {
+        const history = await getFollowerHistory(client.id);
+        setSelectedHistory(history.map(h => ({
+          date: h.date,
+          followers: h.followers_end
+        })).reverse());
+
+        const posts = await getInstagramPosts(client.id);
+        setSelectedPosts(posts);
+      }
+    } catch (error) {
+      console.error("Error loading details:", error);
+    }
+  };
+
+  const loadConnectedAccounts = async () => {
+    try {
+      const clients = await getInstagramClients();
+      // Map clients to ScrappaUserData format as much as possible
+      const mappedAccounts: ScrappaUserData[] = clients.map(c => ({
+        username: c.username.replace('@', ''),
+        full_name: c.name,
+        biography: c.notes || "",
+        profile_pic_url_hd: c.profile_picture || "",
+        follower_count: 0, // We'll need to fetch these or handle them
+        following_count: 0,
+        media_count: 0,
+        is_private: false,
+        is_verified: false,
+      }));
+      setConnectedAccounts(mappedAccounts);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const handleSearch = async () => {
     if (!searchQuery) return;
@@ -129,30 +178,114 @@ export function InstagramIntegrationsModal({ isOpen, onClose }: InstagramIntegra
     }
   };
 
+  const handleImport = async (userData: ScrappaUserData) => {
+    setIsSyncing(true);
+    try {
+      // 1. Get existing clients to see if this one exists
+      const clients = await getInstagramClients();
+      let client = clients.find(c => c.username.replace('@', '').toLowerCase() === userData.username.toLowerCase());
+
+      if (!client) {
+        // Create new client
+        client = await createInstagramClient({
+          name: userData.full_name || userData.username,
+          username: `@${userData.username}`,
+          profile_picture: userData.profile_pic_url_hd,
+          niche: "Instagram Import",
+          monthly_value: 0,
+          payment_day: 1,
+          status: 'ativo',
+          notes: userData.biography,
+          start_date: new Date().toISOString().split('T')[0]
+        });
+        toast.success(`Cliente @${userData.username} criado no sistema!`);
+      }
+
+      // 2. Add follower history for today
+      await addFollowerEntry({
+        client_id: client.id,
+        date: new Date().toISOString().split('T')[0],
+        followers_start: userData.follower_count,
+        followers_end: userData.follower_count
+      });
+
+      // 3. Add posts if available (Scrappa usually returns edge_owner_to_timeline_media or similar)
+      if (userData.recent_posts && Array.isArray(userData.recent_posts)) {
+        let postsCount = 0;
+        for (const post of userData.recent_posts.slice(0, 10)) {
+          try {
+            await addInstagramPost({
+              client_id: client.id,
+              date: post.taken_at ? new Date(post.taken_at * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+              type: post.is_video ? 'reels' : 'feed',
+              caption: post.caption?.text || post.caption || '',
+              reach: post.play_count || post.view_count || 0,
+              likes: post.like_count || 0,
+              comments: post.comment_count || 0,
+              shares: 0,
+              saves: 0,
+              post_link: `https://instagram.com/p/${post.code}/`
+            });
+            postsCount++;
+          } catch (e) {
+            // Probably duplicate or error, skip
+          }
+        }
+        if (postsCount > 0) {
+          toast.success(`${postsCount} posts importados!`);
+        }
+      }
+
+      toast.success("Dados sincronizados com o sistema!");
+      
+      if (onSuccess) onSuccess();
+      
+      // Update local state to reflect connection
+      if (!connectedAccounts.some(acc => acc.username === userData.username)) {
+        setConnectedAccounts([...connectedAccounts, userData]);
+      }
+      setSelectedAccount(userData);
+      setSearchResult(null);
+      setSearchQuery("");
+      
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao importar dados para o sistema.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleConnect = () => {
     if (!searchResult) return;
-    
-    if (connectedAccounts.some(acc => acc.username === searchResult.username)) {
-      toast.error("Esta conta já está integrada.");
-      return;
-    }
-
-    setConnectedAccounts([...connectedAccounts, searchResult]);
-    setSelectedAccount(searchResult);
-    setSearchResult(null);
-    setSearchQuery("");
-    toast.success("Conta integrada com sucesso!");
+    handleImport(searchResult);
   };
 
   const syncAccount = async () => {
     if (!selectedAccount) return;
     setIsSyncing(true);
     
-    // Simulate real API sync
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setIsSyncing(false);
-    toast.success(`Dados de @${selectedAccount.username} atualizados!`);
+    try {
+      const response = await fetch(`https://scrappa.co/api/instagram/user?username=${selectedAccount.username}`, {
+        headers: {
+          'x-api-key': SCRAPPA_KEY,
+          'Accept': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      
+      if (data?.success && data?.user) {
+        await handleImport(data.user);
+        toast.success(`Dados de @${selectedAccount.username} sincronizados!`);
+      } else {
+        toast.error("Não foi possível obter dados atualizados.");
+      }
+    } catch (error) {
+      toast.error("Erro na sincronização");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return (
@@ -259,9 +392,9 @@ export function InstagramIntegrationsModal({ isOpen, onClose }: InstagramIntegra
                       </div>
                       <Button 
                         onClick={handleConnect}
-                        className="bg-white text-black hover:bg-white/90 rounded-2xl px-6 font-black uppercase text-[10px] tracking-widest mb-2 shadow-xl active:scale-95 transition-all"
+                        className="bg-purple-600 text-white hover:bg-purple-700 rounded-2xl px-6 font-black uppercase text-[10px] tracking-widest mb-2 shadow-xl active:scale-95 transition-all"
                       >
-                        Conectar Perfil
+                        Importar para Sistema
                       </Button>
                     </CardHeader>
                     <CardContent className="space-y-6">
@@ -420,29 +553,35 @@ export function InstagramIntegrationsModal({ isOpen, onClose }: InstagramIntegra
                       </TabsContent>
 
                       {/* Posts Tab Content */}
-                      <TabsContent value="posts" className="m-0">
-                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
-                              <Card key={i} className="group relative aspect-square rounded-2xl overflow-hidden border-none bg-white/5 hover:scale-[1.02] transition-all cursor-pointer">
-                                 <img 
-                                  src={`https://images.unsplash.com/photo-${1550000000000 + i}?auto=format&fit=crop&q=80&w=400`} 
-                                  alt="" 
-                                  className="w-full h-full object-cover transition-transform group-hover:scale-110"
-                                 />
-                                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center gap-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <div className="flex flex-col items-center gap-1">
-                                      <Heart className="w-5 h-5 text-white fill-white" />
-                                      <span className="text-[10px] font-black text-white">{(Math.random() * 500).toFixed(0)}</span>
-                                    </div>
-                                    <div className="flex flex-col items-center gap-1">
-                                      <MessageSquare className="w-5 h-5 text-white" />
-                                      <span className="text-[10px] font-black text-white">{(Math.random() * 50).toFixed(0)}</span>
-                                    </div>
-                                 </div>
-                              </Card>
-                            ))}
-                         </div>
-                      </TabsContent>
+                       <TabsContent value="posts" className="m-0">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                             {selectedPosts.length === 0 ? (
+                               <div className="col-span-full py-20 text-center text-white/20">
+                                 Nenhum post importado ainda.
+                               </div>
+                             ) : (
+                               selectedPosts.map((post) => (
+                                 <Card key={post.id} className="group relative aspect-square rounded-2xl overflow-hidden border-none bg-white/5 hover:scale-[1.02] transition-all cursor-pointer">
+                                    <a href={post.post_link} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                                      <div className="w-full h-full bg-white/5 flex items-center justify-center text-[10px] text-white/20 p-2 text-center overflow-hidden">
+                                        {post.caption?.substring(0, 50)}...
+                                      </div>
+                                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center gap-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                         <div className="flex flex-col items-center gap-1">
+                                           <Heart className="w-5 h-5 text-white fill-white" />
+                                           <span className="text-[10px] font-black text-white">{post.likes}</span>
+                                         </div>
+                                         <div className="flex flex-col items-center gap-1">
+                                           <MessageSquare className="w-5 h-5 text-white" />
+                                           <span className="text-[10px] font-black text-white">{post.comments}</span>
+                                         </div>
+                                      </div>
+                                    </a>
+                                 </Card>
+                               ))
+                             )}
+                          </div>
+                       </TabsContent>
 
                       {/* Stats Tab Content */}
                       <TabsContent value="stats" className="m-0 space-y-6">
@@ -460,7 +599,7 @@ export function InstagramIntegrationsModal({ isOpen, onClose }: InstagramIntegra
                              </div>
                              <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                  <AreaChart data={growthData}>
+                                  <AreaChart data={selectedHistory.length > 0 ? selectedHistory : [{date: new Date().toISOString(), followers: selectedAccount.follower_count}]}>
                                     <defs>
                                       <linearGradient id="colorFollow" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3}/>
@@ -507,7 +646,7 @@ export function InstagramIntegrationsModal({ isOpen, onClose }: InstagramIntegra
                              </div>
                              <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                   <BarChart data={engagementData}>
+                                   <BarChart data={selectedPosts.slice(0, 7).map(p => ({ name: format(new Date(p.date), 'dd/MM'), engagement: ((p.likes + p.comments) / 100).toFixed(2) }))}>
                                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff05" />
                                       <XAxis 
                                         dataKey="name" 

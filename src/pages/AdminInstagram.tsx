@@ -805,6 +805,7 @@ const AdminInstagram = () => {
       <InstagramIntegrationsModal 
         isOpen={isIntegrationsModalOpen} 
         onClose={() => setIsIntegrationsModalOpen(false)} 
+        onSuccess={loadClients}
       />
 
       {/* Style overrides for premium look */}
