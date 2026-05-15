@@ -55,7 +55,8 @@ import {
   addInstagramPost,
   getFollowerHistory,
   getInstagramPosts,
-  InstagramClient
+  InstagramClient,
+  fetchScrappaPosts
 } from '@/lib/instagram';
 import { 
   Clock,
@@ -90,6 +91,8 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
   const [connectedAccounts, setConnectedAccounts] = useState<ScrappaUserData[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<ScrappaUserData | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [importMonthlyValue, setImportMonthlyValue] = useState<number>(0);
+  const [importPaymentDay, setImportPaymentDay] = useState<number>(1);
 
   const [selectedHistory, setSelectedHistory] = useState<any[]>([]);
   const [selectedPosts, setSelectedPosts] = useState<any[]>([]);
@@ -166,7 +169,12 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
       const data = await response.json();
       
       if (data?.success && data?.user) {
-        setSearchResult(data.user);
+        let normalizedUser = { ...data.user };
+        normalizedUser.follower_count = data.user.follower_count ?? data.user.followers_count ?? data.user.followers ?? data.user.edge_followed_by?.count ?? 0;
+        normalizedUser.following_count = data.user.following_count ?? data.user.following ?? data.user.edge_follow?.count ?? 0;
+        normalizedUser.media_count = data.user.media_count ?? data.user.posts_count ?? data.user.posts ?? data.user.edge_owner_to_timeline_media?.count ?? 0;
+        
+        setSearchResult(normalizedUser);
         toast.success("Perfil encontrado!");
       } else {
         toast.error(data?.message || "Perfil não encontrado.");
@@ -192,8 +200,8 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
           username: `@${userData.username}`,
           profile_picture: userData.profile_pic_url_hd,
           niche: "Instagram Import",
-          monthly_value: 0,
-          payment_day: 1,
+          monthly_value: importMonthlyValue,
+          payment_day: importPaymentDay,
           status: 'ativo',
           notes: userData.biography,
           start_date: new Date().toISOString().split('T')[0]
@@ -201,30 +209,37 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
         toast.success(`Cliente @${userData.username} criado no sistema!`);
       }
 
-      // 2. Add follower history for today
+      // 2. Add follower history for today (safeguard values)
+      const validFollowers = Number(userData.follower_count) || 0;
       await addFollowerEntry({
         client_id: client.id,
         date: new Date().toISOString().split('T')[0],
-        followers_start: userData.follower_count,
-        followers_end: userData.follower_count
+        followers_start: validFollowers,
+        followers_end: validFollowers
       });
 
-      // 3. Add posts if available (Scrappa usually returns edge_owner_to_timeline_media or similar)
+      // 3. Add posts if available
       if (userData.recent_posts && Array.isArray(userData.recent_posts)) {
         let postsCount = 0;
-        for (const post of userData.recent_posts.slice(0, 10)) {
+        for (const post of userData.recent_posts.slice(0, 15)) {
           try {
+            // Scrappa posts endpoint structure can vary
+            const takenAt = post.taken_at || post.timestamp || Math.floor(Date.now() / 1000);
+            const caption = post.caption?.text || post.caption || post.text || "";
+            const isVideo = post.is_video || post.video_url || post.product_type === 'clips';
+            const type = isVideo ? 'reels' : 'feed';
+            
             await addInstagramPost({
               client_id: client.id,
-              date: post.taken_at ? new Date(post.taken_at * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-              type: post.is_video ? 'reels' : 'feed',
-              caption: post.caption?.text || post.caption || '',
-              reach: post.play_count || post.view_count || 0,
-              likes: post.like_count || 0,
-              comments: post.comment_count || 0,
-              shares: 0,
-              saves: 0,
-              post_link: `https://instagram.com/p/${post.code}/`
+              date: new Date(takenAt * 1000).toISOString().split('T')[0],
+              type: type,
+              caption: caption,
+              reach: post.play_count || post.view_count || post.video_view_count || 0,
+              likes: post.like_count || post.likes_count || post.likes || 0,
+              comments: post.comment_count || post.comments_count || post.comments || 0,
+              shares: post.share_count || 0,
+              saves: post.save_count || 0,
+              post_link: post.permalink || (post.shortcode ? `https://instagram.com/p/${post.shortcode}/` : post.post_link || "")
             });
             postsCount++;
           } catch (e) {
@@ -276,7 +291,12 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
       const data = await response.json();
       
       if (data?.success && data?.user) {
-        await handleImport(data.user);
+        let normalizedUser = { ...data.user };
+        normalizedUser.follower_count = data.user.follower_count ?? data.user.followers_count ?? data.user.followers ?? data.user.edge_followed_by?.count ?? 0;
+        normalizedUser.following_count = data.user.following_count ?? data.user.following ?? data.user.edge_follow?.count ?? 0;
+        normalizedUser.media_count = data.user.media_count ?? data.user.posts_count ?? data.user.posts ?? data.user.edge_owner_to_timeline_media?.count ?? 0;
+
+        await handleImport(normalizedUser);
         toast.success(`Dados de @${selectedAccount.username} sincronizados!`);
       } else {
         toast.error("Não foi possível obter dados atualizados.");
@@ -290,7 +310,7 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-[1200px] h-[90vh] p-0 bg-[#050505] border-white/10 shadow-2xl overflow-hidden flex flex-col rounded-3xl">
+      <DialogContent className="max-w-[95vw] md:max-w-[1200px] w-full h-[90vh] p-0 bg-[#050505] border-white/10 shadow-2xl overflow-hidden flex flex-col rounded-3xl sm:max-w-none">
         <DialogHeader className="p-6 border-b border-white/5 shrink-0 bg-background/50 backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -298,17 +318,17 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
                 <Instagram className="w-6 h-6 text-white" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-black tracking-tight text-white">Integrações Instagram</DialogTitle>
-                <DialogDescription className="text-white/30 text-[10px] uppercase tracking-widest font-bold">Monitoramento Avançado Scrappa API</DialogDescription>
+                <DialogTitle className="text-2xl font-black tracking-tight text-white">Integrações Instagram</DialogTitle>
+                <DialogDescription className="text-white/30 text-[10px] uppercase tracking-widest font-bold">Monitoramento Avançado Scrappa API • Hub de Inteligência</DialogDescription>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
                <div className="relative group">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-purple-400 transition-colors" />
                   <Input 
                     placeholder="Adicionar @username..." 
-                    className="w-64 bg-white/5 border-white/10 pl-10 h-10 rounded-xl focus:border-purple-500/50 transition-all font-medium"
+                    className="w-48 md:w-80 bg-white/5 border-white/10 pl-10 h-11 rounded-2xl focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 transition-all font-medium text-sm"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -317,9 +337,9 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
                <Button 
                 onClick={handleSearch} 
                 disabled={isSearching}
-                className="bg-purple-600 hover:bg-purple-700 text-white rounded-xl px-6 font-bold shadow-lg shadow-purple-600/20"
+                className="bg-purple-600 hover:bg-purple-700 text-white rounded-2xl px-8 h-11 font-bold shadow-lg shadow-purple-600/20 active:scale-95 transition-all"
                >
-                 {isSearching ? <RefreshCw className="w-4 h-4 animate-spin" /> : "Buscar"}
+                 {isSearching ? <RefreshCw className="w-4 h-4 animate-spin" /> : "Buscar Perfil"}
                </Button>
             </div>
           </div>
@@ -354,7 +374,7 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
                       </div>
                       <div className="flex-1 text-left min-w-0">
                         <p className="text-xs font-black text-white truncate">@{acc.username}</p>
-                        <p className="text-[10px] text-white/40 truncate font-medium">{acc.follower_count.toLocaleString()} seguidores</p>
+                        <p className="text-[10px] text-white/40 truncate font-medium">{(acc.follower_count || 0).toLocaleString()} seguidores</p>
                       </div>
                       <ChevronRight className={`w-4 h-4 transition-all ${selectedAccount?.username === acc.username ? 'text-purple-400 translate-x-0' : 'text-white/5 -translate-x-2'}`} />
                     </button>
@@ -373,7 +393,7 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
                   initial={{ opacity: 0, scale: 0.95, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                  className="max-w-2xl mx-auto"
+                  className="max-w-4xl mx-auto"
                 >
                   <Card className="bg-white/[0.03] border-white/10 shadow-2xl rounded-3xl overflow-hidden glassmorphism">
                     <div className="h-32 bg-gradient-to-tr from-purple-600/20 to-pink-500/20 relative">
@@ -399,28 +419,58 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div className="grid grid-cols-3 gap-4 border-y border-white/5 py-6">
-                        <div className="text-center">
-                          <p className="text-2xl font-black text-white">{searchResult.media_count.toLocaleString()}</p>
-                          <p className="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-1">Publicações</p>
+                         <div className="text-center">
+                           <p className="text-2xl font-black text-white">{(searchResult.media_count || 0).toLocaleString()}</p>
+                           <p className="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-1">Publicações</p>
+                         </div>
+                         <div className="text-center border-x border-white/5">
+                           <p className="text-2xl font-black text-white">{(searchResult.follower_count || 0).toLocaleString()}</p>
+                           <p className="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-1">Seguidores</p>
+                         </div>
+                         <div className="text-center">
+                           <p className="text-2xl font-black text-white">{(searchResult.following_count || 0).toLocaleString()}</p>
+                           <p className="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-1">Seguindo</p>
+                         </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-purple-500/5 p-6 rounded-3xl border border-purple-500/10">
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-purple-400">Valor Combinado (Mensal)</label>
+                           <div className="relative">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-purple-400 text-sm">R$</span>
+                              <Input 
+                                type="number"
+                                value={importMonthlyValue}
+                                onChange={(e) => setImportMonthlyValue(Number(e.target.value))}
+                                className="bg-white/5 border-white/10 pl-10 h-12 rounded-2xl focus:border-purple-500 text-white font-bold"
+                                placeholder="0,00"
+                              />
+                           </div>
                         </div>
-                        <div className="text-center border-x border-white/5">
-                          <p className="text-2xl font-black text-white">{searchResult.follower_count.toLocaleString()}</p>
-                          <p className="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-1">Seguidores</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-2xl font-black text-white">{searchResult.following_count.toLocaleString()}</p>
-                          <p className="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-1">Seguindo</p>
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-purple-400">Dia de Vencimento</label>
+                           <Input 
+                             type="number"
+                             min={1}
+                             max={31}
+                             value={importPaymentDay}
+                             onChange={(e) => setImportPaymentDay(Number(e.target.value))}
+                             className="bg-white/5 border-white/10 h-12 rounded-2xl focus:border-purple-500 text-white font-bold"
+                             placeholder="Ex: 5"
+                           />
                         </div>
                       </div>
                       
-                      <div className="space-y-2 bg-white/2 p-4 rounded-2xl border border-white/5">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-white/30">Biografia</h4>
-                        <p className="text-sm text-white/80 leading-relaxed whitespace-pre-line">{searchResult.biography}</p>
-                        {searchResult.external_url && (
-                          <a href={searchResult.external_url} target="_blank" className="text-purple-400 text-xs font-bold hover:underline block mt-2">
-                            {searchResult.external_url}
-                          </a>
-                        )}
+                      <div className="space-y-4">
+                        <div className="bg-white/2 p-4 rounded-2xl border border-white/5">
+                           <h4 className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Biografia</h4>
+                           <p className="text-sm text-white/80 leading-relaxed whitespace-pre-line">{searchResult.biography}</p>
+                           {searchResult.external_url && (
+                             <a href={searchResult.external_url} target="_blank" className="text-purple-400 text-xs font-bold hover:underline block mt-2">
+                               {searchResult.external_url}
+                             </a>
+                           )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -496,7 +546,7 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
                                     <p className="text-[10px] text-white/50">posts</p>
                                   </div>
                                   <div className="text-center">
-                                    <p className="font-bold text-sm">{(selectedAccount.follower_count / 1000).toFixed(1)}k</p>
+                                     <p className="font-bold text-sm">{((selectedAccount.follower_count || 0) / 1000).toFixed(1)}k</p>
                                     <p className="text-[10px] text-white/50">seguidores</p>
                                   </div>
                                   <div className="text-center">
@@ -694,17 +744,18 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
               ) : (
                 /* Empty / Welcome State */
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="h-full flex flex-col items-center justify-center text-center space-y-6"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                  className="h-full flex flex-col items-center justify-center text-center space-y-8"
                 >
                   <div className="w-32 h-32 rounded-[3rem] bg-gradient-to-tr from-purple-600/20 to-pink-500/20 flex items-center justify-center relative group">
                     <div className="absolute inset-0 bg-purple-500/10 rounded-[3rem] blur-2xl group-hover:bg-purple-500/20 transition-all" />
                     <Instagram className="w-16 h-16 text-purple-400 relative z-10" strokeWidth={1.5} />
                   </div>
-                  <div className="max-w-md space-y-2">
-                    <h3 className="text-2xl font-black text-white tracking-tight">Comece sua Jornada</h3>
-                    <p className="text-white/30 text-sm leading-relaxed">
+                  <div className="max-w-xl space-y-3">
+                    <h3 className="text-4xl font-black text-white tracking-tight">Comece sua Jornada</h3>
+                    <p className="text-white/40 text-base leading-relaxed">
                       Utilize a Scrappa API para conectar contas do Instagram e obter análises em tempo real, posts recentes e estatísticas de engajamento.
                     </p>
                   </div>

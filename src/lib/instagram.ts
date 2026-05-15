@@ -296,3 +296,16 @@ export const deleteInstagramExpense = async (id: string) => {
   const { error } = await supabase.from('instagram_expenses').delete().eq('id', id);
   if (error) throw error;
 };
+
+// Scrappa API Helpers
+export const fetchScrappaPosts = async (username: string, apiKey: string) => {
+  const response = await fetch(`https://scrappa.co/api/instagram/user/posts?username=${username.replace('@', '')}`, {
+    headers: {
+      'x-api-key': apiKey,
+      'Accept': 'application/json'
+    }
+  });
+  const data = await response.json();
+  if (!data.success) throw new Error(data.message || 'Erro ao buscar posts');
+  return data.posts || [];
+};

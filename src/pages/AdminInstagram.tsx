@@ -245,7 +245,7 @@ const AdminInstagram = () => {
       
       {/* ── TOP BAR (Matching Dashboard) ── */}
       <header className="sticky top-0 z-50 border-b border-white/6 bg-[#0a0a0a]/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 flex items-center justify-between gap-2">
+        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <img src={logoImg} alt="GoFocus" className="h-6 w-auto object-contain" />
             <span className="hidden sm:block text-white/15">|</span>
@@ -284,7 +284,7 @@ const AdminInstagram = () => {
       </header>
 
       {/* Main Content Area */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 py-8 sm:py-12">
 
         {/* ── PAGE TITLE + TABS (Matching Dashboard) ── */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10 pb-8 border-b border-white/6">
@@ -553,7 +553,7 @@ const AdminInstagram = () => {
             <p className="text-white/40">Comece adicionando seu primeiro cliente de social media.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
             {filteredClients.map((client) => (
               <motion.div
                 key={client.id}

@@ -282,7 +282,7 @@ const AdminInstagramClient = () => {
       
       {/* ── TOP BAR (Standardized) ── */}
       <header className="sticky top-0 z-50 border-b border-white/6 bg-[#0a0a0a]/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 flex items-center justify-between gap-2">
+        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/admin/instagram")}
@@ -338,7 +338,7 @@ const AdminInstagramClient = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="w-full lg:w-auto overflow-x-auto no-scrollbar pb-1">
@@ -708,13 +708,13 @@ const AdminInstagramClient = () => {
                     <Plus className="w-4 h-4" /> Registrar Post
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-[#0f0f0f] border-white/10 text-white sm:max-w-[600px]">
+                <DialogContent className="bg-[#0f0f0f] border-white/10 text-white">
                   <DialogHeader>
-                    <DialogTitle>Novo Registro de Post</DialogTitle>
-                    <DialogDescription className="hidden">Registre um novo post no histórico</DialogDescription>
+                    <DialogTitle>{editingPostId ? 'Editar Post' : 'Registrar Publicação'}</DialogTitle>
+                    <DialogDescription className="hidden">Preencha os dados do post</DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-[10px] uppercase tracking-widest text-white/40">Data</label>
                         <Input 
@@ -728,12 +728,12 @@ const AdminInstagramClient = () => {
                         <label className="text-[10px] uppercase tracking-widest text-white/40">Tipo</label>
                         <Select value={postForm.type} onValueChange={(v) => setPostForm({...postForm, type: v})}>
                           <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                            <SelectValue placeholder="Selecione o tipo" />
+                            <SelectValue placeholder="Tipo" />
                           </SelectTrigger>
                           <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+                            <SelectItem value="feed">Feed</SelectItem>
                             <SelectItem value="reels">Reels</SelectItem>
                             <SelectItem value="story">Story</SelectItem>
-                            <SelectItem value="feed">Feed</SelectItem>
                             <SelectItem value="carrossel">Carrossel</SelectItem>
                           </SelectContent>
                         </Select>
@@ -741,62 +741,29 @@ const AdminInstagramClient = () => {
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] uppercase tracking-widest text-white/40">Legenda</label>
-                      <Input 
+                      <Textarea 
                         value={postForm.caption}
                         onChange={(e) => setPostForm({...postForm, caption: e.target.value})}
-                        placeholder="Snippet da legenda..." 
-                        className="bg-white/5 border-white/10" 
+                        placeholder="Escreva a legenda..." 
+                        className="bg-white/5 border-white/10 h-20" 
                       />
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-[8px] uppercase text-white/40">Alcance</label>
-                        <Input 
-                          type="number" 
-                          value={postForm.reach || ""}
-                          onChange={(e) => setPostForm({...postForm, reach: e.target.value === "" ? 0 : Number(e.target.value)})}
-                          className="bg-white/5 border-white/10 h-8 text-xs" 
-                        />
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-white/40">Alcance</label>
+                        <Input type="number" value={postForm.reach} onChange={(e) => setPostForm({...postForm, reach: Number(e.target.value)})} className="bg-white/5 border-white/10" />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[8px] uppercase text-white/40">Likes</label>
-                        <Input 
-                          type="number" 
-                          value={postForm.likes || ""}
-                          onChange={(e) => setPostForm({...postForm, likes: e.target.value === "" ? 0 : Number(e.target.value)})}
-                          className="bg-white/5 border-white/10 h-8 text-xs" 
-                        />
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-white/40">Likes</label>
+                        <Input type="number" value={postForm.likes} onChange={(e) => setPostForm({...postForm, likes: Number(e.target.value)})} className="bg-white/5 border-white/10" />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[8px] uppercase text-white/40">Coment.</label>
-                        <Input 
-                          type="number" 
-                          value={postForm.comments || ""}
-                          onChange={(e) => setPostForm({...postForm, comments: e.target.value === "" ? 0 : Number(e.target.value)})}
-                          className="bg-white/5 border-white/10 h-8 text-xs" 
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[8px] uppercase text-white/40">Comp.</label>
-                        <Input 
-                          type="number" 
-                          value={postForm.shares || ""}
-                          onChange={(e) => setPostForm({...postForm, shares: e.target.value === "" ? 0 : Number(e.target.value)})}
-                          className="bg-white/5 border-white/10 h-8 text-xs" 
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[8px] uppercase text-white/40">Salvos</label>
-                        <Input 
-                          type="number" 
-                          value={postForm.saves || ""}
-                          onChange={(e) => setPostForm({...postForm, saves: e.target.value === "" ? 0 : Number(e.target.value)})}
-                          className="bg-white/5 border-white/10 h-8 text-xs" 
-                        />
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-white/40">Coment.</label>
+                        <Input type="number" value={postForm.comments} onChange={(e) => setPostForm({...postForm, comments: Number(e.target.value)})} className="bg-white/5 border-white/10" />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">Link do Post</label>
+                      <label className="text-[10px] uppercase tracking-widest text-white/40">Link do Post (Opcional)</label>
                       <Input 
                         value={postForm.link}
                         onChange={(e) => setPostForm({...postForm, link: e.target.value})}
@@ -922,7 +889,17 @@ const AdminInstagramClient = () => {
                 </Card>
               ))}
             </div>
-          </TabsContent>          <TabsContent value="finance" className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            
+            {posts.length === 0 && (
+              <div className="py-20 text-center bg-white/[0.02] border border-dashed border-white/10 rounded-[2rem]">
+                <ImageIcon className="w-12 h-12 text-white/10 mx-auto mb-4" />
+                <p className="text-[10px] uppercase tracking-widest text-white/30 font-black">Nenhuma publicação importada</p>
+                <p className="text-xs text-white/10 mt-1">Sincronize com o Instagram no modal de integrações</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="finance" className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
             {/* ── ANALYSIS & CHART ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
               <Card className="lg:col-span-2 bg-white/[0.02] border-white/5 rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-6">
@@ -1206,214 +1183,10 @@ const AdminInstagramClient = () => {
                            </p>
                         </div>
                      </div>
-                  </div>
-               </Card>
-            </div>
-          </TabsContent>
-
-
-
-          {/* 5. TAREFAS */}
-          <TabsContent value="tasks" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-serif">Planner Interno</h3>
-              <Dialog open={isTaskModalOpen} onOpenChange={(open) => {
-                setIsTaskModalOpen(open);
-                if (!open) setEditingTaskId(null);
-              }}>
-                <DialogTrigger asChild>
-                  <Button 
-                    className="bg-purple-600 hover:bg-purple-700 gap-2"
-                    onClick={() => {
-                      setEditingTaskId(null);
-                      setTaskForm({
-                        title: "",
-                        priority: "média",
-                        type: "task",
-                        due_date: new Date().toISOString().split('T')[0]
-                      });
-                    }}
-                  >
-                    <Plus className="w-4 h-4" /> Nova Tarefa
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-[#0f0f0f] border-white/10 text-white">
-                  <DialogHeader>
-                    <DialogTitle>Adicionar Tarefa / Ideia</DialogTitle>
-                    <DialogDescription className="hidden">Adicione uma nova tarefa ou ideia ao planner</DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">Título</label>
-                      <Input 
-                        value={taskForm.title}
-                        onChange={(e) => setTaskForm({...taskForm, title: e.target.value})}
-                        placeholder="Ex: Pesquisa de referências" 
-                        className="bg-white/5 border-white/10" 
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-[10px] uppercase tracking-widest text-white/40">Prioridade</label>
-                        <Select value={taskForm.priority} onValueChange={(v) => setTaskForm({...taskForm, priority: v})}>
-                          <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                            <SelectValue placeholder="Prioridade" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
-                            <SelectItem value="baixa">Baixa</SelectItem>
-                            <SelectItem value="média">Média</SelectItem>
-                            <SelectItem value="alta">Alta</SelectItem>
-                            <SelectItem value="urgente">Urgente</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] uppercase tracking-widest text-white/40">Tipo</label>
-                        <Select value={taskForm.type} onValueChange={(v) => setTaskForm({...taskForm, type: v})}>
-                          <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                            <SelectValue placeholder="Tipo" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
-                            <SelectItem value="task">Tarefa</SelectItem>
-                            <SelectItem value="idea">Ideia</SelectItem>
-                            <SelectItem value="pauta">Pauta</SelectItem>
-                            <SelectItem value="checklist">Checklist</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">Prazo</label>
-                      <Input 
-                        type="date" 
-                        value={taskForm.due_date}
-                        onChange={(e) => setTaskForm({...taskForm, due_date: e.target.value})}
-                        className="bg-white/5 border-white/10" 
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="ghost" onClick={() => setIsTaskModalOpen(false)}>Cancelar</Button>
-                    <Button className="bg-purple-600" onClick={async () => {
-                      try {
-                        const taskData = {
-                          client_id: id!,
-                          title: taskForm.title,
-                          priority: taskForm.priority,
-                          type: taskForm.type,
-                          due_date: taskForm.due_date,
-                          completed: false
-                        };
-                        if (editingTaskId) {
-                          await updateInstagramTask(editingTaskId, taskData);
-                          toast.success("Tarefa atualizada");
-                        } else {
-                          await addInstagramTask(taskData);
-                          toast.success("Tarefa adicionada");
-                        }
-                        setIsTaskModalOpen(false);
-                        setEditingTaskId(null);
-                        loadData(id!);
-                        setTaskForm({ ...taskForm, title: "" });
-                      } catch (e: any) { console.error(e); toast.error(e?.message || "Erro ao salvar"); }
-                    }}>Adicionar</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {tasks.map((task) => (
-                <Card key={task.id} className={`
-                  bg-[#0a0a0a] border-white/5 hover:border-white/10 transition-all
-                  ${task.completed ? 'opacity-50' : ''}
-                `}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={async () => {
-                            await updateInstagramTask(task.id, { completed: !task.completed });
-                            loadData(id!);
-                          }}
-                          className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${task.completed ? 'bg-purple-500 border-purple-500' : 'border-white/20 hover:border-purple-500'}`}
-                        >
-                          {task.completed && <CheckCircle2 className="w-3 h-3 text-white" />}
-                        </button>
-                        <Badge variant="outline" className="text-[8px] uppercase tracking-widest border-white/10 bg-white/5 text-white/40">
-                          {task.type}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={`
-                          text-[8px] border-none
-                          ${task.priority === 'urgente' ? 'bg-red-500 text-white' : 
-                            task.priority === 'alta' ? 'bg-orange-500 text-white' : 
-                            task.priority === 'média' ? 'bg-blue-500 text-white' : 'bg-white/10 text-white/60'}
-                        `}>
-                          {task.priority.toUpperCase()}
-                        </Badge>
-                        <div className="flex gap-1 transition-opacity">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-7 w-7 text-white/20 hover:text-white"
-                            onClick={() => {
-                              setEditingTaskId(task.id);
-                              setTaskForm({
-                                title: task.title,
-                                priority: task.priority,
-                                type: task.type,
-                                due_date: task.due_date
-                              });
-                              setIsTaskModalOpen(true);
-                            }}
-                          >
-                            <Edit2 className="w-3 h-3" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-7 w-7 text-white/20 hover:text-red-400"
-                            onClick={async () => {
-                              if (confirm("Deseja excluir esta tarefa?")) {
-                                await deleteInstagramTask(task.id);
-                                loadData(id!);
-                              }
-                            }}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                    <div 
-                      className="cursor-pointer hover:opacity-70 transition-all"
-                      onClick={() => {
-                        setEditingTaskId(task.id);
-                        setTaskForm({
-                          title: task.title,
-                          priority: task.priority,
-                          type: task.type,
-                          due_date: task.due_date
-                        });
-                        setIsTaskModalOpen(true);
-                      }}
-                    >
-                      <CardTitle className={`text-sm font-medium mt-3 ${task.completed ? 'line-through text-white/20' : ''}`}>
-                        {task.title}
-                      </CardTitle>
-                      <div className="flex items-center gap-2 text-[10px] text-white/30 mt-2">
-                        <Calendar className="w-3 h-3" />
-                        {task.due_date ? formatLocalDate(task.due_date, 'dd MMM') : 'Sem prazo'}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent />
+                   </div>
                 </Card>
-              ))}
-            </div>
-          </TabsContent>
+             </div>
+           </TabsContent>
 
           {/* 5. TAREFAS */}
           <TabsContent value="tasks" className="space-y-6">
