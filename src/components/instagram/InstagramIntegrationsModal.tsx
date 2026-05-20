@@ -31,7 +31,8 @@ import {
   Grid3X3,
   BarChart3,
   User,
-  ArrowRight
+  ArrowRight,
+  X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -311,8 +312,8 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] md:max-w-[1200px] w-full h-[90vh] p-0 bg-[#050505] border-white/10 shadow-2xl overflow-hidden flex flex-col rounded-3xl sm:max-w-none">
-        <DialogHeader className="p-6 border-b border-white/5 shrink-0 bg-background/50 backdrop-blur-xl">
-          <div className="flex items-center justify-between">
+        <DialogHeader className="p-6 border-b border-white/5 shrink-0 bg-[#050505]/50 backdrop-blur-xl">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-500 p-0.5 flex items-center justify-center shadow-lg shadow-purple-500/20">
                 <Instagram className="w-6 h-6 text-white" />
@@ -323,7 +324,10 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 w-full md:w-auto">
+               <button onClick={onClose} className="md:hidden p-2 text-white/40 hover:text-white bg-white/5 rounded-sm transition-colors absolute right-4 top-4">
+                 <X className="h-5 w-5" />
+               </button>
                <div className="relative group">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-purple-400 transition-colors" />
                   <Input 
@@ -345,9 +349,9 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
           </div>
         </DialogHeader>
 
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           {/* Sidebar - Accounts List */}
-          <aside className="w-80 border-r border-white/5 bg-[#080808] flex flex-col shrink-0">
+          <aside className="w-full md:w-80 h-1/3 md:h-auto border-b md:border-b-0 md:border-r border-white/5 bg-[#080808] flex flex-col shrink-0">
             <div className="p-4 border-b border-white/5 bg-white/[0.02]">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-white/30 flex items-center gap-2">
                 <Users className="w-3 h-3" /> Contas Integradas
@@ -483,7 +487,7 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
                   animate={{ opacity: 1, y: 0 }}
                   className="space-y-6"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div className="flex items-center gap-5">
                       <div className="w-16 h-16 rounded-full border-2 border-purple-500/30 p-1">
                         <img src={selectedAccount.profile_pic_url_hd} alt="" className="w-full h-full object-cover rounded-full" />

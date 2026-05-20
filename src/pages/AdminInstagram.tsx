@@ -9,7 +9,7 @@ import {
   TrendingDown, Briefcase, MessageSquare,
   ShieldAlert, BadgeDollarSign, UserPlus,
   ExternalLink, Trash2, Camera, LogOut, ArrowUpRight,
-  Layers, Tag, Eye, EyeOff, ListTodo
+  Layers, Tag, Eye, EyeOff, ListTodo, X
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -368,12 +368,17 @@ const AdminInstagram = () => {
                   <span className="xs:hidden">Novo</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-[#0f0f0f] border-white/10 text-white sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle className="font-serif text-2xl">Adicionar Novo Cliente</DialogTitle>
-                  <DialogDescription className="text-white/40">
-                    Preencha os dados básicos para iniciar a gestão do Instagram.
-                  </DialogDescription>
+              <DialogContent className="bg-[#0f0f0f] border-white/10 text-white sm:max-w-[500px] max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <DialogHeader className="flex flex-row items-start justify-between">
+                  <div>
+                    <DialogTitle className="font-serif text-2xl">Adicionar Novo Cliente</DialogTitle>
+                    <DialogDescription className="text-white/40">
+                      Preencha os dados básicos para iniciar a gestão do Instagram.
+                    </DialogDescription>
+                  </div>
+                  <button onClick={() => setIsAddDialogOpen(false)} className="p-2 text-white/40 hover:text-white bg-white/5 rounded-sm transition-colors mt-0">
+                    <X className="h-4 w-4" />
+                  </button>
                 </DialogHeader>
                 
                 <div className="grid gap-4 py-4">
@@ -685,14 +690,18 @@ const AdminInstagram = () => {
         )}
       </div>
 
-      {/* Edit Client Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="bg-[#0f0f0f] border-white/10 text-white sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="font-serif text-2xl">Editar Cliente</DialogTitle>
-            <DialogDescription className="text-white/40">
-              Atualize os dados do cliente de social media.
-            </DialogDescription>
+        <DialogContent className="bg-[#0f0f0f] border-white/10 text-white sm:max-w-[500px] max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <DialogHeader className="flex flex-row items-start justify-between">
+            <div>
+              <DialogTitle className="font-serif text-2xl">Editar Cliente</DialogTitle>
+              <DialogDescription className="text-white/40">
+                Atualize os dados e configurações deste cliente.
+              </DialogDescription>
+            </div>
+            <button onClick={() => setIsEditDialogOpen(false)} className="p-2 text-white/40 hover:text-white bg-white/5 rounded-sm transition-colors mt-0">
+              <X className="h-4 w-4" />
+            </button>
           </DialogHeader>
           
           {editingClient && (
