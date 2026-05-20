@@ -11,7 +11,7 @@ import {
   Link as LinkIcon, Camera, Eye, Info, Image as ImageIcon,
   LogOut, ArrowUpRight, BadgeDollarSign, ExternalLink,
   Wallet, Receipt, CreditCard, Send, Ban, Target, ArrowDownRight,
-  AlertCircle, PieChart as PieChartIcon
+  AlertCircle, Lock, Unlock, PieChart as PieChartIcon
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -71,6 +71,7 @@ import {
   addInstagramExpense,
   updateInstagramExpense,
   deleteInstagramExpense,
+  updateInstagramClient,
   InstagramClient,
   FollowerHistory,
   InstagramPost,
@@ -79,6 +80,7 @@ import {
   InstagramExpense
 } from "@/lib/instagram";
 import { useAuth } from "@/hooks/useAuth";
+import { uploadToImageKit } from "@/lib/imagekit";
 import { format, subDays, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -141,6 +143,23 @@ const AdminInstagramClient = () => {
     status: 'paid' as any
   });
 
+  const [contractForm, setContractForm] = useState({
+    contract_photos: [] as string[],
+    contract_value: 0,
+    contract_frequency: 'mensal' as 'único' | 'semanal' | 'quinzenal' | 'mensal',
+    contract_payment_method: '',
+    contract_payment_channels: '',
+    contract_type: '',
+    contract_installments: 1,
+    contract_installment_value: 0,
+    contract_due_start: new Date().toISOString().split('T')[0],
+    contract_due_day: new Date().getDate(),
+    contract_notes: ''
+  });
+  const [isContractUploading, setIsContractUploading] = useState(false);
+  const [isContractLocked, setIsContractLocked] = useState(false);
+  const [selectedContractPhoto, setSelectedContractPhoto] = useState<string | null>(null);
+
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskForm, setTaskForm] = useState({
     title: "",
@@ -158,6 +177,24 @@ const AdminInstagramClient = () => {
   useEffect(() => {
     if (id) loadData(id);
   }, [id]);
+
+  useEffect(() => {
+    if (!client) return;
+    setContractForm({
+      contract_photos: client.contract_photos || [],
+      contract_value: client.contract_value || 0,
+      contract_frequency: client.contract_frequency || 'mensal',
+      contract_payment_method: client.contract_payment_method || '',
+      contract_payment_channels: client.contract_payment_channels || '',
+      contract_type: client.contract_type || '',
+      contract_installments: client.contract_installments || 1,
+      contract_installment_value: client.contract_installment_value || 0,
+      contract_due_start: client.contract_due_start || client.start_date || new Date().toISOString().split('T')[0],
+      contract_due_day: client.contract_due_day || new Date().getDate(),
+      contract_notes: client.contract_notes || ''
+    });
+    setIsContractLocked(!!client.contract_locked);
+  }, [client]);
 
   const loadData = async (clientId: string) => {
     try {
@@ -194,6 +231,141 @@ const AdminInstagramClient = () => {
 
     } catch (error) {
       console.error("Critical error in loadData:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getComputedInstallmentValue = () => {
+    if (contractForm.contract_installments && contractForm.contract_installments > 0) {
+      return contractForm.contract_value && contractForm.contract_installments
+        ? Number((contractForm.contract_value / contractForm.contract_installments).toFixed(2))
+        : 0;
+    }
+    return 0;
+  };
+
+  const getContractSchedule = () => {
+    if (!contractForm.contract_due_start) return [];
+    const start = new Date(contractForm.contract_due_start);
+    if (Number.isNaN(start.getTime())) return [];
+
+    const installments = contractForm.contract_installments || 1;
+    const dates = [] as { index: number; date: Date }[];
+
+    for (let i = 0; i < installments; i++) {
+      const due = new Date(start);
+      if (contractForm.contract_frequency === 'semanal') {
+        due.setDate(start.getDate() + (i * 7));
+      } else if (contractForm.contract_frequency === 'quinzenal') {
+        due.setDate(start.getDate() + (i * 14));
+      } else if (contractForm.contract_frequency === 'mensal') {
+        due.setMonth(start.getMonth() + i);
+      }
+      dates.push({ index: i + 1, date: due });
+    }
+
+    return dates;
+  };
+
+  const getNextPaymentDue = () => {
+    const schedule = getContractSchedule();
+    if (schedule.length === 0) return null;
+
+    const today = new Date();
+    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const next = schedule.find((item) => item.date >= todayOnly);
+
+    return next ?? schedule[schedule.length - 1];
+  };
+
+  const getNextPaymentCountdown = () => {
+    const nextPayment = getNextPaymentDue();
+    if (!nextPayment) return null;
+
+    const today = new Date();
+    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const diffDays = Math.ceil((nextPayment.date.getTime() - todayOnly.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "Hoje";
+    if (diffDays > 0) return `Em ${diffDays} dia${diffDays === 1 ? "" : "s"}`;
+    return `Venceu há ${Math.abs(diffDays)} dia${Math.abs(diffDays) === 1 ? "" : "s"}`;
+  };
+
+  const handleContractFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setIsContractUploading(true);
+
+    try {
+      const uploadedUrls: string[] = [];
+      for (const file of files) {
+        const uploaded = await uploadToImageKit(file, `contracts/${client?.id || 'unknown'}`);
+        uploadedUrls.push(uploaded.url);
+      }
+      setContractForm((prev) => ({
+        ...prev,
+        contract_photos: [...(prev.contract_photos || []), ...uploadedUrls]
+      }));
+      toast.success(`${uploadedUrls.length} foto(s) adicionada(s) ao contrato.`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao enviar foto(s) do contrato.");
+    } finally {
+      setIsContractUploading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
+  const handleRemoveContractPhoto = (photoUrl: string) => {
+    setContractForm((prev) => ({
+      ...prev,
+      contract_photos: (prev.contract_photos || []).filter((photo) => photo !== photoUrl)
+    }));
+  };
+
+  const handleToggleContractLock = async () => {
+    if (!id) return;
+    try {
+      setLoading(true);
+      const updated = await updateInstagramClient(id, { contract_locked: !isContractLocked });
+      setClient(updated);
+      setIsContractLocked(!isContractLocked);
+      toast.success(isContractLocked ? "Contrato destravado." : "Contrato travado.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao alterar status do contrato.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveContract = async () => {
+    if (!id) return;
+    if (isContractLocked) {
+      toast.error("Contrato travado. Destrave para editar.");
+      return;
+    }
+    try {
+      setLoading(true);
+      await updateInstagramClient(id, {
+        contract_photos: contractForm.contract_photos || [],
+        contract_value: Number(contractForm.contract_value || 0),
+        contract_frequency: contractForm.contract_frequency,
+        contract_payment_method: contractForm.contract_payment_method,
+        contract_payment_channels: contractForm.contract_payment_channels,
+        contract_type: contractForm.contract_type,
+        contract_installments: Number(contractForm.contract_installments || 1),
+        contract_installment_value: Number(contractForm.contract_installment_value || getComputedInstallmentValue()),
+        contract_due_start: contractForm.contract_due_start,
+        contract_due_day: Number(contractForm.contract_due_day || 0),
+        contract_notes: contractForm.contract_notes
+      });
+      toast.success("Dados de contrato salvos.");
+      loadData(id);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao salvar dados do contrato.");
     } finally {
       setLoading(false);
     }
@@ -343,10 +515,11 @@ const AdminInstagramClient = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="w-full lg:w-auto overflow-x-auto no-scrollbar pb-1">
-              <TabsList className="bg-white/5 border border-white/10 p-1 h-auto flex flex-nowrap w-max lg:w-auto min-w-full">
+              <TabsList className="bg-white/5 border border-white/10 p-1 h-auto flex flex-wrap gap-2 w-full">
                 <TabsTrigger value="overview" className="data-[state=active]:bg-white data-[state=active]:text-black text-white/40 px-3 sm:px-6 py-2 text-[9px] sm:text-[10px] uppercase tracking-widest font-bold transition-all whitespace-nowrap">Geral</TabsTrigger>
                 <TabsTrigger value="followers" className="data-[state=active]:bg-white data-[state=active]:text-black text-white/40 px-3 sm:px-6 py-2 text-[9px] sm:text-[10px] uppercase tracking-widest font-bold transition-all whitespace-nowrap">Seguidores</TabsTrigger>
                 <TabsTrigger value="posts" className="data-[state=active]:bg-white data-[state=active]:text-black text-white/40 px-3 sm:px-6 py-2 text-[9px] sm:text-[10px] uppercase tracking-widest font-bold transition-all whitespace-nowrap">Posts</TabsTrigger>
+                <TabsTrigger value="contract" className="data-[state=active]:bg-white data-[state=active]:text-black text-white/40 px-3 sm:px-6 py-2 text-[9px] sm:text-[10px] uppercase tracking-widest font-bold transition-all whitespace-nowrap">Contrato</TabsTrigger>
                 <TabsTrigger value="tasks" className="data-[state=active]:bg-white data-[state=active]:text-black text-white/40 px-3 sm:px-6 py-2 text-[9px] sm:text-[10px] uppercase tracking-widest font-bold transition-all whitespace-nowrap">Tarefas</TabsTrigger>
                 <TabsTrigger value="finance" className="data-[state=active]:bg-white data-[state=active]:text-black text-white/40 px-3 sm:px-6 py-2 text-[9px] sm:text-[10px] uppercase tracking-widest font-bold transition-all whitespace-nowrap">Financeiro</TabsTrigger>
               </TabsList>
@@ -366,6 +539,7 @@ const AdminInstagramClient = () => {
                   <DropdownMenuItem className="focus:bg-white/10 cursor-pointer" onClick={() => { setActiveTab('posts'); setIsPostModalOpen(true); }}>Novo Post</DropdownMenuItem>
                   <DropdownMenuItem className="focus:bg-white/10 cursor-pointer" onClick={() => { setActiveTab('followers'); setIsFollowerModalOpen(true); }}>Registrar Seguidores</DropdownMenuItem>
                   <DropdownMenuItem className="focus:bg-white/10 cursor-pointer" onClick={() => { setActiveTab('tasks'); setIsTaskModalOpen(true); }}>Nova Tarefa</DropdownMenuItem>
+                  <DropdownMenuItem className="focus:bg-white/10 cursor-pointer" onClick={() => { setActiveTab('contract'); }}>Contrato</DropdownMenuItem>
                   <DropdownMenuItem className="focus:bg-white/10 cursor-pointer" onClick={() => { setActiveTab('finance'); setIsPaymentModalOpen(true); }}>Registrar Pagamento</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -898,6 +1072,283 @@ const AdminInstagramClient = () => {
                 <p className="text-xs text-white/10 mt-1">Sincronize com o Instagram no modal de integrações</p>
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="contract" className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-serif">Gestão de Contrato</h3>
+                <p className="text-sm text-white/40">Registre o valor combinado, cronograma de parcelas, formas de pagamento e fotos do contrato.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className={isContractLocked ? "bg-red-500/15 text-red-300" : "bg-emerald-500/10 text-emerald-300"}>
+                  {isContractLocked ? "Contrato travado" : "Contrato liberado"}
+                </Badge>
+                <Button
+                  onClick={handleToggleContractLock}
+                  title={isContractLocked ? "Destravar contrato" : "Travar contrato"}
+                  variant="outline"
+                  className="h-10 w-10 rounded-full p-0 text-white"
+                >
+                  {isContractLocked ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+                </Button>
+                <span className="text-[10px] text-white/50">{isContractLocked ? "Destrave para editar" : "Bloqueie para travar as alterações"}</span>
+                <Button onClick={handleSaveContract} disabled={isContractLocked} className="bg-purple-600 hover:bg-purple-700 text-white gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  Salvar Contrato
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
+              <div className="space-y-4">
+                <Card className="bg-white/[0.02] border-white/5 p-4 md:p-6">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="text-[10px] uppercase tracking-widest text-white/30 font-black">Resumo do Contrato</CardDescription>
+                    <CardTitle className="text-2xl font-serif">{contractForm.contract_type || 'Sem tipo definido'}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
+                        <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Valor combinado</p>
+                        <p className="text-sm font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contractForm.contract_value || 0)}</p>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
+                        <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Frequência</p>
+                        <p className="text-sm font-bold capitalize">{contractForm.contract_frequency}</p>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
+                        <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Forma</p>
+                        <p className="text-sm font-bold">{contractForm.contract_payment_method || 'Não definido'}</p>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
+                        <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Parcelas</p>
+                        <p className="text-sm font-bold">{contractForm.contract_installments || 1} x {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contractForm.contract_installment_value || getComputedInstallmentValue())}</p>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-white/5 border border-white/5 col-span-full">
+                        <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Próximo pagamento</p>
+                        <p className="text-sm font-bold">{getNextPaymentCountdown() || 'Defina data e parcelas'}</p>
+                        {getNextPaymentDue() && (
+                          <p className="text-[10px] text-white/40">{formatLocalDate(getNextPaymentDue()!.date.toISOString(), 'dd MMM yyyy')}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-white/40">Tipo de contrato</label>
+                        <Input
+                          disabled={isContractLocked}
+                          value={contractForm.contract_type}
+                          onChange={(e) => setContractForm({ ...contractForm, contract_type: e.target.value })}
+                          placeholder="Ex: Tilápia / Semana"
+                          className="bg-white/5 border-white/10"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-white/40">Valor combinado</label>
+                        <Input
+                          disabled={isContractLocked}
+                          type="number"
+                          value={contractForm.contract_value}
+                          onChange={(e) => setContractForm({ ...contractForm, contract_value: Number(e.target.value) })}
+                          placeholder="0.00"
+                          className="bg-white/5 border-white/10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-white/40">Frequência de pagamento</label>
+                        <Select value={contractForm.contract_frequency} onValueChange={(v) => setContractForm({ ...contractForm, contract_frequency: v as any })}>
+                          <SelectTrigger disabled={isContractLocked} className="bg-white/5 border-white/10 text-white">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+                            <SelectItem value="único">Único</SelectItem>
+                            <SelectItem value="semanal">Semanal</SelectItem>
+                            <SelectItem value="quinzenal">Quinzenal</SelectItem>
+                            <SelectItem value="mensal">Mensal</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-white/40">Método de pagamento</label>
+                        <Select value={contractForm.contract_payment_method} onValueChange={(v) => setContractForm({ ...contractForm, contract_payment_method: v })}>
+                          <SelectTrigger disabled={isContractLocked} className="bg-white/5 border-white/10 text-white">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+                            <SelectItem value="PIX">PIX</SelectItem>
+                            <SelectItem value="Transferência">Transferência</SelectItem>
+                            <SelectItem value="Boleto">Boleto</SelectItem>
+                            <SelectItem value="Cartão">Cartão</SelectItem>
+                            <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                            <SelectItem value="Outro">Outro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-white/40">Canais de pagamento</label>
+                        <Input
+                          disabled={isContractLocked}
+                          value={contractForm.contract_payment_channels}
+                          onChange={(e) => setContractForm({ ...contractForm, contract_payment_channels: e.target.value })}
+                          placeholder="PIX, Transferência, Cartão..."
+                          className="bg-white/5 border-white/10"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-white/40">Número de parcelas</label>
+                        <Input
+                          disabled={isContractLocked}
+                          type="number"
+                          min={1}
+                          value={contractForm.contract_installments}
+                          onChange={(e) => setContractForm({ ...contractForm, contract_installments: Number(e.target.value) || 1 })}
+                          className="bg-white/5 border-white/10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-white/40">Valor da parcela</label>
+                        <Input
+                          disabled={isContractLocked}
+                          type="number"
+                          value={contractForm.contract_installment_value || getComputedInstallmentValue()}
+                          onChange={(e) => setContractForm({ ...contractForm, contract_installment_value: Number(e.target.value) })}
+                          className="bg-white/5 border-white/10"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-white/40">Data de início / vencimento</label>
+                        <Input
+                          disabled={isContractLocked}
+                          type="date"
+                          value={contractForm.contract_due_start}
+                          onChange={(e) => setContractForm({ ...contractForm, contract_due_start: e.target.value })}
+                          className="bg-white/5 border-white/10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase tracking-widest text-white/40">Observações do contrato</label>
+                      <Textarea
+                        disabled={isContractLocked}
+                        value={contractForm.contract_notes}
+                        onChange={(e) => setContractForm({ ...contractForm, contract_notes: e.target.value })}
+                        className="bg-white/5 border-white/10 h-28"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-white/[0.02] border-white/5 p-4 md:p-6">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="text-[10px] uppercase tracking-widest text-white/30 font-black">Parcelas previstas</CardDescription>
+                    <CardTitle className="text-xl font-serif">Cronograma</CardTitle>
+                    <p className="text-xs font-semibold text-emerald-300 mt-1 bg-emerald-500/10 rounded-xl px-2 py-1 inline-block">
+                      {getNextPaymentCountdown() || 'Defina data e parcelas para ver o próximo vencimento'}
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {(getContractSchedule() || []).slice(0, 6).map((item) => (
+                      <div key={item.index} className="flex items-center justify-between rounded-2xl bg-white/5 p-3 border border-white/5">
+                        <span className="text-sm font-medium">Parcela {item.index}</span>
+                        <span className="text-xs text-white/30">{formatLocalDate(item.date.toISOString(), 'dd MMM yyyy')}</span>
+                      </div>
+                    ))}
+                    {getContractSchedule().length === 0 && (
+                      <p className="text-xs text-white/40">Defina o valor e a data para ver as parcelas.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-4">
+                <Card className="bg-white/[0.02] border-white/5 p-4 md:p-6">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="text-[10px] uppercase tracking-widest text-white/30 font-black">Fotos do Contrato</CardDescription>
+                    <CardTitle className="text-xl font-serif">Imagens</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <label className="text-[10px] uppercase tracking-widest text-white/40 mb-2 block">Enviar fotos</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        disabled={isContractLocked}
+                        onChange={handleContractFileUpload}
+                        className="w-full text-[10px] text-white/80 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-purple-600 file:text-white/90 file:font-semibold bg-white/5 border border-white/10 rounded-xl disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                      {isContractUploading && <p className="text-[10px] text-white/40 mt-2">Enviando fotos...</p>}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {contractForm.contract_photos?.map((photo) => (
+                        <div key={photo} className="relative rounded-3xl overflow-hidden border border-white/10 bg-white/5 shadow-sm">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedContractPhoto(photo)}
+                            className="group block h-56 w-full overflow-hidden"
+                          >
+                            <img
+                              src={photo}
+                              alt="Contrato"
+                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                          </button>
+                          {!isContractLocked && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveContractPhoto(photo)}
+                              className="absolute top-3 right-3 h-8 w-8 rounded-full bg-black/60 text-white flex items-center justify-center transition hover:bg-black/80"
+                            >
+                              &times;
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {(!contractForm.contract_photos || contractForm.contract_photos.length === 0) && (
+                        <div className="col-span-full rounded-3xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-white/30">
+                          Nenhuma foto adicionada ainda.
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Dialog open={Boolean(selectedContractPhoto)} onOpenChange={(open) => { if (!open) setSelectedContractPhoto(null); }}>
+                  <DialogContent className="max-w-5xl w-full p-0 overflow-hidden rounded-3xl bg-[#0f1720] border border-white/10 shadow-2xl">
+                    <div className="relative bg-black">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedContractPhoto(null)}
+                        className="absolute top-4 right-4 z-10 h-10 w-10 rounded-full bg-black/70 text-white hover:bg-black/90 flex items-center justify-center"
+                      >
+                        ×
+                      </button>
+                      {selectedContractPhoto && (
+                        <img
+                          src={selectedContractPhoto}
+                          alt="Contrato em tela grande"
+                          className="h-[75vh] w-full object-contain bg-black"
+                        />
+                      )}
+                    </div>
+                    <DialogFooter className="justify-end p-4">
+                      <Button onClick={() => setSelectedContractPhoto(null)} className="bg-white/10 text-white hover:bg-white/20">Fechar</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="finance" className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">

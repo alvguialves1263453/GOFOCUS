@@ -52,6 +52,7 @@ import { ptBR } from 'date-fns/locale';
 import { 
   getInstagramClients, 
   createInstagramClient, 
+  updateInstagramClient,
   addFollowerEntry, 
   addInstagramPost,
   getFollowerHistory,
@@ -74,6 +75,9 @@ interface ScrappaUserData {
   full_name: string;
   biography: string;
   profile_pic_url_hd: string;
+  profile_pic_url?: string;
+  profile_picture_url?: string;
+  avatar?: string;
   follower_count: number;
   following_count: number;
   media_count: number;
@@ -194,12 +198,14 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
       const clients = await getInstagramClients();
       let client = clients.find(c => c.username.replace('@', '').toLowerCase() === userData.username.toLowerCase());
 
+      const profilePictureUrl = userData.profile_pic_url_hd || userData.profile_pic_url || userData.profile_picture_url || userData.avatar || "";
+
       if (!client) {
         // Create new client
         client = await createInstagramClient({
           name: userData.full_name || userData.username,
           username: `@${userData.username}`,
-          profile_picture: userData.profile_pic_url_hd,
+          profile_picture: profilePictureUrl,
           niche: "Instagram Import",
           monthly_value: importMonthlyValue,
           payment_day: importPaymentDay,
@@ -208,6 +214,14 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
           start_date: new Date().toISOString().split('T')[0]
         });
         toast.success(`Cliente @${userData.username} criado no sistema!`);
+      } else {
+        // Update existing client with Instagram profile picture and metadata
+        await updateInstagramClient(client.id, {
+          profile_picture: profilePictureUrl || client.profile_picture,
+          name: userData.full_name || client.name,
+          notes: userData.biography || client.notes,
+        });
+        toast.success(`Cliente @${userData.username} atualizado com foto de perfil!`);
       }
 
       // 2. Add follower history for today (safeguard values)

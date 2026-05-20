@@ -11,6 +11,18 @@ export interface InstagramClient {
   status: 'ativo' | 'pendente' | 'pausado' | 'cancelado';
   niche: string;
   notes: string;
+  contract_photos?: string[];
+  contract_value?: number;
+  contract_frequency?: 'único' | 'semanal' | 'quinzenal' | 'mensal';
+  contract_payment_method?: string;
+  contract_payment_channels?: string;
+  contract_type?: string;
+  contract_installments?: number;
+  contract_installment_value?: number;
+  contract_due_start?: string;
+  contract_due_day?: number;
+  contract_notes?: string;
+  contract_locked?: boolean;
   created_at: string;
   updated_at: string;
 }
