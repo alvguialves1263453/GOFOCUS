@@ -584,9 +584,9 @@ const AdminProjectEdit = () => {
 
           <div className="flex items-center gap-2 shrink-0">
             {/* Category Select */}
-            <div className="hidden md:block">
+            <div className="block">
               <Select value={project.categoryId || "none"} onValueChange={updateCategory}>
-                <SelectTrigger className="h-8 w-[140px] bg-transparent border-white/10 text-[9px] font-semibold uppercase tracking-wider text-white/50 focus:ring-0 focus:ring-offset-0">
+                <SelectTrigger className="h-8 w-[120px] sm:w-[140px] bg-transparent border-white/10 text-[9px] font-semibold uppercase tracking-wider text-white/50 focus:ring-0 focus:ring-offset-0">
                   <Tag className="h-3 w-3 mr-2 text-white/30" />
                   <SelectValue placeholder="Categoria" />
                 </SelectTrigger>

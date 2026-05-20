@@ -386,10 +386,10 @@ const AdminDashboard = () => {
           </div>
 
           {/* Tab switcher */}
-          <div className="flex items-center border border-white/10 rounded-sm overflow-hidden self-start w-full sm:w-auto">
+          <div className="flex items-center border border-white/10 rounded-sm overflow-x-auto custom-scrollbar self-start w-full sm:w-auto">
             <button
               onClick={() => setActiveTab("projects")}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
                 activeTab === "projects"
                   ? "bg-white text-black shadow-lg"
                   : "text-white/40 hover:text-white/70"
@@ -400,7 +400,7 @@ const AdminDashboard = () => {
             </button>
             <button
               onClick={() => setActiveTab("categories")}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 whitespace-nowrap ${
                 activeTab === "categories"
                   ? "bg-white text-black shadow-lg"
                   : "text-white/40 hover:text-white/70"
@@ -411,7 +411,7 @@ const AdminDashboard = () => {
             </button>
             <button
               onClick={() => setActiveTab("planner")}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 whitespace-nowrap ${
                 activeTab === "planner"
                   ? "bg-white text-black shadow-lg"
                   : "text-white/40 hover:text-white/70"

@@ -74,9 +74,9 @@ export function DemandasDashboard({ demandas }: DemandasDashboardProps) {
           <span className="text-[10px] uppercase tracking-widest text-white/40 font-medium">A Receber</span>
           <AlertCircle className="h-4 w-4 text-amber-400/40" />
         </div>
-        <div className="flex flex-col">
-          <span className="text-lg font-serif text-amber-100">{formatCurrency(faturamentoPendente)}</span>
-          <span className="text-[9px] text-amber-400/50 mt-1">{pendentesPagamento} demandas pendentes</span>
+        <div className="flex flex-col min-w-0">
+          <span className="text-lg font-serif text-amber-100 truncate" title={formatCurrency(faturamentoPendente)}>{formatCurrency(faturamentoPendente)}</span>
+          <span className="text-[9px] text-amber-400/50 mt-1 truncate">{pendentesPagamento} demandas pendentes</span>
         </div>
       </div>
 
@@ -86,8 +86,8 @@ export function DemandasDashboard({ demandas }: DemandasDashboardProps) {
           <span className="text-[10px] uppercase tracking-widest text-white/40 font-medium">Faturamento</span>
           <DollarSign className="h-4 w-4 text-emerald-400/40" />
         </div>
-        <div className="flex flex-col">
-          <span className="text-lg font-serif text-emerald-400">{formatCurrency(faturamentoTotal)}</span>
+        <div className="flex flex-col min-w-0">
+          <span className="text-lg font-serif text-emerald-400 truncate" title={formatCurrency(faturamentoTotal)}>{formatCurrency(faturamentoTotal)}</span>
           <span className="text-[9px] text-emerald-400/50 mt-1">recebido</span>
         </div>
       </div>

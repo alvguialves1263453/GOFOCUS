@@ -142,7 +142,7 @@ export function DemandaModal({ isOpen, onClose, demandaToEdit, onSave }: Demanda
                         <CalendarIcon className="h-4 w-4 opacity-50" />
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-[#111] border-white/10" align="start">
+                    <PopoverContent className="w-auto p-0 bg-[#111] border-white/10" align="center" sideOffset={4}>
                       <Calendar
                         mode="single"
                         selected={formData.prazo_entrega ? parseISO(formData.prazo_entrega) : undefined}

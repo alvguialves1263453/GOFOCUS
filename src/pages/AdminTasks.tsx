@@ -93,11 +93,11 @@ export default function AdminTasks() {
   if (isLoading) {
     return (
       <div className="flex h-screen bg-background p-8 gap-8">
-        <div className="flex-1 space-y-8">
-          <Skeleton className="h-12 w-1/3 rounded-xl" />
+        <div className="flex-1 space-y-8 w-full">
+          <Skeleton className="h-12 w-full max-w-[200px] rounded-xl" />
           <Skeleton className="h-[600px] w-full rounded-3xl" />
         </div>
-        <div className="w-[350px] space-y-8">
+        <div className="hidden lg:block w-[350px] space-y-8">
           <Skeleton className="h-40 w-full rounded-3xl" />
           <Skeleton className="h-64 w-full rounded-3xl" />
           <Skeleton className="h-48 w-full rounded-3xl" />
@@ -172,11 +172,11 @@ export default function AdminTasks() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
-              <div className="hidden sm:block relative group">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+              <div className="relative group flex-1">
+                <SearchIcon className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input 
                   placeholder="Pesquisar..." 
-                  className="w-48 xl:w-64 pl-10 bg-muted/30 border-white/5 focus:border-primary/50 transition-all rounded-xl h-10 text-sm"
+                  className="w-24 xs:w-32 sm:w-48 xl:w-64 pl-7 sm:pl-10 bg-muted/30 border-white/5 focus:border-primary/50 transition-all rounded-xl h-9 sm:h-10 text-xs sm:text-sm"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -255,6 +255,17 @@ export default function AdminTasks() {
                   view={view}
                   setView={setView}
                 />
+                
+                {/* TaskSidebar Mobile View */}
+                <div className="block lg:hidden mt-10 pt-6 border-t border-white/10 pb-20">
+                  <h3 className="font-serif text-xl mb-4 px-2">Suas Tarefas</h3>
+                  <div className="bg-background/30 p-4 rounded-3xl border border-white/5">
+                    <TaskSidebar 
+                      tasks={tasks}
+                      onSelectTask={(task) => handleOpenEditModal(task)}
+                    />
+                  </div>
+                </div>
               </motion.div>
             </div>
 

@@ -25,7 +25,7 @@ export function DemandasFilters({
            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20" />
            <input 
               type="text" 
-              placeholder="Buscar cliente, empresa ou título..." 
+              placeholder="Buscar cliente..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white/3 border border-white/8 pl-9 pr-4 py-2 text-[11px] rounded-sm focus:outline-none focus:border-white/20 transition-colors text-white placeholder:text-white/30"
@@ -33,7 +33,7 @@ export function DemandasFilters({
         </div>
         
         {/* Filtros */}
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="h-[34px] bg-white/3 border-white/8 text-[10px] w-full sm:w-[130px] focus:ring-0 text-white">
               <Filter className="h-3 w-3 mr-2 text-white/20" />

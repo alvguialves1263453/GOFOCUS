@@ -294,24 +294,24 @@ const AdminInstagram = () => {
           </div>
 
           {/* Tab switcher */}
-          <div className="flex items-center border border-white/10 rounded-sm overflow-hidden self-start w-full sm:w-auto">
+          <div className="flex items-center border border-white/10 rounded-sm overflow-x-auto custom-scrollbar self-start w-full sm:w-auto">
             <button
               onClick={() => navigate("/admin/dashboard")}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all text-white/40 hover:text-white/70"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all text-white/40 hover:text-white/70 whitespace-nowrap"
             >
               <LayoutGrid className="h-3 w-3" />
               Projetos
             </button>
             <button
               onClick={() => navigate("/admin/dashboard?tab=categories")}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 text-white/40 hover:text-white/70"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 text-white/40 hover:text-white/70 whitespace-nowrap"
             >
               <Layers className="h-3 w-3" />
               Categorias
             </button>
             <button
               onClick={() => navigate("/admin/planner")}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 text-white/40 hover:text-white/70"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 text-white/40 hover:text-white/70 whitespace-nowrap"
             >
               <Calendar className="h-3 w-3" />
               Planner
@@ -339,12 +339,12 @@ const AdminInstagram = () => {
             <p className="text-white/30 text-[11px] uppercase tracking-widest mt-1">Controle de clientes e métricas</p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <div className="relative w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
               <Input 
                 placeholder="Buscar cliente..." 
-                className="pl-10 bg-white/5 border-white/10 w-[200px] md:w-[300px] focus:border-purple-500/50 transition-all"
+                className="pl-10 bg-white/5 border-white/10 w-full sm:w-[200px] md:w-[300px] focus:border-purple-500/50 transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -353,17 +353,19 @@ const AdminInstagram = () => {
             <Button 
               variant="outline" 
               onClick={() => setIsIntegrationsModalOpen(true)}
-              className="bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500 hover:text-white px-6 rounded-xl font-bold transition-all gap-2"
+              className="flex-1 sm:flex-none bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500 hover:text-white px-4 sm:px-6 rounded-xl font-bold transition-all gap-2"
             >
               <TrendingUp className="w-4 h-4" />
-              Integrações Avançadas
+              <span className="hidden xs:inline">Integrações Avançadas</span>
+              <span className="xs:hidden">Integrações</span>
             </Button>
 
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-purple-600 hover:bg-purple-700 text-white gap-2 shadow-lg shadow-purple-600/20">
+                <Button className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-700 text-white gap-2 shadow-lg shadow-purple-600/20">
                   <Plus className="w-4 h-4" />
-                  Novo Cliente
+                  <span className="hidden xs:inline">Novo Cliente</span>
+                  <span className="xs:hidden">Novo</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="bg-[#0f0f0f] border-white/10 text-white sm:max-w-[500px]">
@@ -375,7 +377,7 @@ const AdminInstagram = () => {
                 </DialogHeader>
                 
                 <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] uppercase tracking-widest text-white/40">Nome do Cliente</label>
                       <Input 
@@ -396,7 +398,7 @@ const AdminInstagram = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] uppercase tracking-widest text-white/40">Nicho</label>
                       <Input 
@@ -418,7 +420,7 @@ const AdminInstagram = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] uppercase tracking-widest text-white/40">Dia de Pagamento</label>
                       <Input 
@@ -630,7 +632,7 @@ const AdminInstagram = () => {
                   </CardHeader>
 
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
                         <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Status</p>
                         <Badge variant="outline" className={`
@@ -653,7 +655,7 @@ const AdminInstagram = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
                         <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Pagamento</p>
                         <p className="text-xs font-medium">Todo dia {client.payment_day}</p>
@@ -695,7 +697,7 @@ const AdminInstagram = () => {
           
           {editingClient && (
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase tracking-widest text-white/40">Nome do Cliente</label>
                   <Input 
@@ -716,7 +718,7 @@ const AdminInstagram = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase tracking-widest text-white/40">Nicho</label>
                   <Input 
@@ -738,7 +740,7 @@ const AdminInstagram = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase tracking-widest text-white/40">Dia de Pagamento</label>
                   <Input 
