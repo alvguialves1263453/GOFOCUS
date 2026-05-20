@@ -19,7 +19,7 @@ import {
   Loader2, LogOut, Link as LinkIcon, Check, QrCode,
   Tag, ExternalLink, X, ArrowUpRight, LayoutGrid, Layers,
   Search, Eye, EyeOff, Filter, Edit2, MoreVertical, Calendar,
-  SlidersHorizontal, Bell, Settings as SettingsIcon, Instagram
+  SlidersHorizontal, Bell, Settings as SettingsIcon, Instagram, ListTodo
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import {
@@ -422,10 +422,17 @@ const AdminDashboard = () => {
             </button>
             <button
               onClick={() => navigate("/admin/instagram")}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 text-white/40 hover:text-white/70"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 text-white/40 hover:text-white/70 whitespace-nowrap"
             >
               <Instagram className="h-3 w-3" />
               Instagram
+            </button>
+            <button
+              onClick={() => navigate("/admin/demandas")}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 text-white/40 hover:text-white/70 whitespace-nowrap"
+            >
+              <ListTodo className="h-3 w-3" />
+              Demandas
             </button>
           </div>
         </div>
