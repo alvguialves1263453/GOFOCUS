@@ -58,7 +58,8 @@ import {
   getFollowerHistory,
   getInstagramPosts,
   InstagramClient,
-  fetchScrappaPosts
+  fetchScrappaPosts,
+  getScrappaKey
 } from '@/lib/instagram';
 import { 
   Clock,
@@ -87,7 +88,6 @@ interface ScrappaUserData {
   recent_posts?: any[];
 }
 
-const SCRAPPA_KEY = 'eyJpdiI6IkFvZWk5dGNYOTRCajdlR1JTQm5aY1E9PSIsInZhbHVlIjoiK3hZRVpTOUQyYlIxOW1sc3c2U1VGRXZ1ZFUrSHE3cnVFdG12Q1B0aHZRNTl3NnVtd2t0QkdzMiswaUlZT0EvbTNHajUvWmQybVIwdE5lR3duZXAyUEE9PSIsIm1hYyI6IjczYmZkYWJlNjMwOTNjZWU4NTVjYWVjODg0MWY5MTA1MDBlODk3ZWM2ZDBmNTg1OWZkYzQwY2NiZDYwMTlmNzUiLCJ0YWciOiIifQ==';
 
 export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: InstagramIntegrationsModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -166,7 +166,7 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
     try {
       const response = await fetch(`https://scrappa.co/api/instagram/user?username=${cleanUsername}&refresh=true&_t=${Date.now()}`, {
         headers: {
-          'x-api-key': SCRAPPA_KEY,
+          'x-api-key': getScrappaKey(),
           'Accept': 'application/json',
           'Cache-Control': 'no-cache'
         }
@@ -315,7 +315,7 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
     try {
       const response = await fetch(`https://scrappa.co/api/instagram/user?username=${selectedAccount.username}&refresh=true&_t=${Date.now()}`, {
         headers: {
-          'x-api-key': SCRAPPA_KEY,
+          'x-api-key': getScrappaKey(),
           'Accept': 'application/json',
           'Cache-Control': 'no-cache'
         }

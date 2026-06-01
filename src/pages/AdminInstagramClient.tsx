@@ -77,7 +77,8 @@ import {
   InstagramPost,
   InstagramPayment,
   InstagramTask,
-  InstagramExpense
+  InstagramExpense,
+  getScrappaKey
 } from "@/lib/instagram";
 import { useAuth } from "@/hooks/useAuth";
 import { uploadToImageKit } from "@/lib/imagekit";
@@ -250,8 +251,6 @@ const AdminInstagramClient = () => {
     }
   };
 
-  const SCRAPPA_KEY = 'eyJpdiI6IkFvZWk5dGNYOTRCajdlR1JTQm5aY1E9PSIsInZhbHVlIjoiK3hZRVpTOUQyYlIxOW1sc3c2U1VGRXZ1ZFUrSHE3cnVFdG12Q1B0aHZRNTl3NnVtd2t0QkdzMiswaUlZT0EvbTNHajUvWmQybVIwdE5lR3duZXAyUEE9PSIsIm1hYyI6IjczYmZkYWJlNjMwOTNjZWU4NTVjYWVjODg0MWY5MTA1MDBlODk3ZWM2ZDBmNTg1OWZkYzQwY2NiZDYwMTlmNzUiLCJ0YWciOiIifQ==';
-
   // Helper: extract views/reach from a Scrappa post object, covering all known field variations
   const getPostReach = (post: any, fallback: number = 0): number => {
     const candidates = [
@@ -307,7 +306,7 @@ const AdminInstagramClient = () => {
       const url = `https://scrappa.co/api/instagram/user/posts?username=${cleanUsername}${nextMaxId ? `&max_id=${nextMaxId}` : ''}`;
       const response = await fetch(url, {
         headers: {
-          'x-api-key': SCRAPPA_KEY,
+          'x-api-key': getScrappaKey(),
           'Accept': 'application/json'
         }
       });
@@ -351,7 +350,7 @@ const AdminInstagramClient = () => {
       // Fetch profile info from Scrappa
       const res = await fetch(`https://scrappa.co/api/instagram/user?username=${cleanUsername}&refresh=true&_t=${Date.now()}`, {
         headers: { 
-          'x-api-key': SCRAPPA_KEY, 
+          'x-api-key': getScrappaKey(), 
           'Accept': 'application/json',
           'Cache-Control': 'no-cache'
         }

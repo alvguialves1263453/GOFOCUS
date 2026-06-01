@@ -9,7 +9,7 @@ import {
   TrendingDown, Briefcase, MessageSquare,
   ShieldAlert, BadgeDollarSign, UserPlus,
   ExternalLink, Trash2, Camera, LogOut, ArrowUpRight,
-  Layers, Tag, Eye, EyeOff, ListTodo, X
+  Layers, Tag, Eye, EyeOff, ListTodo, X, Settings
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -41,10 +41,11 @@ import {
   updateInstagramClient,
   deleteInstagramClient,
   InstagramClient,
-  getAllFollowerHistory,
   getAllInstagramPosts,
   FollowerHistory,
-  InstagramPost
+  InstagramPost,
+  getScrappaKey,
+  setScrappaKey
 } from "@/lib/instagram";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
@@ -62,6 +63,8 @@ const AdminInstagram = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<InstagramClient | null>(null);
   const [isIntegrationsModalOpen, setIsIntegrationsModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [scrappaKeyInput, setScrappaKeyInput] = useState("");
   
   // Form State
   const [newClient, setNewClient] = useState({
@@ -75,6 +78,18 @@ const AdminInstagram = () => {
     notes: ""
   });
   const [showRevenue, setShowRevenue] = useState(true);
+
+  useEffect(() => {
+    if (isSettingsModalOpen) {
+      setScrappaKeyInput(getScrappaKey());
+    }
+  }, [isSettingsModalOpen]);
+
+  const handleSaveSettings = () => {
+    setScrappaKey(scrappaKeyInput);
+    setIsSettingsModalOpen(false);
+    toast.success("Chave API salva com sucesso!");
+  };
 
   // Helper to parse date string correctly in local time
   const parseLocalDate = (dateStr: string) => {
@@ -241,7 +256,7 @@ const AdminInstagram = () => {
     }
     
     const cleanUsername = username.replace('@', '').trim();
-    const SCRAPPA_KEY = 'eyJpdiI6IkFvZWk5dGNYOTRCajdlR1JTQm5aY1E9PSIsInZhbHVlIjoiK3hZRVpTOUQyYlIxOW1sc3c2U1VGRXZ1ZFUrSHE3cnVFdG12Q1B0aHZRNTl3NnVtd2t0QkdzMiswaUlZT0EvbTNHajUvWmQybVIwdE5lR3duZXAyUEE9PSIsIm1hYyI6IjczYmZkYWJlNjMwOTNjZWU4NTVjYWVjODg0MWY5MTA1MDBlODk3ZWM2ZDBmNTg1OWZkYzQwY2NiZDYwMTlmNzUiLCJ0YWciOiIifQ==';
+    const SCRAPPA_KEY = getScrappaKey();
 
     try {
       const response = await fetch(`https://scrappa.co/api/instagram/user?username=${cleanUsername}&refresh=true&_t=${Date.now()}`, {
@@ -434,6 +449,14 @@ const AdminInstagram = () => {
             </div>
             
             <Button 
+              variant="outline"
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="flex-1 sm:flex-none border-white/10 text-white/60 hover:text-white bg-white/5 hover:bg-white/10 px-4 rounded-xl transition-all"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+
+            <Button 
               variant="outline" 
               onClick={() => setIsIntegrationsModalOpen(true)}
               className="flex-1 sm:flex-none bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500 hover:text-white px-4 sm:px-6 rounded-xl font-bold transition-all gap-2"
@@ -574,6 +597,41 @@ const AdminInstagram = () => {
                 <DialogFooter>
                   <Button variant="ghost" onClick={() => setIsAddDialogOpen(false)}>Cancelar</Button>
                   <Button onClick={handleAddClient} className="bg-purple-600 hover:bg-purple-700">Criar Cliente</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isSettingsModalOpen} onOpenChange={setIsSettingsModalOpen}>
+              <DialogContent className="bg-[#0f0f0f] border-white/10 text-white sm:max-w-[400px]">
+                <DialogHeader className="flex flex-row items-start justify-between">
+                  <div>
+                    <DialogTitle className="font-serif text-xl flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-purple-400" />
+                      Configurações API
+                    </DialogTitle>
+                    <DialogDescription className="text-white/40 mt-1">
+                      Configure a chave de API da Scrappa.co
+                    </DialogDescription>
+                  </div>
+                  <button onClick={() => setIsSettingsModalOpen(false)} className="p-2 text-white/40 hover:text-white bg-white/5 rounded-sm transition-colors mt-0">
+                    <X className="h-4 w-4" />
+                  </button>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase tracking-widest text-white/40">Sua Chave API (x-api-key)</label>
+                    <Input 
+                      placeholder="Deixe em branco para usar a padrão" 
+                      value={scrappaKeyInput}
+                      onChange={(e) => setScrappaKeyInput(e.target.value)}
+                      className="bg-white/5 border-white/10"
+                    />
+                    <p className="text-[10px] text-white/30">Crie uma conta no scrappa.co e pegue sua API Key para usar os seus próprios limites gratuitos.</p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setIsSettingsModalOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleSaveSettings} className="bg-purple-600 hover:bg-purple-700">Salvar Chave</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

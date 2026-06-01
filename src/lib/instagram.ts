@@ -341,3 +341,24 @@ export const getAllInstagramPosts = async () => {
   if (error) throw error;
   return data as InstagramPost[];
 };
+
+export const DEFAULT_SCRAPPA_KEY = 'eyJpdiI6IkFvZWk5dGNYOTRCajdlR1JTQm5aY1E9PSIsInZhbHVlIjoiK3hZRVpTOUQyYlIxOW1sc3c2U1VGRXZ1ZFUrSHE3cnVFdG12Q1B0aHZRNTl3NnVtd2t0QkdzMiswaUlZT0EvbTNHajUvWmQybVIwdE5lR3duZXAyUEE9PSIsIm1hYyI6IjczYmZkYWJlNjMwOTNjZWU4NTVjYWVjODg0MWY5MTA1MDBlODk3ZWM2ZDBmNTg1OWZkYzQwY2NiZDYwMTlmNzUiLCJ0YWciOiIifQ==';
+
+export const getScrappaKey = () => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('scrappa_api_key');
+    if (saved) return saved;
+  }
+  return DEFAULT_SCRAPPA_KEY;
+};
+
+export const setScrappaKey = (key: string) => {
+  if (typeof window !== 'undefined') {
+    if (key.trim() === '') {
+      localStorage.removeItem('scrappa_api_key');
+    } else {
+      localStorage.setItem('scrappa_api_key', key.trim());
+    }
+  }
+};
+
