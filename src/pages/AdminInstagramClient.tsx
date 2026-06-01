@@ -11,7 +11,7 @@ import {
   Link as LinkIcon, Camera, Eye, Info, Image as ImageIcon,
   LogOut, ArrowUpRight, BadgeDollarSign, ExternalLink,
   Wallet, Receipt, CreditCard, Send, Ban, Target, ArrowDownRight,
-  AlertCircle, Lock, Unlock, PieChart as PieChartIcon, RefreshCw
+  AlertCircle, Lock, Unlock, PieChart as PieChartIcon, RefreshCw, ArrowRight
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
