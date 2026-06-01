@@ -349,8 +349,12 @@ const AdminInstagramClient = () => {
     try {
       const cleanUsername = client.username.replace('@', '').trim();
       // Fetch profile info from Scrappa
-      const res = await fetch(`https://scrappa.co/api/instagram/user?username=${cleanUsername}`, {
-        headers: { 'x-api-key': SCRAPPA_KEY, 'Accept': 'application/json' }
+      const res = await fetch(`https://scrappa.co/api/instagram/user?username=${cleanUsername}&refresh=true&_t=${Date.now()}`, {
+        headers: { 
+          'x-api-key': SCRAPPA_KEY, 
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
       });
       const data = await res.json();
 

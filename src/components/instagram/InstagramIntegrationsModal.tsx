@@ -164,10 +164,11 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
     const cleanUsername = searchQuery.replace('@', '').trim();
 
     try {
-      const response = await fetch(`https://scrappa.co/api/instagram/user?username=${cleanUsername}`, {
+      const response = await fetch(`https://scrappa.co/api/instagram/user?username=${cleanUsername}&refresh=true&_t=${Date.now()}`, {
         headers: {
           'x-api-key': SCRAPPA_KEY,
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
         }
       });
 
@@ -226,12 +227,28 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
 
       // 2. Add follower history for today (safeguard values)
       const validFollowers = Number(userData.follower_count) || 0;
-      await addFollowerEntry({
-        client_id: client.id,
-        date: new Date().toISOString().split('T')[0],
-        followers_start: validFollowers,
-        followers_end: validFollowers
-      });
+      const todayStr = new Date().toISOString().split('T')[0];
+      
+      const history = await getFollowerHistory(client.id);
+      const todayEntry = history.find(h => h.date.split('T')[0] === todayStr);
+
+      if (todayEntry) {
+        await addFollowerEntry({
+          client_id: client.id,
+          date: todayStr,
+          followers_start: todayEntry.followers_start,
+          followers_end: validFollowers
+        });
+      } else {
+        const lastEntry = history[0];
+        const startCount = lastEntry ? lastEntry.followers_end || lastEntry.followers_start : validFollowers;
+        await addFollowerEntry({
+          client_id: client.id,
+          date: todayStr,
+          followers_start: startCount,
+          followers_end: validFollowers
+        });
+      }
 
       // 3. Add posts if available
       if (userData.recent_posts && Array.isArray(userData.recent_posts)) {
@@ -296,10 +313,11 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
     setIsSyncing(true);
     
     try {
-      const response = await fetch(`https://scrappa.co/api/instagram/user?username=${selectedAccount.username}`, {
+      const response = await fetch(`https://scrappa.co/api/instagram/user?username=${selectedAccount.username}&refresh=true&_t=${Date.now()}`, {
         headers: {
           'x-api-key': SCRAPPA_KEY,
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
         }
       });
 
