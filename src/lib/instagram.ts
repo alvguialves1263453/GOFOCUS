@@ -47,6 +47,8 @@ export interface InstagramPost {
   shares: number;
   saves: number;
   post_link: string;
+  image_url?: string;
+  created_at?: string;
 }
 
 export interface InstagramPayment {
@@ -320,4 +322,22 @@ export const fetchScrappaPosts = async (username: string, apiKey: string) => {
   const data = await response.json();
   if (!data.success) throw new Error(data.message || 'Erro ao buscar posts');
   return data.posts || [];
+};
+
+export const getAllFollowerHistory = async () => {
+  const { data, error } = await supabase
+    .from('instagram_followers_history')
+    .select('*')
+    .order('date', { ascending: false });
+  if (error) throw error;
+  return data as FollowerHistory[];
+};
+
+export const getAllInstagramPosts = async () => {
+  const { data, error } = await supabase
+    .from('instagram_posts')
+    .select('*')
+    .order('date', { ascending: false });
+  if (error) throw error;
+  return data as InstagramPost[];
 };

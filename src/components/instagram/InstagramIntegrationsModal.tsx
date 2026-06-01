@@ -249,11 +249,11 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
               date: new Date(takenAt * 1000).toISOString().split('T')[0],
               type: type,
               caption: caption,
-              reach: post.play_count || post.view_count || post.video_view_count || 0,
-              likes: post.like_count || post.likes_count || post.likes || 0,
-              comments: post.comment_count || post.comments_count || post.comments || 0,
-              shares: post.share_count || 0,
-              saves: post.save_count || 0,
+              reach: post.play_count || post.view_count || post.video_view_count || post.video_play_count || post.fb_play_count || post.ig_play_count || post.views || post.video_views || post.reach || post.impressions || post.metrics?.views || post.metrics?.reach || post.metrics?.plays || post.media?.[0]?.play_count || post.media?.[0]?.view_count || 0,
+              likes: post.like_count || post.likes_count || post.likes || post.metrics?.likes || 0,
+              comments: post.comment_count || post.comments_count || post.comments || post.metrics?.comments || 0,
+              shares: post.share_count || post.metrics?.shares || 0,
+              saves: post.save_count || post.metrics?.saves || 0,
               post_link: post.permalink || (post.shortcode ? `https://instagram.com/p/${post.shortcode}/` : post.post_link || "")
             });
             postsCount++;

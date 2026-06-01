@@ -11,7 +11,7 @@ import {
   Link as LinkIcon, Camera, Eye, Info, Image as ImageIcon,
   LogOut, ArrowUpRight, BadgeDollarSign, ExternalLink,
   Wallet, Receipt, CreditCard, Send, Ban, Target, ArrowDownRight,
-  AlertCircle, Lock, Unlock, PieChart as PieChartIcon
+  AlertCircle, Lock, Unlock, PieChart as PieChartIcon, RefreshCw
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -102,6 +102,7 @@ const AdminInstagramClient = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
+  const [followerPeriod, setFollowerPeriod] = useState<'hoje' | 'semanal' | 'mensal' | 'total'>('semanal');
   
   // Data States
   const [client, setClient] = useState<InstagramClient | null>(null);
@@ -131,7 +132,8 @@ const AdminInstagramClient = () => {
     comments: 0,
     shares: 0,
     saves: 0,
-    link: ""
+    link: "",
+    image_url: ""
   });
 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -159,6 +161,18 @@ const AdminInstagramClient = () => {
   const [isContractUploading, setIsContractUploading] = useState(false);
   const [isContractLocked, setIsContractLocked] = useState(false);
   const [selectedContractPhoto, setSelectedContractPhoto] = useState<string | null>(null);
+
+  const [isSyncingPosts, setIsSyncingPosts] = useState(false);
+  const [isSyncingFollowers, setIsSyncingFollowers] = useState(false);
+  const [liveFollowerCount, setLiveFollowerCount] = useState<number | null>(null);
+  const [isPullModalOpen, setIsPullModalOpen] = useState(false);
+  const [scrappaPosts, setScrappaPosts] = useState<any[]>([]);
+  const [isFetchingScrappa, setIsFetchingScrappa] = useState(false);
+  const [importingPostLinks, setImportingPostLinks] = useState<string[]>([]);
+  const [reachOverrides, setReachOverrides] = useState<Record<string, number>>({});
+  const [selectedScrappaPosts, setSelectedScrappaPosts] = useState<Set<string>>(new Set());
+  const [isBatchImporting, setIsBatchImporting] = useState(false);
+  const [isBatchRemoving, setIsBatchRemoving] = useState(false);
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskForm, setTaskForm] = useState({
@@ -233,6 +247,402 @@ const AdminInstagramClient = () => {
       console.error("Critical error in loadData:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const SCRAPPA_KEY = 'eyJpdiI6IkFvZWk5dGNYOTRCajdlR1JTQm5aY1E9PSIsInZhbHVlIjoiK3hZRVpTOUQyYlIxOW1sc3c2U1VGRXZ1ZFUrSHE3cnVFdG12Q1B0aHZRNTl3NnVtd2t0QkdzMiswaUlZT0EvbTNHajUvWmQybVIwdE5lR3duZXAyUEE9PSIsIm1hYyI6IjczYmZkYWJlNjMwOTNjZWU4NTVjYWVjODg0MWY5MTA1MDBlODk3ZWM2ZDBmNTg1OWZkYzQwY2NiZDYwMTlmNzUiLCJ0YWciOiIifQ==';
+
+  // Helper: extract views/reach from a Scrappa post object, covering all known field variations
+  const getPostReach = (post: any, fallback: number = 0): number => {
+    const candidates = [
+      post.play_count,
+      post.view_count,
+      post.video_view_count,
+      post.video_play_count,
+      post.fb_play_count,
+      post.ig_play_count,
+      post.views,
+      post.video_views,
+      post.reach,
+      post.impressions,
+      post.metrics?.views,
+      post.metrics?.reach,
+      post.metrics?.impressions,
+      post.metrics?.video_views,
+      post.metrics?.plays,
+      post.media?.[0]?.play_count,
+      post.media?.[0]?.view_count,
+      post.media?.[0]?.video_view_count,
+    ];
+    const value = candidates.find(v => typeof v === 'number' && v > 0);
+    if (!value && value !== 0) {
+      console.log('[Scrappa Debug] Nenhum campo de views encontrado para post:', post.shortcode || post.id, 'Campos disponíveis:', Object.keys(post));
+    }
+    return value || fallback;
+  };
+
+  // Helper: extract likes from a Scrappa post object
+  const getPostLikes = (post: any, fallback: number = 0): number => {
+    return post.like_count || post.likes_count || post.likes || post.metrics?.likes || fallback;
+  };
+
+  // Helper: extract comments from a Scrappa post object
+  const getPostComments = (post: any, fallback: number = 0): number => {
+    return post.comment_count || post.comments_count || post.comments || post.metrics?.comments || fallback;
+  };
+
+
+  const fetchScrappaData = async () => {
+    if (!client?.username) throw new Error("Usuário não possui @ cadastrado");
+    const cleanUsername = client.username.replace('@', '').trim();
+    console.log("[Scrappa] Buscando posts para:", cleanUsername);
+    
+    let allPosts: any[] = [];
+    let hasMore = true;
+    let nextMaxId = '';
+    let pageCount = 0;
+
+    // Fetch up to 5 pages (about 60 posts) to avoid infinite loops or rate limits
+    while (hasMore && pageCount < 5) {
+      const url = `https://scrappa.co/api/instagram/user/posts?username=${cleanUsername}${nextMaxId ? `&max_id=${nextMaxId}` : ''}`;
+      const response = await fetch(url, {
+        headers: {
+          'x-api-key': SCRAPPA_KEY,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      
+      if (!data?.success && !data?.posts) {
+        if (allPosts.length === 0) throw new Error(data?.message || "Erro ao buscar posts do perfil");
+        break;
+      }
+      
+      const postsList = data.posts || [];
+      allPosts = [...allPosts, ...postsList];
+      
+      if (data.more_available && data.next_max_id) {
+        nextMaxId = data.next_max_id;
+        pageCount++;
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    console.log(`[Scrappa] ${allPosts.length} posts encontrados no total`);
+    if (allPosts.length > 0) {
+      console.log('[Scrappa Debug] Estrutura do primeiro post:', JSON.stringify(allPosts[0], null, 2));
+      console.log('[Scrappa Debug] Campos do primeiro post:', Object.keys(allPosts[0]));
+    }
+    return allPosts;
+  };
+
+  const handlePullLatestPost = async () => {
+    if (!id || !client) return;
+    setIsPullModalOpen(true);
+    handleLoadScrappaPosts();
+  };
+
+  const handleSyncFollowers = async () => {
+    if (!id || !client?.username) return;
+    setIsSyncingFollowers(true);
+    try {
+      const cleanUsername = client.username.replace('@', '').trim();
+      // Fetch profile info from Scrappa
+      const res = await fetch(`https://scrappa.co/api/instagram/user?username=${cleanUsername}`, {
+        headers: { 'x-api-key': SCRAPPA_KEY, 'Accept': 'application/json' }
+      });
+      const data = await res.json();
+
+      console.log('[Scrappa User] Response:', JSON.stringify(data, null, 2));
+
+      // Try multiple field paths for follower count
+      const currentCount: number =
+        data?.follower_count ??
+        data?.followers_count ??
+        data?.followers ??
+        data?.edge_followed_by?.count ??
+        data?.user?.follower_count ??
+        data?.user?.followers_count ??
+        data?.user?.edge_followed_by?.count ??
+        data?.data?.follower_count ??
+        data?.data?.followers_count ??
+        data?.data?.edge_followed_by?.count ??
+        null;
+
+      if (currentCount === null || isNaN(Number(currentCount))) {
+        throw new Error('Não foi possível obter a contagem de seguidores. Verifique se o @ está correto e público.');
+      }
+
+      const count = Number(currentCount);
+      setLiveFollowerCount(count);
+
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      // Check if there's already an entry for today
+      const todayEntry = followers.find(f => f.date.split('T')[0] === todayStr);
+
+      if (todayEntry) {
+        // Update today's end count
+        await updateFollowerEntry(todayEntry.id, {
+          date: todayStr,
+          followers_start: todayEntry.followers_start,
+          followers_end: count
+        });
+        toast.success(`Atualizado: ${count.toLocaleString('pt-BR')} seguidores hoje!`);
+      } else {
+        // New day — start = last entry's end (or 0)
+        const lastEntry = followers[0]; // already sorted newest first
+        const startCount = lastEntry ? lastEntry.followers_end || lastEntry.followers_start : 0;
+        await addFollowerEntry({
+          client_id: id,
+          date: todayStr,
+          followers_start: startCount,
+          followers_end: count
+        });
+        toast.success(`Novo dia registrado: ${count.toLocaleString('pt-BR')} seguidores!`);
+      }
+
+      loadData(id);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Erro ao sincronizar seguidores');
+    } finally {
+      setIsSyncingFollowers(false);
+    }
+  };
+
+  const handleLoadScrappaPosts = async () => {
+    setIsFetchingScrappa(true);
+    try {
+      const recentPosts = await fetchScrappaData();
+      setScrappaPosts(recentPosts || []);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Erro ao carregar posts do Instagram");
+    } finally {
+      setIsFetchingScrappa(false);
+    }
+  };
+
+  const isPostAlreadyImported = (scrappaPost: any) => {
+    const permalink = scrappaPost.permalink || (scrappaPost.shortcode ? `https://www.instagram.com/p/${scrappaPost.shortcode}/` : scrappaPost.post_link || "");
+    const shortcode = scrappaPost.shortcode || "";
+    
+    return posts.some(p => {
+      const pLink = (p.post_link || "").toLowerCase().replace(/\/$/, '');
+      const newLink = permalink.toLowerCase().replace(/\/$/, '');
+      if (!pLink) return false;
+      
+      // Match by shortcode (most reliable)
+      if (shortcode && pLink.includes(shortcode)) return true;
+      
+      // Match by permalink
+      if (pLink === newLink) return true;
+      if (newLink.includes(pLink) || pLink.includes(newLink)) return true;
+      
+      return false;
+    });
+  };
+
+  const handleImportSinglePost = async (scrappaPost: any) => {
+    if (!id) return;
+    const permalink = scrappaPost.permalink || (scrappaPost.shortcode ? `https://www.instagram.com/p/${scrappaPost.shortcode}/` : scrappaPost.post_link || "");
+    
+    setImportingPostLinks(prev => [...prev, permalink]);
+    try {
+      const takenAt = scrappaPost.taken_at || scrappaPost.timestamp;
+      const postDate = takenAt 
+        ? new Date(takenAt).toISOString().split('T')[0] 
+        : new Date().toISOString().split('T')[0];
+      
+      const isVideo = scrappaPost.is_video || scrappaPost.video_url || scrappaPost.product_type === 'clips' || scrappaPost.media_type === 'video';
+      const imageUrl = scrappaPost.media?.[0]?.thumbnail_url || scrappaPost.media?.[0]?.images?.[0]?.url || scrappaPost.thumbnail_url || scrappaPost.display_url || "";
+      
+      const postKey = scrappaPost.shortcode || scrappaPost.id || permalink;
+      const manualReach = reachOverrides[postKey];
+      
+      await addInstagramPost({
+        client_id: id,
+        date: postDate,
+        type: isVideo ? 'reels' : 'feed',
+        caption: scrappaPost.caption || scrappaPost.text || "",
+        reach: manualReach !== undefined && manualReach > 0 ? manualReach : getPostReach(scrappaPost),
+        likes: getPostLikes(scrappaPost),
+        comments: getPostComments(scrappaPost),
+        shares: scrappaPost.share_count || 0,
+        saves: scrappaPost.save_count || 0,
+        post_link: permalink,
+        image_url: imageUrl
+      });
+      
+      toast.success("Post importado com sucesso!");
+      loadData(id);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Erro ao importar post");
+    } finally {
+      setImportingPostLinks(prev => prev.filter(link => link !== permalink));
+    }
+  };
+
+  const togglePostSelection = (postKey: string) => {
+    setSelectedScrappaPosts(prev => {
+      const next = new Set(prev);
+      if (next.has(postKey)) {
+        next.delete(postKey);
+      } else {
+        next.add(postKey);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllNotImported = () => {
+    const notImported = scrappaPosts.filter(p => !isPostAlreadyImported(p));
+    const keys = notImported.map(p => p.shortcode || p.id || p.permalink || '');
+    setSelectedScrappaPosts(new Set(keys));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedScrappaPosts(new Set());
+  };
+
+  const handleBatchImport = async () => {
+    if (!id || selectedScrappaPosts.size === 0) return;
+    setIsBatchImporting(true);
+    let successCount = 0;
+    try {
+      const postsToImport = scrappaPosts.filter(p => {
+        const key = p.shortcode || p.id || p.permalink || '';
+        return selectedScrappaPosts.has(key) && !isPostAlreadyImported(p);
+      });
+
+      for (const scrappaPost of postsToImport) {
+        try {
+          const permalink = scrappaPost.permalink || (scrappaPost.shortcode ? `https://www.instagram.com/p/${scrappaPost.shortcode}/` : scrappaPost.post_link || '');
+          const takenAt = scrappaPost.taken_at || scrappaPost.timestamp;
+          const postDate = takenAt ? new Date(takenAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+          const isVideo = scrappaPost.is_video || scrappaPost.video_url || scrappaPost.product_type === 'clips' || scrappaPost.media_type === 'video';
+          const imageUrl = scrappaPost.media?.[0]?.thumbnail_url || scrappaPost.media?.[0]?.images?.[0]?.url || scrappaPost.thumbnail_url || scrappaPost.display_url || '';
+          const postKey = scrappaPost.shortcode || scrappaPost.id || permalink;
+          const manualReach = reachOverrides[postKey];
+
+          await addInstagramPost({
+            client_id: id,
+            date: postDate,
+            type: isVideo ? 'reels' : 'feed',
+            caption: scrappaPost.caption || scrappaPost.text || '',
+            reach: manualReach !== undefined && manualReach > 0 ? manualReach : getPostReach(scrappaPost),
+            likes: getPostLikes(scrappaPost),
+            comments: getPostComments(scrappaPost),
+            shares: scrappaPost.share_count || 0,
+            saves: scrappaPost.save_count || 0,
+            post_link: permalink,
+            image_url: imageUrl
+          });
+          successCount++;
+        } catch (e) {
+          console.error('Erro ao importar post:', e);
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`${successCount} post${successCount > 1 ? 's' : ''} importado${successCount > 1 ? 's' : ''} com sucesso!`);
+        loadData(id);
+      }
+      setSelectedScrappaPosts(new Set());
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Erro ao importar posts em lote');
+    } finally {
+      setIsBatchImporting(false);
+    }
+  };
+
+  const handleBatchRemove = async () => {
+    if (!id || selectedScrappaPosts.size === 0) return;
+    setIsBatchRemoving(true);
+    let removedCount = 0;
+    try {
+      for (const postKey of selectedScrappaPosts) {
+        const matchingPost = posts.find(p => {
+          const pLink = (p.post_link || '').toLowerCase().replace(/\/$/, '');
+          if (postKey && pLink.includes(postKey)) return true;
+          return false;
+        });
+        if (matchingPost) {
+          await deleteInstagramPost(matchingPost.id);
+          removedCount++;
+        }
+      }
+
+      if (removedCount > 0) {
+        toast.success(`${removedCount} post${removedCount > 1 ? 's' : ''} removido${removedCount > 1 ? 's' : ''} com sucesso!`);
+        loadData(id);
+      } else {
+        toast.info('Nenhum post selecionado foi encontrado nos importados.');
+      }
+      setSelectedScrappaPosts(new Set());
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Erro ao remover posts em lote');
+    } finally {
+      setIsBatchRemoving(false);
+    }
+  };
+
+  const handleUpdateAllPosts = async () => {
+    if (!id || !client || posts.length === 0) return;
+    setIsSyncingPosts(true);
+    try {
+      const recentPosts = await fetchScrappaData();
+      if (!recentPosts || recentPosts.length === 0) {
+        toast.info("Nenhum post encontrado no Scrappa para atualizar.");
+        return;
+      }
+
+      let updatedCount = 0;
+      for (const p of posts) {
+        if (!p.post_link) continue;
+        
+        const scrappaMatch = recentPosts.find((rp: any) => {
+          const rpLink = (rp.permalink || "").toLowerCase().replace(/\/$/, '');
+          const shortcode = rp.shortcode || "";
+          const pLink = p.post_link.toLowerCase().replace(/\/$/, '');
+          
+          if (shortcode && pLink.includes(shortcode)) return true;
+          if (pLink === rpLink) return true;
+          if (rpLink && (pLink.includes(rpLink) || rpLink.includes(pLink))) return true;
+          
+          return false;
+        });
+
+        if (scrappaMatch) {
+          const imageUrl = scrappaMatch.media?.[0]?.thumbnail_url || scrappaMatch.media?.[0]?.images?.[0]?.url || scrappaMatch.thumbnail_url || scrappaMatch.display_url || "";
+          
+          await updateInstagramPost(p.id, {
+            reach: getPostReach(scrappaMatch, p.reach),
+            likes: getPostLikes(scrappaMatch, p.likes),
+            comments: getPostComments(scrappaMatch, p.comments),
+            caption: scrappaMatch.caption || scrappaMatch.text || p.caption,
+            image_url: imageUrl || p.image_url
+          });
+          updatedCount++;
+        }
+      }
+
+      if (updatedCount > 0) {
+        toast.success(`${updatedCount} posts atualizados com os dados mais recentes!`);
+        loadData(id);
+      } else {
+        toast.info("Não foi possível encontrar correspondências (verifique os links dos posts).");
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Erro ao atualizar posts");
+    } finally {
+      setIsSyncingPosts(false);
     }
   };
 
@@ -372,6 +782,67 @@ const AdminInstagramClient = () => {
   };
 
   // --- Calculations ---
+
+  const followerGains = useMemo(() => {
+    if (followers.length === 0) return { hoje: 0, semanal: 0, mensal: 0, total: 0 };
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    // Parse helper
+    const parseLocalDate = (dateStr: string) => {
+      if (!dateStr) return new Date(0);
+      const parts = dateStr.split('T')[0].split('-');
+      if (parts.length === 3) {
+        return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      }
+      return new Date(dateStr);
+    };
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(now.getDate() - 7);
+
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    let hojeGains = 0;
+    let semanalGains = 0;
+    let mensalGains = 0;
+    let totalGains = 0;
+
+    followers.forEach((f) => {
+      const gain = f.followers_end - f.followers_start;
+      const fDateStr = f.date.split('T')[0];
+      
+      // Hoje
+      if (fDateStr === todayStr) {
+        hojeGains += gain;
+      }
+      
+      // Semanal (last 7 days)
+      const d = parseLocalDate(f.date);
+      if (d.getTime() >= sevenDaysAgo.getTime()) {
+        semanalGains += gain;
+      }
+
+      // Mensal (last 30 days)
+      if (d.getTime() >= thirtyDaysAgo.getTime()) {
+        mensalGains += gain;
+      }
+
+      // Total
+      totalGains += gain;
+    });
+
+    return {
+      hoje: hojeGains,
+      semanal: semanalGains,
+      mensal: mensalGains,
+      total: totalGains
+    };
+  }, [followers]);
   
   const followerStats = useMemo(() => {
     if (followers.length === 0) return null;
@@ -403,6 +874,24 @@ const AdminInstagramClient = () => {
     const totalEng = posts.reduce((acc, p) => acc + p.likes + p.comments + p.shares + p.saves, 0);
     const avg = totalEng / posts.length;
     return { avg, total: posts.length };
+  }, [posts]);
+
+  const likeGains = useMemo(() => {
+    if (posts.length === 0) return { hoje: 0, semanal: 0, mensal: 0, total: 0 };
+    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date(); now.setHours(0,0,0,0);
+    const sevenAgo = new Date(now); sevenAgo.setDate(now.getDate() - 7);
+    const thirtyAgo = new Date(now); thirtyAgo.setDate(now.getDate() - 30);
+    const parseD = (s: string) => { const p = s.split('T')[0].split('-'); return new Date(+p[0], +p[1]-1, +p[2]); };
+    let hoje = 0, semanal = 0, mensal = 0, total = 0;
+    posts.forEach(p => {
+      const d = parseD(p.date);
+      total += p.likes;
+      if (p.date.split('T')[0] === todayStr) hoje += p.likes;
+      if (d >= sevenAgo) semanal += p.likes;
+      if (d >= thirtyAgo) mensal += p.likes;
+    });
+    return { hoje, semanal, mensal, total };
   }, [posts]);
 
   const financialStats = useMemo(() => {
@@ -552,31 +1041,86 @@ const AdminInstagramClient = () => {
               <Card className="bg-white/[0.02] border-white/5 relative overflow-hidden group hover:bg-white/[0.04] transition-all">
                 <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
                 <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <CardDescription className="text-[10px] uppercase tracking-widest font-black text-white/30">Seguidores</CardDescription>
-                    <Users className="w-4 h-4 text-purple-400 opacity-50" />
+                  <div className="flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                      <CardDescription className="text-[10px] uppercase tracking-widest font-black text-white/30">Crescimento</CardDescription>
+                      <Users className="w-4 h-4 text-purple-400 opacity-50" />
+                    </div>
+                    
+                    <div className="flex bg-white/5 border border-white/10 p-0.5 rounded-lg text-[8px] uppercase tracking-wider font-bold w-fit">
+                      <button 
+                        type="button"
+                        onClick={() => setFollowerPeriod('hoje')} 
+                        className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === 'hoje' ? 'bg-purple-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
+                      >
+                        Hoje
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setFollowerPeriod('semanal')} 
+                        className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === 'semanal' ? 'bg-purple-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
+                      >
+                        Semanal
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setFollowerPeriod('mensal')} 
+                        className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === 'mensal' ? 'bg-purple-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
+                      >
+                        Mensal
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setFollowerPeriod('total')} 
+                        className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === 'total' ? 'bg-purple-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
+                      >
+                        Total
+                      </button>
+                    </div>
                   </div>
-                  <CardTitle className="text-2xl font-serif">{followerStats?.current.toLocaleString('pt-BR') || 0}</CardTitle>
+                  
+                  <CardTitle className="text-2xl font-serif mt-2">
+                    {followerGains[followerPeriod] >= 0 ? '+' : ''}
+                    {followerGains[followerPeriod].toLocaleString('pt-BR')}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className={`text-[10px] font-bold flex items-center gap-1 ${followerStats && followerStats.todayGrowth >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {followerStats && followerStats.todayGrowth >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
-                    {followerStats?.todayGrowth || 0} hoje
+                  <div className="text-[10px] text-white/30 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    {followerPeriod === 'hoje' ? 'Ganhos de hoje' : followerPeriod === 'semanal' ? 'Ganhos da semana' : followerPeriod === 'mensal' ? 'Ganhos do mês' : 'Crescimento Total'}
+                  </div>
+                  <div className="text-[9px] text-white/20 mt-1.5 uppercase font-bold">
+                    Total: {followerStats?.current.toLocaleString('pt-BR') || 0}
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="bg-white/[0.02] border-white/5 relative overflow-hidden group hover:bg-white/[0.04] transition-all">
-                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+                <div className="absolute top-0 left-0 w-1 h-full bg-pink-500" />
                 <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <CardDescription className="text-[10px] uppercase tracking-widest font-black text-white/30">Engajamento</CardDescription>
-                    <Heart className="w-4 h-4 text-blue-400 opacity-50" />
+                  <div className="flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                      <CardDescription className="text-[10px] uppercase tracking-widest font-black text-white/30">Likes</CardDescription>
+                      <Heart className="w-4 h-4 text-pink-400 opacity-50" />
+                    </div>
+                    <div className="flex bg-white/5 border border-white/10 p-0.5 rounded-lg text-[8px] uppercase tracking-wider font-bold w-fit">
+                      {(['hoje','semanal','mensal','total'] as const).map(p => (
+                        <button key={p} type="button" onClick={() => setFollowerPeriod(p)}
+                          className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === p ? 'bg-pink-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}>
+                          {p === 'hoje' ? 'Hoje' : p === 'semanal' ? '7d' : p === 'mensal' ? '30d' : 'Total'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <CardTitle className="text-2xl font-serif">{engagementStats.avg.toFixed(1)}</CardTitle>
+                  <CardTitle className="text-2xl font-serif mt-2">
+                    {likeGains[followerPeriod].toLocaleString('pt-BR')}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Base de {posts.length} posts</div>
+                  <div className="text-[10px] text-white/30 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-pink-500" />
+                    {followerPeriod === 'hoje' ? 'Likes de hoje' : followerPeriod === 'semanal' ? 'Likes dos 7 dias' : followerPeriod === 'mensal' ? 'Likes dos 30 dias' : 'Total de likes'}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -590,7 +1134,7 @@ const AdminInstagramClient = () => {
                   <CardTitle className="text-2xl font-serif">{posts.length}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Neste período</div>
+                  <div className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Importadas</div>
                 </CardContent>
               </Card>
 
@@ -675,15 +1219,37 @@ const AdminInstagramClient = () => {
 
           {/* 2. CONTROLE DE SEGUIDORES */}
           <TabsContent value="followers" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-serif">Lançamento de Seguidores</h3>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h3 className="text-lg font-serif">Lançamento de Seguidores</h3>
+                {liveFollowerCount !== null && (
+                  <p className="text-[10px] text-purple-400 uppercase tracking-widest mt-0.5">
+                    Última leitura: <span className="font-bold">{liveFollowerCount.toLocaleString('pt-BR')}</span> seguidores
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Auto-sync button */}
+                <Button
+                  onClick={handleSyncFollowers}
+                  disabled={isSyncingFollowers}
+                  className="bg-purple-600 hover:bg-purple-700 gap-2 text-xs"
+                >
+                  {isSyncingFollowers ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  Atualizar via Instagram
+                </Button>
               <Dialog open={isFollowerModalOpen} onOpenChange={(open) => {
                 setIsFollowerModalOpen(open);
                 if (!open) setEditingFollowerId(null);
               }}>
                 <DialogTrigger asChild>
                   <Button 
-                    className="bg-purple-600 hover:bg-purple-700 gap-2"
+                    variant="outline"
+                    className="border-white/10 text-white/60 hover:text-white gap-2"
                     onClick={() => {
                       setEditingFollowerId(null);
                       setFollowerForm({
@@ -694,7 +1260,7 @@ const AdminInstagramClient = () => {
                       });
                     }}
                   >
-                    <Plus className="w-4 h-4" /> Novo Registro
+                    <Plus className="w-4 h-4" /> Manual
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="bg-[#0f0f0f] border-white/10 text-white">
@@ -774,6 +1340,7 @@ const AdminInstagramClient = () => {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-6">
@@ -858,14 +1425,282 @@ const AdminInstagramClient = () => {
           <TabsContent value="posts" className="space-y-6">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-serif">Relatório de Postagens</h3>
-              <Dialog open={isPostModalOpen} onOpenChange={(open) => {
-                setIsPostModalOpen(open);
-                if (!open) setEditingPostId(null);
-              }}>
-                <DialogTrigger asChild>
-                  <Button 
-                    className="bg-purple-600 hover:bg-purple-700 gap-2"
-                    onClick={() => {
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  className="border-purple-500/30 text-purple-400 hover:bg-purple-500 hover:text-white gap-2 text-[10px] sm:text-sm"
+                  onClick={handlePullLatestPost}
+                >
+                  <Instagram className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Puxar Posts</span>
+                  <span className="sm:hidden">Puxar</span>
+                </Button>
+
+                {/* Dialog to pull/import Instagram posts */}
+                <Dialog open={isPullModalOpen} onOpenChange={setIsPullModalOpen}>
+                  <DialogContent className="bg-[#0f0f0f] border-white/10 text-white max-w-[90vw] xl:max-w-7xl h-[85vh] flex flex-col p-6 rounded-2xl">
+                    <DialogHeader className="flex flex-row justify-between items-center border-b border-white/5 pb-4">
+                      <div>
+                        <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                          <Instagram className="w-5 h-5 text-purple-400" />
+                          Importar Publicações do Instagram
+                        </DialogTitle>
+                        <DialogDescription className="text-white/40 mt-1">
+                          Selecione quais posts do perfil de {client.username} você deseja registrar.
+                        </DialogDescription>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={handleLoadScrappaPosts}
+                        disabled={isFetchingScrappa}
+                        className="text-white/60 hover:text-white hover:bg-white/5 h-9 w-9 rounded-full mr-6"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isFetchingScrappa ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-y-auto py-6 pr-1">
+                      {isFetchingScrappa ? (
+                        <div className="h-full flex flex-col items-center justify-center py-20 gap-3">
+                          <RefreshCw className="w-8 h-8 text-purple-500 animate-spin" />
+                          <p className="text-xs text-white/40 uppercase tracking-widest font-black">Buscando publicações recentes...</p>
+                        </div>
+                      ) : scrappaPosts.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center py-20 text-center">
+                          <ImageIcon className="w-12 h-12 text-white/10 mb-4" />
+                          <p className="text-xs text-white/30 uppercase tracking-widest font-black">Nenhum post recente encontrado</p>
+                          <p className="text-[10px] text-white/10 mt-1">Verifique se o @{client.username} está correto e público no Instagram.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                          {scrappaPosts.map((post: any, idx: number) => {
+                            const isImported = isPostAlreadyImported(post);
+                            const permalink = post.permalink || (post.shortcode ? `https://www.instagram.com/p/${post.shortcode}/` : post.post_link || "");
+                            const isImporting = importingPostLinks.includes(permalink);
+                            const isVideo = post.is_video || post.video_url || post.product_type === 'clips' || post.media_type === 'video';
+                            const imageUrl = post.media?.[0]?.thumbnail_url || post.media?.[0]?.images?.[0]?.url || post.thumbnail_url || post.display_url || "";
+                            
+                            // Metrics (using centralized helpers for robust field extraction)
+                            const likes = getPostLikes(post);
+                            const comments = getPostComments(post);
+                            const apiReach = getPostReach(post);
+                            const postKey = post.shortcode || post.id || permalink;
+                            const reach = reachOverrides[postKey] !== undefined ? reachOverrides[postKey] : apiReach;
+
+                            return (
+                              <Card 
+                                key={post.id || idx} 
+                                className={`bg-white/[0.02] border-2 transition-all flex flex-col overflow-hidden relative group cursor-pointer ${
+                                  selectedScrappaPosts.has(postKey)
+                                    ? 'border-purple-500 ring-2 ring-purple-500/30 bg-purple-500/[0.04]'
+                                    : 'border-white/5 hover:border-purple-500/20'
+                                }`}
+                                onClick={(e) => {
+                                  // Don't toggle if clicking on the reach input or buttons
+                                  if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'BUTTON' || (e.target as HTMLElement).closest('button')) return;
+                                  togglePostSelection(postKey);
+                                }}
+                              >
+                                {/* Selection checkbox */}
+                                <div className="absolute top-3 right-3 z-10">
+                                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                                    selectedScrappaPosts.has(postKey)
+                                      ? 'bg-purple-500 border-purple-500'
+                                      : 'border-white/30 bg-black/40 backdrop-blur-sm hover:border-white/50'
+                                  }`}>
+                                    {selectedScrappaPosts.has(postKey) && (
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                                    )}
+                                  </div>
+                                </div>
+                                {/* Selection overlay */}
+                                {selectedScrappaPosts.has(postKey) && (
+                                  <div className="absolute inset-0 z-[5] pointer-events-none flex items-center justify-center">
+                                    <div className="absolute inset-0 bg-purple-600/10" />
+                                  </div>
+                                )}
+                                <div className="absolute top-3 left-3 z-10">
+                                  <Badge className="bg-black/60 backdrop-blur-md text-white border-white/10 text-[8px] uppercase tracking-widest">
+                                    {isVideo ? 'Reels' : 'Feed'}
+                                  </Badge>
+                                </div>
+                                <div className="w-full h-44 overflow-hidden relative bg-black/40">
+                                  {imageUrl ? (
+                                    <img src={imageUrl} alt="Capa do post" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-white/15">
+                                      <ImageIcon className="w-8 h-8" />
+                                    </div>
+                                  )}
+                                </div>
+                                <CardHeader className="p-3 pb-0">
+                                  <p className="text-[10px] text-white/30">
+                                    {post.taken_at || post.timestamp ? formatLocalDate(post.taken_at || post.timestamp, 'dd MMM yyyy') : '-'}
+                                  </p>
+                                </CardHeader>
+                                <CardContent className="p-3 flex-1 flex flex-col justify-between gap-3">
+                                  <p className="text-xs text-white/60 line-clamp-2 italic">
+                                    "{post.caption || post.text || 'Sem legenda'}"
+                                  </p>
+                                  <div className="grid grid-cols-3 gap-1 py-1.5 border-y border-white/5 text-center bg-white/[0.01] rounded-lg">
+                                    <div>
+                                      <p className="text-[7px] text-white/30 uppercase">Likes</p>
+                                      <p className="text-[11px] font-bold">{likes.toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[7px] text-white/30 uppercase">Coment.</p>
+                                      <p className="text-[11px] font-bold">{comments.toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[7px] text-white/30 uppercase">Views</p>
+                                      {apiReach === 0 && !isImported ? (
+                                        <input
+                                          type="number"
+                                          placeholder="0"
+                                          value={reachOverrides[postKey] || ''}
+                                          onChange={(e) => setReachOverrides(prev => ({
+                                            ...prev,
+                                            [postKey]: Number(e.target.value) || 0
+                                          }))}
+                                          className="w-full bg-purple-500/10 border border-purple-500/30 rounded text-[11px] font-bold text-center text-purple-300 h-5 px-1 focus:outline-none focus:border-purple-500/60 placeholder:text-white/20"
+                                          title="Insira o alcance do Instagram Insights"
+                                        />
+                                      ) : (
+                                        <p className="text-[11px] font-bold">{reach.toLocaleString()}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </CardContent>
+                                <CardFooter className="p-3 pt-0 mt-auto">
+                                  {isImported ? (
+                                    <div className="w-full flex items-center justify-center gap-1 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md text-xs h-9">
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      Já Importado
+                                    </div>
+                                  ) : (
+                                    <div className={`w-full flex items-center justify-center gap-1 py-1.5 rounded-md text-xs h-9 transition-all ${
+                                      selectedScrappaPosts.has(postKey)
+                                        ? 'bg-purple-600/20 text-purple-300 border border-purple-500/40 font-bold'
+                                        : 'bg-white/5 text-white/30 border border-white/5'
+                                    }`}>
+                                      {selectedScrappaPosts.has(postKey) ? (
+                                        <><CheckCircle2 className="w-3.5 h-3.5" /> SELECIONADO</>
+                                      ) : (
+                                        'Clique para selecionar'
+                                      )}
+                                    </div>
+                                  )}
+                                </CardFooter>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <DialogFooter className="border-t border-white/5 pt-4 mt-auto">
+                      <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-3">
+                        {/* Left: selection controls */}
+                        <div className="flex items-center gap-2 text-xs">
+                          {scrappaPosts.length > 0 && (
+                            <>
+                              <span className="text-white/30">
+                                {selectedScrappaPosts.size} de {scrappaPosts.filter(p => !isPostAlreadyImported(p)).length} selecionado{selectedScrappaPosts.size !== 1 ? 's' : ''}
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={handleSelectAllNotImported}
+                                className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 text-xs h-7 px-2"
+                              >
+                                Selecionar Todos
+                              </Button>
+                              {selectedScrappaPosts.size > 0 && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={handleDeselectAll}
+                                  className="text-white/40 hover:text-white/60 hover:bg-white/5 text-xs h-7 px-2"
+                                >
+                                  Desmarcar
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        {/* Right: action buttons */}
+                        <div className="flex items-center gap-2">
+                          {selectedScrappaPosts.size > 0 && (
+                            <>
+                              {/* Show remove button if any selected post is already imported */}
+                              {Array.from(selectedScrappaPosts).some(key => 
+                                posts.some(p => (p.post_link || '').toLowerCase().includes(key))
+                              ) && (
+                                <Button
+                                  onClick={handleBatchRemove}
+                                  disabled={isBatchRemoving}
+                                  className="bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 text-xs h-9 gap-1.5"
+                                >
+                                  {isBatchRemoving ? (
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  )}
+                                  Remover ({Array.from(selectedScrappaPosts).filter(key => 
+                                    posts.some(p => (p.post_link || '').toLowerCase().includes(key))
+                                  ).length})
+                                </Button>
+                              )}
+                              {/* Import button for non-imported selected posts */}
+                              {(() => {
+                                const importableCount = Array.from(selectedScrappaPosts).filter(key => {
+                                  const sp = scrappaPosts.find(p => (p.shortcode || p.id || p.permalink || '') === key);
+                                  return sp && !isPostAlreadyImported(sp);
+                                }).length;
+                                return importableCount > 0 ? (
+                                  <Button
+                                    onClick={handleBatchImport}
+                                    disabled={isBatchImporting}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white text-xs h-9 gap-1.5 font-bold"
+                                  >
+                                    {isBatchImporting ? (
+                                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                      <Download className="w-3.5 h-3.5" />
+                                    )}
+                                    Importar Selecionados ({importableCount})
+                                  </Button>
+                                ) : null;
+                              })()}
+                            </>
+                          )}
+                          <Button onClick={() => { setIsPullModalOpen(false); setSelectedScrappaPosts(new Set()); }} className="bg-white/10 hover:bg-white/20 text-white">
+                            Fechar
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Button 
+                  variant="outline" 
+                  className="border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-white gap-2 text-[10px] sm:text-sm"
+                  onClick={handleUpdateAllPosts}
+                  disabled={isSyncingPosts}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingPosts ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Atualizar Todos</span>
+                  <span className="sm:hidden">Atualizar</span>
+                </Button>
+                <Dialog open={isPostModalOpen} onOpenChange={(open) => {
+                  setIsPostModalOpen(open);
+                  if (!open) setEditingPostId(null);
+                }}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      className="bg-purple-600 hover:bg-purple-700 gap-2 text-[10px] sm:text-sm"
+                      onClick={() => {
                       setEditingPostId(null);
                       setPostForm({
                         date: new Date().toISOString().split('T')[0],
@@ -937,14 +1772,25 @@ const AdminInstagramClient = () => {
                         <Input type="number" value={postForm.comments} onChange={(e) => setPostForm({...postForm, comments: Number(e.target.value)})} className="bg-white/5 border-white/10" />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">Link do Post (Opcional)</label>
-                      <Input 
-                        value={postForm.link}
-                        onChange={(e) => setPostForm({...postForm, link: e.target.value})}
-                        placeholder="https://..." 
-                        className="bg-white/5 border-white/10" 
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-white/40">Link do Post (Opcional)</label>
+                        <Input 
+                          value={postForm.link}
+                          onChange={(e) => setPostForm({...postForm, link: e.target.value})}
+                          placeholder="https://..." 
+                          className="bg-white/5 border-white/10" 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-white/40">URL da Capa (Opcional)</label>
+                        <Input 
+                          value={postForm.image_url}
+                          onChange={(e) => setPostForm({...postForm, image_url: e.target.value})}
+                          placeholder="https://..." 
+                          className="bg-white/5 border-white/10" 
+                        />
+                      </div>
                     </div>
                   </div>
                   <DialogFooter>
@@ -961,6 +1807,7 @@ const AdminInstagramClient = () => {
                         shares: postForm.shares,
                         saves: postForm.saves,
                         post_link: postForm.link,
+                        image_url: postForm.image_url,
                       };
                       try {
                         if (editingPostId) {
@@ -978,100 +1825,142 @@ const AdminInstagramClient = () => {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {posts.map((post) => (
-                <Card key={post.id} className="bg-[#0a0a0a] border-white/5 hover:border-purple-500/20 transition-all group">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <Badge className="bg-purple-500/10 text-purple-400 border-none text-[8px] uppercase tracking-widest">
-                        {post.type}
-                      </Badge>
-                      <span className="text-[10px] text-white/30">{formatLocalDate(post.date, 'dd MMM')}</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-xs text-white/60 line-clamp-2 italic">"{post.caption || 'Sem legenda'}"</p>
-                    <div className="grid grid-cols-4 gap-2 py-2 border-y border-white/5">
-                      <div className="text-center">
-                        <p className="text-[8px] text-white/30 uppercase">Likes</p>
-                        <p className="text-sm font-bold">{post.likes}</p>
+            {(() => {
+              // Group posts by "YYYY-MM"
+              const groups = posts.reduce<Record<string, typeof posts>>((acc, post) => {
+                const key = post.date.split('T')[0].slice(0, 7); // "YYYY-MM"
+                if (!acc[key]) acc[key] = [];
+                acc[key].push(post);
+                return acc;
+              }, {});
+              const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+              if (sortedKeys.length === 0) return (
+                <div className="py-20 text-center bg-white/[0.02] border border-dashed border-white/10 rounded-[2rem]">
+                  <ImageIcon className="w-12 h-12 text-white/10 mx-auto mb-4" />
+                  <p className="text-[10px] uppercase tracking-widest text-white/30 font-black">Nenhuma publicação importada</p>
+                  <p className="text-xs text-white/10 mt-1">Sincronize com o Instagram no modal de integrações</p>
+                </div>
+              );
+
+              return (
+                <div className="space-y-8">
+                  {sortedKeys.map(key => {
+                    const [year, month] = key.split('-');
+                    const groupPosts = groups[key];
+                    const monthTotalLikes = groupPosts.reduce((s, p) => s + p.likes, 0);
+                    const monthTotalComments = groupPosts.reduce((s, p) => s + p.comments, 0);
+                    const monthTotalReach = groupPosts.reduce((s, p) => s + p.reach, 0);
+                    const monthLabel = new Date(+year, +month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+                    return (
+                      <div key={key}>
+                        {/* Month header */}
+                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-bold capitalize text-white">{monthLabel}</span>
+                            <span className="text-[10px] uppercase tracking-widest text-white/30 bg-white/5 px-2 py-0.5 rounded-full">
+                              {groupPosts.length} post{groupPosts.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4 text-[10px] text-white/40">
+                            <span className="flex items-center gap-1"><Heart className="w-3 h-3 text-pink-400" fill="currentColor" />{monthTotalLikes.toLocaleString()}</span>
+                            <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3 text-blue-400" />{monthTotalComments.toLocaleString()}</span>
+                            {monthTotalReach > 0 && <span className="flex items-center gap-1"><Eye className="w-3 h-3 text-emerald-400" />{monthTotalReach >= 1000 ? (monthTotalReach/1000).toFixed(1)+'k' : monthTotalReach}</span>}
+                          </div>
+                        </div>
+
+                        {/* Posts grid for this month */}
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-px bg-white/5 rounded-lg overflow-hidden">
+                          {groupPosts.map((post) => (
+                            <div key={post.id} className="flex flex-col bg-[#0a0a0a] group cursor-pointer">
+                              <div className="relative aspect-square overflow-hidden">
+                                {post.image_url ? (
+                                  <img src={post.image_url} alt="Capa" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center bg-white/[0.03]">
+                                    <ImageIcon className="w-6 h-6 text-white/10" />
+                                  </div>
+                                )}
+                                {/* Badge */}
+                                <div className="absolute top-1.5 left-1.5 z-10">
+                                  {post.type === 'reels' ? (
+                                    <div className="bg-black/60 backdrop-blur-sm rounded px-1.5 py-0.5 flex items-center gap-1">
+                                      <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+                                      <span className="text-[8px] text-white font-bold uppercase tracking-wider">Reels</span>
+                                    </div>
+                                  ) : post.type === 'carrossel' ? (
+                                    <div className="bg-black/60 backdrop-blur-sm rounded px-1.5 py-0.5">
+                                      <span className="text-[8px] text-white font-bold">⊞</span>
+                                    </div>
+                                  ) : null}
+                                </div>
+                                {/* Hover overlay */}
+                                <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col items-center justify-center gap-2 z-20 p-2">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex flex-col items-center">
+                                      <Heart className="w-4 h-4 text-white mb-0.5" fill="white" />
+                                      <span className="text-white text-xs font-bold">{post.likes.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                      <MessageSquare className="w-4 h-4 text-white mb-0.5" fill="white" />
+                                      <span className="text-white text-xs font-bold">{post.comments.toLocaleString()}</span>
+                                    </div>
+                                    {post.reach > 0 && (
+                                      <div className="flex flex-col items-center">
+                                        <Eye className="w-4 h-4 text-white mb-0.5" />
+                                        <span className="text-white text-xs font-bold">{post.reach >= 1000 ? (post.reach/1000).toFixed(1)+'k' : post.reach}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <span className="text-white/50 text-[9px] uppercase tracking-widest">{formatLocalDate(post.date, 'dd MMM')}</span>
+                                  <div className="flex items-center gap-1">
+                                    <button className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                                      onClick={() => { setEditingPostId(post.id); setPostForm({ date: post.date, type: post.type, caption: post.caption, reach: post.reach, likes: post.likes, comments: post.comments, shares: post.shares, saves: post.saves, link: post.post_link, image_url: post.image_url || "" }); setIsPostModalOpen(true); }}>
+                                      <Edit2 className="w-3 h-3 text-white" />
+                                    </button>
+                                    <button className="h-7 w-7 rounded-full bg-white/10 hover:bg-red-500/40 flex items-center justify-center transition-colors"
+                                      onClick={async () => { if (confirm("Excluir post?")) { await deleteInstagramPost(post.id); loadData(id!); } }}>
+                                      <Trash2 className="w-3 h-3 text-white" />
+                                    </button>
+                                    {post.post_link && (
+                                      <a href={post.post_link} target="_blank" rel="noreferrer" className="h-7 w-7 rounded-full bg-white/10 hover:bg-purple-500/40 flex items-center justify-center transition-colors">
+                                        <ExternalLink className="w-3 h-3 text-white" />
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Stats bar */}
+                              <div className="px-2 py-1.5 flex items-center justify-between bg-[#0d0d0d] border-t border-white/[0.04]">
+                                <div className="flex items-center gap-2 text-[9px] text-white/50">
+                                  <span className="flex items-center gap-0.5"><Heart className="w-2.5 h-2.5 text-pink-400" fill="currentColor" />{post.likes.toLocaleString()}</span>
+                                  <span className="flex items-center gap-0.5"><MessageSquare className="w-2.5 h-2.5 text-blue-400" />{post.comments.toLocaleString()}</span>
+                                  {post.reach > 0 && <span className="flex items-center gap-0.5"><Eye className="w-2.5 h-2.5 text-emerald-400" />{post.reach >= 1000 ? (post.reach/1000).toFixed(1)+'k' : post.reach}</span>}
+                                </div>
+                                <div className="flex items-center gap-0.5">
+                                  <button className="h-5 w-5 rounded flex items-center justify-center text-white/20 hover:text-white hover:bg-white/10 transition-colors"
+                                    onClick={() => { setEditingPostId(post.id); setPostForm({ date: post.date, type: post.type, caption: post.caption, reach: post.reach, likes: post.likes, comments: post.comments, shares: post.shares, saves: post.saves, link: post.post_link, image_url: post.image_url || "" }); setIsPostModalOpen(true); }}>
+                                    <Edit2 className="w-2.5 h-2.5" />
+                                  </button>
+                                  <button className="h-5 w-5 rounded flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                    onClick={async () => { if (confirm("Excluir post?")) { await deleteInstagramPost(post.id); loadData(id!); } }}>
+                                    <Trash2 className="w-2.5 h-2.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <p className="text-[8px] text-white/30 uppercase">Coment</p>
-                        <p className="text-sm font-bold">{post.comments}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[8px] text-white/30 uppercase">Part.</p>
-                        <p className="text-sm font-bold">{post.shares}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[8px] text-white/30 uppercase">Salvos</p>
-                        <p className="text-sm font-bold">{post.saves}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="justify-between border-t border-white/5 mt-auto">
-                    <div className="flex items-center gap-2 w-full">
-                      <div className="flex items-center gap-1 text-emerald-400 text-[10px]">
-                        <Eye className="w-3 h-3" /> {post.reach.toLocaleString()} alcance
-                      </div>
-                      <div className="flex gap-1 transition-opacity ml-auto">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6 text-white/40 hover:text-white"
-                          onClick={() => {
-                            setEditingPostId(post.id);
-                            setPostForm({
-                              date: post.date,
-                              type: post.type,
-                              caption: post.caption,
-                              reach: post.reach,
-                              likes: post.likes,
-                              comments: post.comments,
-                              shares: post.shares,
-                              saves: post.saves,
-                              link: post.post_link
-                            });
-                            setIsPostModalOpen(true);
-                          }}
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6 text-white/40 hover:text-red-400"
-                          onClick={async () => {
-                            if (confirm("Deseja excluir este post?")) {
-                              await deleteInstagramPost(post.id);
-                              loadData(id!);
-                            }
-                          }}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                        {post.post_link && (
-                          <a href={post.post_link} target="_blank" rel="noreferrer" className="text-white/20 hover:text-white transition-colors flex items-center justify-center w-6 h-6">
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-            
-            {posts.length === 0 && (
-              <div className="py-20 text-center bg-white/[0.02] border border-dashed border-white/10 rounded-[2rem]">
-                <ImageIcon className="w-12 h-12 text-white/10 mx-auto mb-4" />
-                <p className="text-[10px] uppercase tracking-widest text-white/30 font-black">Nenhuma publicação importada</p>
-                <p className="text-xs text-white/10 mt-1">Sincronize com o Instagram no modal de integrações</p>
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </TabsContent>
 
           <TabsContent value="contract" className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">

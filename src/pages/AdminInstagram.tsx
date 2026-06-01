@@ -40,7 +40,11 @@ import {
   createInstagramClient, 
   updateInstagramClient,
   deleteInstagramClient,
-  InstagramClient 
+  InstagramClient,
+  getAllFollowerHistory,
+  getAllInstagramPosts,
+  FollowerHistory,
+  InstagramPost
 } from "@/lib/instagram";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
@@ -49,7 +53,10 @@ import { ptBR } from "date-fns/locale";
 const AdminInstagram = () => {
   const navigate = useNavigate();
   const [clients, setClients] = useState<InstagramClient[]>([]);
+  const [allFollowers, setAllFollowers] = useState<FollowerHistory[]>([]);
+  const [allPosts, setAllPosts] = useState<InstagramPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState<'1d' | '1w' | '1m'>('1w');
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -69,6 +76,65 @@ const AdminInstagram = () => {
   });
   const [showRevenue, setShowRevenue] = useState(true);
 
+  // Helper to parse date string correctly in local time
+  const parseLocalDate = (dateStr: string) => {
+    if (!dateStr) return new Date(0);
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length === 3) {
+      return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    }
+    return new Date(dateStr);
+  };
+
+  const consolidatedStats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+
+    const filterByRange = (dateStr: string, range: '1d' | '1w' | '1m') => {
+      const entryDate = parseLocalDate(dateStr);
+      if (range === '1d') {
+        return entryDate.getTime() >= today.getTime();
+      }
+      if (range === '1w') {
+        return entryDate.getTime() >= sevenDaysAgo.getTime();
+      }
+      return entryDate.getTime() >= thirtyDaysAgo.getTime();
+    };
+
+    // Calculate Followers Gains
+    const calcFollowerGains = (range: '1d' | '1w' | '1m') => {
+      return allFollowers
+        .filter(f => f.followers_end > 0 && filterByRange(f.date, range))
+        .reduce((sum, f) => sum + (f.followers_end - f.followers_start), 0);
+    };
+
+    // Calculate Post Views (Reach)
+    const calcPostViews = (range: '1d' | '1w' | '1m') => {
+      return allPosts
+        .filter(p => filterByRange(p.date, range))
+        .reduce((sum, p) => sum + (p.reach || 0), 0);
+    };
+
+    return {
+      followerGains: {
+        '1d': calcFollowerGains('1d'),
+        '1w': calcFollowerGains('1w'),
+        '1m': calcFollowerGains('1m'),
+      },
+      postViews: {
+        '1d': calcPostViews('1d'),
+        '1w': calcPostViews('1w'),
+        '1m': calcPostViews('1m'),
+      }
+    };
+  }, [allFollowers, allPosts]);
+
   useEffect(() => {
     loadClients();
   }, []);
@@ -76,10 +142,22 @@ const AdminInstagram = () => {
   const loadClients = async () => {
     try {
       setLoading(true);
-      const data = await getInstagramClients();
-      setClients(data);
+      const [clientsData, followersData, postsData] = await Promise.all([
+        getInstagramClients(),
+        getAllFollowerHistory().catch(err => {
+          console.warn("Error loading all follower history:", err);
+          return [];
+        }),
+        getAllInstagramPosts().catch(err => {
+          console.warn("Error loading all posts:", err);
+          return [];
+        })
+      ]);
+      setClients(clientsData);
+      setAllFollowers(followersData);
+      setAllPosts(postsData);
     } catch (error) {
-      toast.error("Erro ao carregar clientes");
+      toast.error("Erro ao carregar dados do painel");
       console.error(error);
     } finally {
       setLoading(false);
@@ -241,7 +319,11 @@ const AdminInstagram = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-primary/30">
+    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-purple-500/30 relative overflow-hidden">
+      {/* Dynamic Background Glows */}
+      <div className="absolute top-10 left-10 w-[400px] h-[400px] bg-purple-950/10 rounded-full blur-[150px] pointer-events-none" />
+      <div className="absolute top-[40%] right-20 w-[500px] h-[500px] bg-pink-950/8 rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute bottom-10 left-1/3 w-[600px] h-[600px] bg-purple-900/5 rounded-full blur-[200px] pointer-events-none" />
       
       {/* ── TOP BAR (Matching Dashboard) ── */}
       <header className="sticky top-0 z-50 border-b border-white/6 bg-[#0a0a0a]/95 backdrop-blur-sm">
@@ -499,59 +581,59 @@ const AdminInstagram = () => {
 
         {/* Stats Grid with Colors */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-          <Card className="bg-white/[0.02] border-white/5 overflow-hidden group hover:bg-white/[0.04] transition-all">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/30 font-bold">Total de Clientes</CardDescription>
-              <CardTitle className="text-3xl font-serif flex items-end gap-3 text-purple-400">
+          <Card className="bg-[#0b0b0b]/60 border border-white/5 backdrop-blur-md overflow-hidden group hover:border-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.05)] hover:bg-white/[0.02] transition-all duration-300 relative rounded-2xl">
+            <CardHeader className="pb-3">
+              <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/35 font-black">Total de Clientes</CardDescription>
+              <CardTitle className="text-3xl font-serif flex items-end justify-between text-purple-400">
                 {stats.total}
-                <Users className="w-5 h-5 mb-1 opacity-50" />
+                <Users className="w-5 h-5 opacity-40 group-hover:opacity-80 transition-opacity" />
               </CardTitle>
             </CardHeader>
-            <div className="h-1 w-full bg-purple-500/20" />
+            <div className="h-1 w-full bg-gradient-to-r from-purple-500 to-pink-500 opacity-20 group-hover:opacity-60 transition-opacity" />
           </Card>
 
-          <Card className="bg-white/[0.02] border-white/5 overflow-hidden group hover:bg-white/[0.04] transition-all">
-            <CardHeader className="pb-2">
+          <Card className="bg-[#0b0b0b]/60 border border-white/5 backdrop-blur-md overflow-hidden group hover:border-emerald-500/20 hover:shadow-[0_0_20px_rgba(16,185,129,0.05)] hover:bg-white/[0.02] transition-all duration-300 relative rounded-2xl">
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between mb-1">
-                <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/30 font-bold">Faturamento Mensal</CardDescription>
+                <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/35 font-black">Faturamento Mensal</CardDescription>
                 <button 
                   onClick={() => setShowRevenue(!showRevenue)}
                   className="text-white/20 hover:text-white transition-colors p-1"
                 >
-                  {showRevenue ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  {showRevenue ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
               </div>
-              <CardTitle className="text-3xl font-serif flex items-end gap-3 text-emerald-400">
+              <CardTitle className="text-3xl font-serif flex items-end justify-between text-emerald-400">
                 {showRevenue ? 
                   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.revenue) : 
                   "R$ ••••••"
                 }
-                <TrendingUp className="w-5 h-5 mb-1 opacity-50" />
+                <TrendingUp className="w-5 h-5 opacity-40 group-hover:opacity-80 transition-opacity" />
               </CardTitle>
             </CardHeader>
-            <div className="h-1 w-full bg-emerald-500/20" />
+            <div className="h-1 w-full bg-gradient-to-r from-emerald-500 to-teal-500 opacity-20 group-hover:opacity-60 transition-opacity" />
           </Card>
 
-          <Card className="bg-white/[0.02] border-white/5 overflow-hidden group hover:bg-white/[0.04] transition-all">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/30 font-bold">Clientes Ativos</CardDescription>
-              <CardTitle className="text-3xl font-serif flex items-end gap-3 text-blue-400">
+          <Card className="bg-[#0b0b0b]/60 border border-white/5 backdrop-blur-md overflow-hidden group hover:border-blue-500/20 hover:shadow-[0_0_20px_rgba(59,130,246,0.05)] hover:bg-white/[0.02] transition-all duration-300 relative rounded-2xl">
+            <CardHeader className="pb-3">
+              <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/35 font-black">Clientes Ativos</CardDescription>
+              <CardTitle className="text-3xl font-serif flex items-end justify-between text-blue-400">
                 {stats.active}
-                <CheckCircle2 className="w-5 h-5 mb-1 opacity-50" />
+                <CheckCircle2 className="w-5 h-5 opacity-40 group-hover:opacity-80 transition-opacity" />
               </CardTitle>
             </CardHeader>
-            <div className="h-1 w-full bg-blue-500/20" />
+            <div className="h-1 w-full bg-gradient-to-r from-blue-500 to-indigo-500 opacity-20 group-hover:opacity-60 transition-opacity" />
           </Card>
 
-          <Card className="bg-white/[0.02] border-white/5 overflow-hidden group hover:bg-white/[0.04] transition-all">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/30 font-bold">Pendências</CardDescription>
-              <CardTitle className="text-3xl font-serif flex items-end gap-3 text-amber-400">
+          <Card className="bg-[#0b0b0b]/60 border border-white/5 backdrop-blur-md overflow-hidden group hover:border-amber-500/20 hover:shadow-[0_0_20px_rgba(245,158,11,0.05)] hover:bg-white/[0.02] transition-all duration-300 relative rounded-2xl">
+            <CardHeader className="pb-3">
+              <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/35 font-black">Pendências</CardDescription>
+              <CardTitle className="text-3xl font-serif flex items-end justify-between text-amber-400">
                 {stats.pending}
-                <Clock className="w-5 h-5 mb-1 opacity-50" />
+                <Clock className="w-5 h-5 opacity-40 group-hover:opacity-80 transition-opacity" />
               </CardTitle>
             </CardHeader>
-            <div className="h-1 w-full bg-amber-500/20" />
+            <div className="h-1 w-full bg-gradient-to-r from-amber-500 to-orange-500 opacity-20 group-hover:opacity-60 transition-opacity" />
           </Card>
         </div>
 
@@ -576,13 +658,13 @@ const AdminInstagram = () => {
                 whileHover={{ y: -5 }}
                 className="group"
               >
-                <Card className="bg-[#0a0a0a] border-white/5 hover:border-purple-500/30 transition-all overflow-hidden relative">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Card className="bg-[#0b0b0b]/60 border border-white/5 hover:border-purple-500/25 transition-all duration-500 overflow-hidden relative rounded-2xl backdrop-blur-md hover:shadow-[0_0_30px_rgba(168,85,247,0.06)]">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   
                   <CardHeader className="pb-4">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-white/10 to-white/5 p-0.5 border border-white/10 overflow-hidden">
+                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 p-0.5 border border-white/10 overflow-hidden group-hover:scale-105 transition-transform duration-500 relative">
                           {client.profile_picture ? (
                             <img 
                               src={client.profile_picture} 
@@ -599,12 +681,12 @@ const AdminInstagram = () => {
                           </div>
                         </div>
                         <div>
-                          <h3 className="font-serif text-lg leading-tight">{client.name}</h3>
+                          <h3 className="font-serif text-lg leading-tight group-hover:text-purple-300 transition-colors duration-300">{client.name}</h3>
                           <a 
                             href={`https://instagram.com/${client.username.replace('@', '')}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-purple-400 text-sm hover:text-purple-300 transition-colors flex items-center gap-1 group/link"
+                            className="text-purple-400 text-sm hover:text-purple-300 transition-colors flex items-center gap-1 group/link mt-0.5"
                           >
                             {client.username}
                             <ExternalLink className="w-3 h-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
@@ -614,19 +696,19 @@ const AdminInstagram = () => {
                       
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-white/20 hover:text-white">
+                          <Button variant="ghost" size="icon" className="text-white/20 hover:text-white hover:bg-white/5 rounded-full">
                             <MoreVertical className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="bg-[#1a1a1a] border-white/10 text-white">
+                        <DropdownMenuContent className="bg-[#111] border-white/10 text-white rounded-xl shadow-2xl">
                           <DropdownMenuItem 
-                            className="gap-2 focus:bg-white/10 cursor-pointer"
+                            className="gap-2 focus:bg-white/10 cursor-pointer rounded-lg m-1"
                             onClick={() => handleEditClick(client)}
                           >
                             <Edit2 className="w-3.5 h-3.5" /> Editar Cliente
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            className="gap-2 text-red-400 focus:bg-red-400/10 cursor-pointer"
+                            className="gap-2 text-red-400 focus:bg-red-400/10 cursor-pointer rounded-lg m-1"
                             onClick={() => handleDeleteClient(client.id)}
                           >
                             <Trash2 className="w-3.5 h-3.5" /> Excluir
@@ -638,10 +720,10 @@ const AdminInstagram = () => {
 
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
+                      <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 group-hover:bg-white/[0.04] transition-colors">
                         <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Status</p>
                         <Badge variant="outline" className={`
-                          text-[10px] border-none px-0 h-auto
+                          text-[10px] border-none px-0 h-auto font-bold
                           ${client.status === 'ativo' ? 'text-emerald-400' : 
                             client.status === 'pendente' ? 'text-amber-400' : 
                             client.status === 'pausado' ? 'text-blue-400' : 'text-red-400'}
@@ -654,18 +736,18 @@ const AdminInstagram = () => {
                           {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
                         </Badge>
                       </div>
-                      <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
+                      <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 group-hover:bg-white/[0.04] transition-colors">
                         <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Nicho</p>
                         <p className="text-xs font-medium truncate">{client.niche || 'Não definido'}</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
+                      <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 group-hover:bg-white/[0.04] transition-colors">
                         <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Pagamento</p>
                         <p className="text-xs font-medium">Todo dia {client.payment_day}</p>
                       </div>
-                      <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
+                      <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 group-hover:bg-white/[0.04] transition-colors">
                         <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Valor</p>
                         <p className="text-xs font-bold text-emerald-400">
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(client.monthly_value)}
@@ -676,7 +758,7 @@ const AdminInstagram = () => {
 
                   <CardFooter className="pt-2">
                     <Button 
-                      className="w-full bg-white/10 text-white/70 hover:bg-purple-600 hover:text-white border border-white/10 transition-all gap-2"
+                      className="w-full bg-white/5 text-white/60 hover:bg-purple-600 hover:text-white border border-white/5 hover:border-transparent transition-all duration-300 gap-2 rounded-xl py-5"
                       onClick={() => navigate(`/admin/instagram/cliente/${client.id}`)}
                     >
                       Abrir Dashboard Individual
