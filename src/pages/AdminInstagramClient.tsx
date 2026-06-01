@@ -1047,37 +1047,38 @@ const AdminInstagramClient = () => {
                       <Users className="w-4 h-4 text-purple-400 opacity-50" />
                     </div>
                     
-                    <div className="flex bg-white/5 border border-white/10 p-0.5 rounded-lg text-[8px] uppercase tracking-wider font-bold w-fit">
-                      <button 
-                        type="button"
-                        onClick={() => setFollowerPeriod('hoje')} 
-                        className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === 'hoje' ? 'bg-purple-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
-                      >
-                        Hoje
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => setFollowerPeriod('semanal')} 
-                        className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === 'semanal' ? 'bg-purple-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
-                      >
-                        Semanal
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => setFollowerPeriod('mensal')} 
-                        className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === 'mensal' ? 'bg-purple-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
-                      >
-                        Mensal
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => setFollowerPeriod('total')} 
-                        className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === 'total' ? 'bg-purple-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
-                      >
-                        Total
-                      </button>
+                    <div className="max-w-full overflow-x-auto no-scrollbar">
+                      <div className="flex bg-white/5 border border-white/10 p-0.5 rounded-lg text-[8px] uppercase tracking-wider font-bold w-fit min-w-max">
+                        <button 
+                          type="button"
+                          onClick={() => setFollowerPeriod('hoje')} 
+                          className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === 'hoje' ? 'bg-purple-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
+                        >
+                          Hoje
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setFollowerPeriod('semanal')} 
+                          className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === 'semanal' ? 'bg-purple-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
+                        >
+                          Semanal
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setFollowerPeriod('mensal')} 
+                          className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === 'mensal' ? 'bg-purple-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
+                        >
+                          Mensal
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setFollowerPeriod('total')} 
+                          className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === 'total' ? 'bg-purple-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
+                        >
+                          Total
+                        </button>
+                      </div>
                     </div>
-                  </div>
                   
                   <CardTitle className="text-2xl font-serif mt-2">
                     {followerGains[followerPeriod] >= 0 ? '+' : ''}
@@ -1103,13 +1104,15 @@ const AdminInstagramClient = () => {
                       <CardDescription className="text-[10px] uppercase tracking-widest font-black text-white/30">Likes</CardDescription>
                       <Heart className="w-4 h-4 text-pink-400 opacity-50" />
                     </div>
-                    <div className="flex bg-white/5 border border-white/10 p-0.5 rounded-lg text-[8px] uppercase tracking-wider font-bold w-fit">
-                      {(['hoje','semanal','mensal','total'] as const).map(p => (
-                        <button key={p} type="button" onClick={() => setFollowerPeriod(p)}
-                          className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === p ? 'bg-pink-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}>
-                          {p === 'hoje' ? 'Hoje' : p === 'semanal' ? '7d' : p === 'mensal' ? '30d' : 'Total'}
-                        </button>
-                      ))}
+                    <div className="max-w-full overflow-x-auto no-scrollbar">
+                      <div className="flex bg-white/5 border border-white/10 p-0.5 rounded-lg text-[8px] uppercase tracking-wider font-bold w-fit min-w-max">
+                        {(['hoje','semanal','mensal','total'] as const).map(p => (
+                          <button key={p} type="button" onClick={() => setFollowerPeriod(p)}
+                            className={`px-2 py-0.5 rounded-md transition-all ${followerPeriod === p ? 'bg-pink-600 text-white shadow' : 'text-white/40 hover:text-white/70'}`}>
+                            {p === 'hoje' ? 'Hoje' : p === 'semanal' ? '7d' : p === 'mensal' ? '30d' : 'Total'}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <CardTitle className="text-2xl font-serif mt-2">
@@ -1898,8 +1901,8 @@ const AdminInstagramClient = () => {
                                     </div>
                                   ) : null}
                                 </div>
-                                {/* Hover overlay */}
-                                <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col items-center justify-center gap-2 z-20 p-2">
+                                {/* Hover overlay (Only on desktop lg screens) */}
+                                <div className="hidden lg:flex absolute inset-0 bg-black/70 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-200 flex-col items-center justify-center gap-2 z-20 p-2">
                                   <div className="flex items-center gap-3">
                                     <div className="flex flex-col items-center">
                                       <Heart className="w-4 h-4 text-white mb-0.5" fill="white" />
@@ -1935,20 +1938,20 @@ const AdminInstagramClient = () => {
                                 </div>
                               </div>
                               {/* Stats bar */}
-                              <div className="px-2 py-1.5 flex items-center justify-between bg-[#0d0d0d] border-t border-white/[0.04]">
-                                <div className="flex items-center gap-2 text-[9px] text-white/50">
-                                  <span className="flex items-center gap-0.5"><Heart className="w-2.5 h-2.5 text-pink-400" fill="currentColor" />{post.likes.toLocaleString()}</span>
-                                  <span className="flex items-center gap-0.5"><MessageSquare className="w-2.5 h-2.5 text-blue-400" />{post.comments.toLocaleString()}</span>
-                                  {post.reach > 0 && <span className="flex items-center gap-0.5"><Eye className="w-2.5 h-2.5 text-emerald-400" />{post.reach >= 1000 ? (post.reach/1000).toFixed(1)+'k' : post.reach}</span>}
+                              <div className="px-1 py-1.5 sm:px-2 flex items-center justify-between bg-[#0d0d0d] border-t border-white/[0.04]">
+                                <div className="flex items-center gap-1.5 sm:gap-2 text-[7px] xs:text-[8px] sm:text-[9px] text-white/50">
+                                  <span className="flex items-center gap-0.5"><Heart className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-pink-400" fill="currentColor" />{post.likes.toLocaleString()}</span>
+                                  <span className="flex items-center gap-0.5"><MessageSquare className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-blue-400" />{post.comments.toLocaleString()}</span>
+                                  {post.reach > 0 && <span className="flex items-center gap-0.5"><Eye className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-emerald-400" />{post.reach >= 1000 ? (post.reach/1000).toFixed(1)+'k' : post.reach}</span>}
                                 </div>
                                 <div className="flex items-center gap-0.5">
-                                  <button className="h-5 w-5 rounded flex items-center justify-center text-white/20 hover:text-white hover:bg-white/10 transition-colors"
+                                  <button className="h-4 w-4 sm:h-5 sm:w-5 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors"
                                     onClick={() => { setEditingPostId(post.id); setPostForm({ date: post.date, type: post.type, caption: post.caption, reach: post.reach, likes: post.likes, comments: post.comments, shares: post.shares, saves: post.saves, link: post.post_link, image_url: post.image_url || "" }); setIsPostModalOpen(true); }}>
-                                    <Edit2 className="w-2.5 h-2.5" />
+                                    <Edit2 className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
                                   </button>
-                                  <button className="h-5 w-5 rounded flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                  <button className="h-4 w-4 sm:h-5 sm:w-5 rounded flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                                     onClick={async () => { if (confirm("Excluir post?")) { await deleteInstagramPost(post.id); loadData(id!); } }}>
-                                    <Trash2 className="w-2.5 h-2.5" />
+                                    <Trash2 className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
                                   </button>
                                 </div>
                               </div>
