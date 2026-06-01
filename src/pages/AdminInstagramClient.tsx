@@ -1349,7 +1349,71 @@ const AdminInstagramClient = () => {
 
             <div className="grid grid-cols-1 gap-6">
               <Card className="bg-[#0a0a0a] border-white/5">
-                <div className="overflow-x-auto">
+                
+                {/* Mobile View */}
+                <div className="md:hidden flex flex-col divide-y divide-white/5">
+                  {followers.map(f => {
+                    const isAnalysis = f.followers_end === 0;
+                    const diff = f.followers_end - f.followers_start;
+                    const pct = f.followers_start !== 0 ? ((diff / f.followers_start) * 100).toFixed(2) : "0";
+                    return (
+                      <div key={f.id} className="p-4 flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{formatLocalDate(f.date, 'dd/MM/yyyy')}</span>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-white/30 hover:text-white" onClick={() => {
+                                setEditingFollowerId(f.id);
+                                setFollowerForm({
+                                  date: f.date,
+                                  start: f.followers_start,
+                                  end: f.followers_end,
+                                  isAnalysis: f.followers_end === 0
+                                });
+                                setIsFollowerModalOpen(true);
+                            }}>
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-white/30 hover:text-red-400" onClick={async () => {
+                                if (confirm("Deseja excluir este registro?")) {
+                                  await deleteFollowerEntry(f.id);
+                                  loadData(id!);
+                                }
+                            }}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between bg-white/[0.02] p-3 rounded-lg border border-white/5">
+                           <div className="flex flex-col">
+                             <span className="text-[9px] uppercase text-white/30 tracking-widest mb-1">Início</span>
+                             <span className="font-mono text-sm">{f.followers_start.toLocaleString('pt-BR')}</span>
+                           </div>
+                           <ArrowRight className="w-4 h-4 text-white/10" />
+                           <div className="flex flex-col items-end">
+                             <span className="text-[9px] uppercase text-white/30 tracking-widest mb-1">Fim</span>
+                             {isAnalysis ? (
+                               <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[8px] uppercase tracking-tighter">Análise</Badge>
+                             ) : (
+                               <span className="font-mono text-sm">{f.followers_end.toLocaleString('pt-BR')}</span>
+                             )}
+                           </div>
+                        </div>
+                        <div className="flex items-center justify-between px-1">
+                           <span className="text-[10px] uppercase text-white/40 tracking-widest font-bold">Resultado</span>
+                           <div className="flex items-center gap-2">
+                             <span className={`font-bold ${isAnalysis ? 'text-white/20' : (diff >= 0 ? 'text-emerald-400' : 'text-red-400')}`}>
+                               {isAnalysis ? '--' : (diff > 0 ? `+${diff.toLocaleString('pt-BR')}` : diff.toLocaleString('pt-BR'))}
+                             </span>
+                             {!isAnalysis && <span className="text-white/30 text-[10px]">({pct}%)</span>}
+                           </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Desktop View */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-white/5 text-[10px] uppercase tracking-widest text-white/40">
                       <tr>
@@ -1427,9 +1491,9 @@ const AdminInstagramClient = () => {
 
           {/* 3. CONTROLE DE POSTS */}
           <TabsContent value="posts" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-serif">Relatório de Postagens</h3>
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col lg:flex-row lg:justify-between items-start lg:items-center gap-4">
+              <h3 className="text-lg font-serif whitespace-nowrap">Relatório de Postagens</h3>
+              <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto no-scrollbar pb-1 -mb-1">
                 <Button 
                   variant="outline" 
                   className="border-purple-500/30 text-purple-400 hover:bg-purple-500 hover:text-white gap-2 text-[10px] sm:text-sm"
