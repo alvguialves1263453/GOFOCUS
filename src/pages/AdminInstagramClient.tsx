@@ -1079,6 +1079,7 @@ const AdminInstagramClient = () => {
                         </button>
                       </div>
                     </div>
+                  </div>
                   
                   <CardTitle className="text-2xl font-serif mt-2">
                     {followerGains[followerPeriod] >= 0 ? '+' : ''}
