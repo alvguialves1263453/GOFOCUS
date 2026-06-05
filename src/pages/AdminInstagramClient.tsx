@@ -348,7 +348,7 @@ const AdminInstagramClient = () => {
     try {
       const cleanUsername = client.username.replace('@', '').trim();
       // Fetch profile info from Scrappa
-      const res = await fetch(`https://scrappa.co/api/instagram/user?username=${cleanUsername}&refresh=true&_t=${Date.now()}`, {
+      const res = await fetch(`https://scrappa.co/api/instagram/user?username=${cleanUsername}&_t=${Date.now()}`, {
         headers: { 
           'x-api-key': getScrappaKey(), 
           'Accept': 'application/json',
@@ -358,6 +358,10 @@ const AdminInstagramClient = () => {
       const data = await res.json();
 
       console.log('[Scrappa User] Response:', JSON.stringify(data, null, 2));
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || `Erro HTTP ${res.status}: Não foi possível buscar dados do perfil`);
+      }
 
       // Try multiple field paths for follower count
       const currentCount: number =
@@ -371,6 +375,8 @@ const AdminInstagramClient = () => {
         data?.data?.follower_count ??
         data?.data?.followers_count ??
         data?.data?.edge_followed_by?.count ??
+        data?.result?.follower_count ??
+        data?.result?.followers_count ??
         null;
 
       if (currentCount === null || isNaN(Number(currentCount))) {
@@ -394,9 +400,9 @@ const AdminInstagramClient = () => {
         });
         toast.success(`Atualizado: ${count.toLocaleString('pt-BR')} seguidores hoje!`);
       } else {
-        // New day — start = last entry's end (or 0)
-        const lastEntry = followers[0]; // already sorted newest first
-        const startCount = lastEntry ? lastEntry.followers_end || lastEntry.followers_start : 0;
+        // New day — start = current count (or last entry's end if exists)
+        const lastEntry = followers[0];
+        const startCount = lastEntry ? (lastEntry.followers_end || lastEntry.followers_start) : count;
         await addFollowerEntry({
           client_id: id,
           date: todayStr,
@@ -405,6 +411,9 @@ const AdminInstagramClient = () => {
         });
         toast.success(`Novo dia registrado: ${count.toLocaleString('pt-BR')} seguidores!`);
       }
+
+      // Mark client as "pendente" (análise)
+      await updateInstagramClient(id, { status: 'pendente' });
 
       loadData(id);
     } catch (error: any) {

@@ -45,7 +45,8 @@ import {
   FollowerHistory,
   InstagramPost,
   getScrappaKey,
-  setScrappaKey
+  setScrappaKey,
+  getAllFollowerHistory
 } from "@/lib/instagram";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
@@ -158,7 +159,10 @@ const AdminInstagram = () => {
     try {
       setLoading(true);
       const [clientsData, followersData, postsData] = await Promise.all([
-        getInstagramClients(),
+        getInstagramClients().catch(err => {
+          console.error("Erro ao carregar clientes:", err);
+          throw err;
+        }),
         getAllFollowerHistory().catch(err => {
           console.warn("Error loading all follower history:", err);
           return [];
@@ -171,8 +175,13 @@ const AdminInstagram = () => {
       setClients(clientsData);
       setAllFollowers(followersData);
       setAllPosts(postsData);
-    } catch (error) {
-      toast.error("Erro ao carregar dados do painel");
+    } catch (error: any) {
+      const msg = error?.message || "";
+      if (msg.includes("relation") && msg.includes("does not exist")) {
+        toast.error("Tabelas do Instagram não encontradas. Execute o script SQL no Supabase.");
+      } else {
+        toast.error("Erro ao carregar clientes");
+      }
       console.error(error);
     } finally {
       setLoading(false);
