@@ -1,4 +1,5 @@
 import { Navigate, useLocation } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -7,14 +8,14 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
     if (loading) {
         return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
-        <p className="text-[10px] text-white/30 uppercase tracking-[0.4em] animate-pulse">Autenticando...</p>
-      </div>
+            <div role="status" className="flex min-h-[60vh] items-center justify-center gap-2 text-[15px] text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Verificando acesso…
+            </div>
         );
     }
 
     if (!user) {
-        return <Navigate to="/login" state={{ from: location }} replace />;
+        return <Navigate to="/admin" state={{ from: location }} replace />;
     }
 
     return <>{children}</>;

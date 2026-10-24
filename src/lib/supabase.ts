@@ -9,5 +9,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(
     supabaseUrl || 'https://placeholder.supabase.co',
-    supabaseAnonKey || 'placeholder'
+    supabaseAnonKey || 'placeholder',
+    {
+        global: {
+            fetch: (url, init) => {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 15000);
+                return fetch(url, { ...init, signal: controller.signal })
+                    .finally(() => clearTimeout(timeout));
+            }
+        }
+    }
 );

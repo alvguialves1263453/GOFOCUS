@@ -46,7 +46,8 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
-    overflow-x: hidden;
+    /* clip, not hidden: hidden turns html/body into scroll containers and breaks position: sticky */
+    overflow-x: clip;
   }
 
   body {
@@ -58,8 +59,7 @@
     -moz-osx-font-smoothing: grayscale;
     width: 100%;
     min-height: 100vh;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow-x: clip;
     touch-action: pan-y;
   }
 
@@ -127,6 +127,13 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Custom thin scrollbar for sidebars and panels */
+  .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 999px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+  .custom-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
 }
 
 /* ── KEYFRAMES ── */
@@ -175,4 +182,15 @@ body::before {
 
 .animate-shimmer {
   animation: shimmer 1.8s infinite linear;
+}
+
+/* ── SPLIT TEXT ── */
+.split-parent {
+  overflow: hidden;
+  display: inline-block;
+}
+.split-char,
+.split-word {
+  display: inline-block;
+  will-change: transform, opacity;
 }

@@ -104,10 +104,9 @@ export const updateInstagramClient = async (id: string, updates: Partial<Instagr
     .from('instagram_clients')
     .update(updates)
     .eq('id', id)
-    .select()
-    .single();
+    .select();
   if (error) throw error;
-  return data as InstagramClient;
+  return (data?.[0] || null) as InstagramClient | null;
 };
 
 export const deleteInstagramClient = async (id: string) => {
@@ -119,12 +118,19 @@ export const deleteInstagramClient = async (id: string) => {
 };
 
 // Followers
-export const getFollowerHistory = async (clientId: string) => {
-  const { data, error } = await supabase
+export const getFollowerHistory = async (clientId: string, days?: number) => {
+  let query = supabase
     .from('instagram_followers_history')
     .select('*')
-    .eq('client_id', clientId)
-    .order('date', { ascending: false });
+    .eq('client_id', clientId);
+
+  if (days) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    query = query.gte('date', cutoff.toISOString().split('T')[0]);
+  }
+
+  const { data, error } = await query.order('date', { ascending: false });
   if (error) throw error;
   return data as FollowerHistory[];
 };
@@ -156,12 +162,19 @@ export const deleteFollowerEntry = async (id: string) => {
 };
 
 // Posts
-export const getInstagramPosts = async (clientId: string) => {
-  const { data, error } = await supabase
+export const getInstagramPosts = async (clientId: string, days?: number) => {
+  let query = supabase
     .from('instagram_posts')
     .select('*')
-    .eq('client_id', clientId)
-    .order('date', { ascending: false });
+    .eq('client_id', clientId);
+
+  if (days) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    query = query.gte('date', cutoff.toISOString().split('T')[0]);
+  }
+
+  const { data, error } = await query.order('date', { ascending: false });
   if (error) throw error;
   return data as InstagramPost[];
 };
@@ -312,32 +325,74 @@ export const deleteInstagramExpense = async (id: string) => {
 };
 
 // Scrappa API Helpers
-export const fetchScrappaPosts = async (username: string, apiKey: string) => {
-  const response = await fetch(`https://scrappa.co/api/instagram/user/posts?username=${username.replace('@', '')}`, {
-    headers: {
-      'x-api-key': apiKey,
-      'Accept': 'application/json'
-    }
-  });
-  const data = await response.json();
-  if (!data.success) throw new Error(data.message || 'Erro ao buscar posts');
-  return data.posts || [];
+const scrappaHeaders = () => ({
+  'x-api-key': getScrappaKey(),
+  'Accept': 'application/json'
+});
+
+export const fetchScrappaPosts = async (username: string, nextMaxId?: string) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  let url = `https://scrappa.co/api/instagram/user/posts?username=${username.replace('@', '')}`;
+  if (nextMaxId) url += `&max_id=${nextMaxId}`;
+  try {
+    const response = await fetch(url, { headers: scrappaHeaders(), signal: controller.signal });
+    clearTimeout(timeout);
+    if (!response.ok) throw new Error(`Erro HTTP ${response.status}`);
+    const data = await response.json();
+    if (!data.success) throw new Error(data.message || 'Erro ao buscar posts');
+    return data.posts || [];
+  } catch (err: any) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') throw new Error('Timeout ao buscar posts (10s)');
+    throw err;
+  }
 };
 
-export const getAllFollowerHistory = async () => {
-  const { data, error } = await supabase
+export const fetchScrappaProfile = async (username: string, refresh?: boolean) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  const url = `https://scrappa.co/api/instagram/user?username=${username.replace('@', '')}&refresh=${refresh ? 'true' : 'false'}&_t=${Date.now()}`;
+  try {
+    const response = await fetch(url, { headers: scrappaHeaders(), signal: controller.signal });
+    clearTimeout(timeout);
+    if (!response.ok) throw new Error(`Erro HTTP ${response.status}`);
+    return await response.json();
+  } catch (err: any) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') throw new Error('Timeout ao buscar perfil (15s)');
+    throw err;
+  }
+};
+
+export const getAllFollowerHistory = async (days?: number) => {
+  let query = supabase
     .from('instagram_followers_history')
-    .select('*')
-    .order('date', { ascending: false });
+    .select('*');
+
+  if (days) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    query = query.gte('date', cutoff.toISOString().split('T')[0]);
+  }
+
+  const { data, error } = await query.order('date', { ascending: false });
   if (error) throw error;
   return data as FollowerHistory[];
 };
 
-export const getAllInstagramPosts = async () => {
-  const { data, error } = await supabase
+export const getAllInstagramPosts = async (days?: number) => {
+  let query = supabase
     .from('instagram_posts')
-    .select('*')
-    .order('date', { ascending: false });
+    .select('*');
+
+  if (days) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    query = query.gte('date', cutoff.toISOString().split('T')[0]);
+  }
+
+  const { data, error } = await query.order('date', { ascending: false });
   if (error) throw error;
   return data as InstagramPost[];
 };

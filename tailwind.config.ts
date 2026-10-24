@@ -25,6 +25,12 @@ export default {
         display: ["'Playfair Display'", "Georgia", "serif"],
         body: ["'Inter'", "system-ui", "-apple-system", "sans-serif"],
         serif: ["'Playfair Display'", "Georgia", "serif"],
+        // Home page faces
+        cormorant: ["'Cormorant Garamond'", "Georgia", "serif"],
+        grotesk: ["'Hanken Grotesk'", "system-ui", "sans-serif"],
+        // Photo-booth home: marquee signage and reading text
+        marquee: ["'Big Shoulders Display'", "'Archivo'", "sans-serif"],
+        archivo: ["'Archivo'", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-24T05:33:49.386809+00:00",
+  "title": "Design System: GoFocus",
+  "extensions": {
+    "colorMeta": {
+      "booth-gray": {
+        "role": "primary",
+        "displayName": "Booth Gray",
+        "canonical": "#A7AAAF",
+        "tonalRamp": [
+          "#3A2B08",
+          "#5E450C",
+          "#836011",
+          "#A97C16",
+          "#A7AAAF",
+          "#EDBF52",
+          "#F4D486",
+          "#FAEBC2"
+        ]
+      },
+      "booth-ink": {
+        "role": "neutral",
+        "displayName": "Booth Ink",
+        "canonical": "#141414",
+        "tonalRamp": [
+          "#0A0A0A",
+          "#141414",
+          "#262626",
+          "#3D3D3D",
+          "#5C5C5C",
+          "#8A8A8A",
+          "#BDBDBD",
+          "#EDEDED"
+        ]
+      },
+      "booth-interior": {
+        "role": "neutral",
+        "displayName": "Booth Interior",
+        "canonical": "#0B0B0B",
+        "tonalRamp": [
+          "#050505",
+          "#0B0B0B",
+          "#161616",
+          "#1C1C1C",
+          "#262626",
+          "#3A3A3A",
+          "#6B6B6B",
+          "#BDBDBD"
+        ]
+      },
+      "photo-paper": {
+        "role": "neutral",
+        "displayName": "Photo Paper",
+        "canonical": "#FBFAF7",
+        "tonalRamp": [
+          "#3F3D39",
+          "#6A6761",
+          "#8F8B84",
+          "#B3AFA7",
+          "#D3CFC7",
+          "#E9E6E0",
+          "#F5F3EE",
+          "#FBFAF7"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Booth signage: section headlines and the hero sign, uppercase, max 6rem."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Album names on strips, values, the booth button label."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Explanations, about 46ch."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "The printed line on a strip."
+      }
+    },
+    "shadows": [
+      {
+        "name": "paper-on-surface",
+        "value": "0 18px 40px -18px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.18)",
+        "purpose": "Strips and event prints."
+      },
+      {
+        "name": "machine",
+        "value": "0 30px 60px -30px rgba(0,0,0,0.7)",
+        "purpose": "The booth machine block."
+      },
+      {
+        "name": "push-button-cap",
+        "value": "inset 0 -4px 8px rgba(255,255,255,0.08), 0 4px 6px rgba(0,0,0,0.55)",
+        "purpose": "The black cap of the booth button."
+      }
+    ],
+    "motion": [
+      {
+        "name": "print-feed",
+        "value": "steps(16) over 1.8-2.2s",
+        "purpose": "A strip feeding out of the slot, like a printer."
+      },
+      {
+        "name": "settle",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1) 500ms",
+        "purpose": "Strips straightening and lifting on hover."
+      },
+      {
+        "name": "flash",
+        "value": "opacity 0 to 0.85 in 50ms, back in 550ms",
+        "purpose": "The camera flash after the 3-2-1 countdown."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Photo Strip",
+      "kind": "custom",
+      "refersTo": "photo-strip",
+      "description": "Four frames of one album on photo paper, album printed at the foot.",
+      "html": "<figure class=\"ds-strip\"><div class=\"ds-frame\"></div><div class=\"ds-frame\"></div><div class=\"ds-frame\"></div><div class=\"ds-frame\"></div><figcaption><span class=\"ds-strip-title\">Cia e Dança</span><span class=\"ds-strip-caption\">Dança, 50 fotos</span></figcaption></figure>",
+      "css": ".ds-strip{width:180px;display:flex;flex-direction:column;gap:10px;padding:12px 12px 16px;background:#FBFAF7;border-radius:3px;box-shadow:0 18px 40px -18px rgba(0,0,0,.55),0 2px 6px rgba(0,0,0,.18);transform:rotate(-1.6deg);transition:transform .5s cubic-bezier(.16,1,.3,1)}.ds-strip:hover{transform:translateY(-8px) rotate(0)}.ds-frame{aspect-ratio:5/4;background:linear-gradient(135deg,#7a5a3a,#2a3440)}.ds-strip figcaption{text-align:center;margin-top:4px}.ds-strip-title{display:block;font:800 1.2rem/1 'Big Shoulders Display',sans-serif;text-transform:uppercase;color:#141414}.ds-strip-caption{display:block;margin-top:6px;font:400 11px/1 Archivo,sans-serif;color:#55524C}"
+    },
+    {
+      "name": "Booth Button",
+      "kind": "button",
+      "refersTo": "button-booth",
+      "description": "The round chrome push button that prints a strip.",
+      "html": "<button class=\"ds-booth-btn\"><span class=\"ds-rim\"><span class=\"ds-cap\"></span></span><span class=\"ds-booth-label\">Imprimir uma tira</span></button>",
+      "css": ".ds-booth-btn{display:flex;align-items:center;gap:16px;background:none;border:0;cursor:pointer;color:#141414}.ds-rim{display:grid;place-items:center;width:84px;height:84px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#c9ccd1 45%,#7d8188);box-shadow:0 10px 24px -8px rgba(0,0,0,.55)}.ds-cap{width:62px;height:62px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#3a3a3a,#0d0d0d 70%);box-shadow:inset 0 -4px 8px rgba(255,255,255,.08),0 4px 6px rgba(0,0,0,.55);transition:transform .15s}.ds-booth-btn:hover .ds-cap{transform:scale(1.03)}.ds-booth-btn:active .ds-cap{transform:translateY(2px)}.ds-booth-btn:focus-visible{outline:2px solid #141414;outline-offset:4px;border-radius:999px}.ds-booth-label{font:800 1.7rem/1 'Big Shoulders Display',sans-serif;text-transform:uppercase}"
+    },
+    {
+      "name": "Dark Pill Button",
+      "kind": "button",
+      "refersTo": "button-booth-dark",
+      "description": "Primary link on grey (Instagram, all events).",
+      "html": "<a class=\"ds-pill-dark\" href=\"#\">Falar no Instagram</a>",
+      "css": ".ds-pill-dark{display:inline-flex;padding:16px 28px;border-radius:9999px;background:#141414;color:#A7AAAF;font:600 16px/1 Archivo,sans-serif;text-decoration:none;transition:background-color .2s}.ds-pill-dark:hover{background:#000}.ds-pill-dark:focus-visible{outline:2px solid #141414;outline-offset:4px}"
+    },
+    {
+      "name": "Category Token",
+      "kind": "chip",
+      "refersTo": "chip-token-idle",
+      "description": "Category filter on black; active token turns grey.",
+      "html": "<button class=\"ds-token\">Dança</button><button class=\"ds-token ds-token-on\" aria-pressed=\"true\">Todos</button>",
+      "css": ".ds-token{padding:8px 16px;border:0;border-radius:9999px;background:#1C1C1C;color:#D8D4CB;font:600 14px/1 Archivo,sans-serif;box-shadow:inset 0 1px 0 rgba(255,255,255,.08);cursor:pointer;transition:background-color .2s,color .2s}.ds-token:hover{background:#262626;color:#FBFAF7}.ds-token-on{background:#A7AAAF;color:#141414;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}.ds-token:focus-visible{outline:2px solid #A7AAAF;outline-offset:2px}"
+    },
+    {
+      "name": "Grey Header Navigation",
+      "kind": "nav",
+      "refersTo": "nav",
+      "description": "Inline header on the grey booth front.",
+      "html": "<nav class=\"ds-nav\"><span class=\"ds-wordmark\">GoFocus</span><a href=\"#\">Álbuns</a><a href=\"#\">Eventos</a><a class=\"ds-nav-pill\" href=\"#\">Instagram</a></nav>",
+      "css": ".ds-nav{display:flex;align-items:center;gap:8px;padding:16px;background:#A7AAAF;color:#141414;font:500 15px/1 Archivo,sans-serif}.ds-wordmark{margin-right:auto;font:900 1.6rem/1 'Big Shoulders Display',sans-serif;text-transform:uppercase}.ds-nav a{color:inherit;text-decoration:none;padding:8px 12px;border-radius:9999px}.ds-nav a:hover{background:rgba(20,20,20,.1);text-decoration:underline;text-underline-offset:6px}.ds-nav .ds-nav-pill{background:#141414;color:#A7AAAF;padding:8px 16px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Party Booth",
+    "overview": "GoFocus is a studio that photographs birthdays, recitals, matches, restaurants and portraits, so the site is the photo booth every party guest knows. Brushed-aluminium grey owns the big surfaces, the black interior holds the work, and each album is shown as a printed strip of four frames. Pressing the chrome button counts down, flashes and prints a strip from the next album.",
+    "keyCharacteristics": [
+      "Committed grey fields alternating with black",
+      "Every album is a printed photo strip",
+      "One authored motion: the stepped print feed",
+      "Only transform and opacity move, for Safari"
+    ],
+    "rules": [
+      {
+        "name": "The One Hue Rule",
+        "body": "Grey is the only interface colour; the photographs supply every other colour.",
+        "section": "colors"
+      },
+      {
+        "name": "The Whole Field Rule",
+        "body": "Grey and black are whole alternating sections, never thin accents on a neutral page.",
+        "section": "colors"
+      },
+      {
+        "name": "The Signage Rule",
+        "body": "Display type is large, condensed, uppercase and packed tight, never a timid heading.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do show every album as a Photo Strip with its real photos and count.",
+      "Do animate only transform and opacity; print strips with steps(16).",
+      "Do honour reduced motion: no countdown or flash."
+    ],
+    "donts": [
+      "Don't use live backdrop blur over moving content, animated filters or heavy 3D on this surface.",
+      "Don't add a second accent colour, gradient text or labels above headings.",
+      "Don't invent prices, testimonials or client logos."
+    ]
+  }
+}

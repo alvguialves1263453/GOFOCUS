@@ -1,767 +1,597 @@
-import { useParams } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence, useMotionValue } from "framer-motion";
+import gsap from "gsap";
 import {
   getProjectBySlugAsync,
   getProjectsAsync,
+  getCategoriesAsync,
   incrementLikesAsync,
   checkIfLikedAsync,
+  type Category,
   type Project,
 } from "@/lib/storage";
-import { Download, X, Heart, QrCode, ChevronLeft, ChevronRight, Loader2, MessageCircle, Instagram, Share2, Calendar, ZoomIn, ZoomOut, Maximize2, Coffee, Copy } from "lucide-react";
-import { getOptimizedUrl } from "@/lib/imagekit";
+import {
+  ArrowLeft, Copy, Download, Heart, Instagram, Loader2, MessageCircle, QrCode, Share2, X, ChevronLeft, ChevronRight, ZoomOut,
+} from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import logo from "@/assets/logo.png";
+import { prefersReducedMotion, thumb } from "@/components/home/homeData";
+import { INSTAGRAM_URL } from "@/components/home/HomeSections";
 
-/* ─── Image with skeleton loader ─── */
-const ImageWithLoader = ({
-  src,
-  alt,
-  className,
-  onClick,
-  width = 800,
-  loadingMessage,
-}: {
-  src: string;
-  alt: string;
-  className?: string;
-  onClick?: () => void;
-  width?: number;
-  loadingMessage?: string;
-}) => {
-  const [isLoaded, setIsLoaded] = useState(false);
+const PIX_KEY = "57722212000108";
+const PIX_KEY_LABEL = "57.722.212/0001-08";
+const PIX_QR =
+  "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=00020126360014br.gov.bcb.pix0114577222120001085204000053039865802BR5915GoFocus%20Fotogr6009Sao%20Paulo62070503***63047B4A";
 
-  useEffect(() => {
-    setIsLoaded(false);
-  }, [src]);
-
-  return (
-    <div
-      className={`relative overflow-hidden bg-[#111] ${className} ${
-        !isLoaded && loadingMessage ? "min-h-[40vh] w-full" : ""
-      }`}
-      onClick={onClick}
-    >
-      <AnimatePresence>
-        {!isLoaded && (
-          <motion.div
-            key="loader"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
-            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#111]"
-          >
-            {/* Shimmer Skeleton */}
-            <div className="absolute inset-0 overflow-hidden">
-               <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent animate-shimmer" />
-            </div>
-            
-            <motion.div 
-               initial={{ scale: 0.9, opacity: 0 }}
-               animate={{ scale: 1, opacity: 1 }}
-               className="flex flex-col items-center gap-4"
-            >
-               <Loader2 className="h-6 w-6 animate-spin text-white/20" />
-               {loadingMessage && (
-                 <p className="text-[9px] uppercase tracking-[0.5em] text-white/25 px-6 text-center font-medium">
-                   {loadingMessage}
-                 </p>
-               )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <motion.img
-        key={src}
-        src={getOptimizedUrl(src, width)}
-        alt={alt}
-        initial={{ opacity: 0, filter: "blur(10px) brightness(0.5)" }}
-        animate={{ 
-           opacity: isLoaded ? 1 : 0, 
-           filter: isLoaded ? "blur(0px) brightness(1)" : "blur(10px) brightness(0.5)",
-           scale: isLoaded ? 1 : 1.05
-        }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className={`h-full w-full object-cover ${className}`}
-        onLoad={() => setIsLoaded(true)}
-        loading="lazy"
-        decoding="async"
-      />
-
-    </div>
-  );
+const dateFormat = new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+const formatDate = (raw?: string) => {
+  if (!raw) return null;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? raw : dateFormat.format(d);
 };
 
-/* ─── Pinch to Zoom Image ─── */
-const PinchZoomImage = ({ src, alt, onSwipe, onZoomChange }: { 
-  src: string; 
-  alt: string; 
-  onSwipe: (dir: number) => void;
-  onZoomChange?: (isZoomed: boolean) => void;
-}) => {
-  const scale = useMotionValue(1);
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  
-  const [isZoomed, setIsZoomed] = useState(false);
-  const lastTouchTime = useRef(0);
-  const initialDist = useRef(0);
-  const initialScale = useRef(1);
+/** A photo on the roll, keeping its index in project.photos (shared links use it). */
+interface Frame {
+  url: string;
+  index: number;
+  number: number;
+}
+type RollItem = { kind: "frame"; frame: Frame } | { kind: "tear"; label: string; key: string };
 
-  useEffect(() => {
-    onZoomChange?.(isZoomed);
-  }, [isZoomed, onZoomChange]);
+/* ─────────────────────────── Page ─────────────────────────── */
 
-  const resetZoom = () => {
-    scale.set(1);
-    x.set(0);
-    y.set(0);
-    setIsZoomed(false);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const d = Math.hypot(
-        e.touches[0].pageX - e.touches[1].pageX,
-        e.touches[0].pageY - e.touches[1].pageY
-      );
-      initialDist.current = d;
-      initialScale.current = scale.get();
-    } else if (e.touches.length === 1) {
-      const now = Date.now();
-      if (now - lastTouchTime.current < 300) {
-        // Double tap
-        if (scale.get() > 1) resetZoom();
-        else {
-          scale.set(2.5);
-          setIsZoomed(true);
-        }
-      }
-      lastTouchTime.current = now;
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const d = Math.hypot(
-        e.touches[0].pageX - e.touches[1].pageX,
-        e.touches[0].pageY - e.touches[1].pageY
-      );
-      const newScale = Math.max(1, Math.min(initialScale.current * (d / initialDist.current), 5));
-      scale.set(newScale);
-      setIsZoomed(newScale > 1.05);
-    }
-  };
-
-  return (
-    <div 
-      className="relative w-full h-full flex items-center justify-center overflow-hidden"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-    >
-      <motion.div
-        style={{ scale, x, y }}
-        drag={isZoomed ? true : "x"}
-        dragConstraints={isZoomed ? false : { left: 0, right: 0 }}
-        dragElastic={isZoomed ? 0.1 : 0.6}
-        onDragEnd={(_, info) => {
-          if (!isZoomed) {
-            const swipeThreshold = 50;
-            if (info.offset.x > swipeThreshold) onSwipe(-1);
-            else if (info.offset.x < -swipeThreshold) onSwipe(1);
-          } else {
-             // If zoomed and dragged back near center, maybe reset? No, let user pan.
-             if (scale.get() < 1.05) resetZoom();
-          }
-        }}
-        className="w-full h-full flex items-center justify-center"
-      >
-        <ImageWithLoader
-          src={src}
-          width={2560}
-          alt={alt}
-          loadingMessage="Carregando alta fidelidade..."
-          className="max-h-full w-auto max-w-full object-contain pointer-events-none select-none"
-        />
-      </motion.div>
-      
-      {isZoomed && (
-        <button 
-          onClick={resetZoom}
-          className="absolute bottom-32 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[10px] font-bold uppercase tracking-widest text-white/70 hover:bg-white/20 transition-all"
-        >
-          <ZoomOut className="w-3 h-3" />
-          Resetar Zoom
-        </button>
-      )}
-    </div>
-  );
-};
-
-/* ─── Main Component ─── */
-const ClientPreview = () => {
+export default function ClientPreview() {
   const { id, slug } = useParams<{ id?: string; slug?: string }>();
   const [project, setProject] = useState<Project | null>(null);
-  const [notFound, setNotFound] = useState(false);
+  const [category, setCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [selected, setSelected] = useState<number | null>(null);
   const [liked, setLiked] = useState(false);
-  const [showThanks, setShowThanks] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
-  const [isQrOpen, setIsQrOpen] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [isGalleryZoomed, setIsGalleryZoomed] = useState(false);
-  const [isDonationOpen, setIsDonationOpen] = useState(false);
-  const [activeHearts, setActiveHearts] = useState<{ id: number; x: number; y: number; size: number }[]>([]);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [pixOpen, setPixOpen] = useState(false);
+  const roll = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    async function loadProject() {
+    let alive = true;
+    (async () => {
       setLoading(true);
-      let found = null;
       try {
-        if (slug) {
-          found = await getProjectBySlugAsync(slug);
-        } else if (id) {
-          const projects = await getProjectsAsync();
-          found = projects.find((p) => p.id === id);
-        }
-        if (found) {
-          setProject(found);
-          setLikeCount(found.likes || 0);
-          setNotFound(false);
-          let visitorId = localStorage.getItem("gofocus_visitor_id");
-          if (!visitorId) {
-            visitorId = uuidv4();
-            localStorage.setItem("gofocus_visitor_id", visitorId);
-          }
-          const hasLikedLocal = localStorage.getItem(`liked_${found.id}`);
-          if (hasLikedLocal) {
-            setLiked(true);
-          } else {
-            const hasLikedServer = await checkIfLikedAsync(found.id, visitorId);
-            if (hasLikedServer) {
-              setLiked(true);
-              localStorage.setItem(`liked_${found.id}`, "true");
-            }
-          }
-        } else {
-          setNotFound(true);
+        let found = slug ? await getProjectBySlugAsync(slug) : null;
+        if (!found && id) found = (await getProjectsAsync()).find((p) => p.id === id) || null;
+        if (!alive) return;
+        if (!found) return setNotFound(true);
+        setProject(found);
+        setLikeCount(found.likes || 0);
+        getCategoriesAsync().then((cs: Category[]) => alive && setCategory(cs.find((c) => c.id === found!.categoryId)?.name ?? null));
+        const vid = localStorage.getItem("gofocus_visitor_id") || uuidv4();
+        localStorage.setItem("gofocus_visitor_id", vid);
+        if (localStorage.getItem(`liked_${found.id}`)) setLiked(true);
+        else if (await checkIfLikedAsync(found.id, vid)) {
+          setLiked(true);
+          localStorage.setItem(`liked_${found.id}`, "true");
         }
       } catch {
-        setNotFound(true);
+        if (alive) setNotFound(true);
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
-    }
-    loadProject();
+    })();
+    return () => {
+      alive = false;
+    };
   }, [id, slug]);
 
-  // Handle deep links (e.g., ?photo=5)
+  const photos = useMemo(() => project?.photos ?? [], [project]);
+
+  // The roll: frames in order, with a printed tear line wherever the album marks a date.
+  const { items, frames, dates } = useMemo(() => {
+    const items: RollItem[] = [];
+    const frames: Frame[] = [];
+    const dates: string[] = [];
+    photos.forEach((p, index) => {
+      if (p.isDivider) {
+        const label = formatDate(p.date) ?? "";
+        if (label) {
+          dates.push(label);
+          items.push({ kind: "tear", label, key: `tear-${index}` });
+        }
+      } else if (p.url) {
+        const frame = { url: p.url, index, number: frames.length + 1 };
+        frames.push(frame);
+        items.push({ kind: "frame", frame });
+      }
+    });
+    return { items, frames, dates };
+  }, [photos]);
+
+  // Deep link: ?photo=<index> opens that photo.
   useEffect(() => {
-    if (project?.photos && !loading) {
-      const params = new URLSearchParams(window.location.search);
-      const photoIndex = params.get('photo');
-      if (photoIndex !== null) {
-        const idx = parseInt(photoIndex);
-        if (!isNaN(idx) && idx >= 0 && idx < project.photos.length) {
-          setSelectedIndex(idx);
-          // Clean up URL without reload
-          window.history.replaceState({}, '', window.location.pathname);
-        }
-      }
+    if (!project) return;
+    const idx = parseInt(new URLSearchParams(window.location.search).get("photo") || "");
+    if (!isNaN(idx) && photos[idx] && !photos[idx].isDivider) {
+      setSelected(idx);
+      window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [project, loading]);
+  }, [project, photos]);
 
-  const spawnHearts = () => {
-    const newHearts = Array.from({ length: 8 }).map((_, i) => ({
-      id: Date.now() + i,
-      x: (Math.random() - 0.5) * 180,
-      y: (Math.random() - 0.5) * 90 - 40,
-      size: Math.random() * 18 + 9,
-    }));
-    setActiveHearts(newHearts);
-    setTimeout(() => setActiveHearts([]), 1600);
-  };
+  // Signature motion: the roll feeds out of the slot in printer steps, once.
+  useEffect(() => {
+    if (!roll.current || !frames.length || prefersReducedMotion()) return;
+    const t = gsap.fromTo(roll.current, { y: -80, opacity: 0.001 }, { y: 0, opacity: 1, duration: 1.4, ease: "steps(10)", delay: 0.15 });
+    return () => {
+      t.kill();
+    };
+  }, [frames.length]);
 
-  const handleLike = async () => {
+  const like = async () => {
     if (liked || !project) return;
+    const vid = localStorage.getItem("gofocus_visitor_id") || uuidv4();
+    setLiked(true);
+    setLikeCount((c) => c + 1);
     try {
-      const visitorId =
-        localStorage.getItem("gofocus_visitor_id") || uuidv4();
-      if (!localStorage.getItem("gofocus_visitor_id"))
-        localStorage.setItem("gofocus_visitor_id", visitorId);
-      const newCount = await incrementLikesAsync(project.id, visitorId);
-      setLikeCount(newCount);
-      setLiked(true);
-      setShowThanks(true);
+      const n = await incrementLikesAsync(project.id, vid);
+      setLikeCount(n);
       localStorage.setItem(`liked_${project.id}`, "true");
-      spawnHearts();
-      setTimeout(() => setShowThanks(false), 3000);
     } catch {
-      toast.error("Não foi possível processar seu like agora.");
+      setLiked(false);
+      setLikeCount((c) => Math.max(0, c - 1));
+      toast.error("Não deu para curtir agora. Tente de novo.");
     }
   };
 
-  const handleDownload = async (url: string) => {
-    if (isDownloading) return;
-    setIsDownloading(true);
+  const shareAlbum = async () => {
+    const url = window.location.origin + window.location.pathname;
     try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = `${project?.clientName || "photo"}-${Date.now()}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-      toast.success("Download concluído");
-    } catch (error) {
-      toast.error("Erro ao baixar imagem");
-    } finally {
-      setIsDownloading(false);
+      if (navigator.share) await navigator.share({ title: project?.clientName, text: `Álbum ${project?.clientName} da GoFocus`, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link do álbum copiado");
+      }
+    } catch {
+      /* the visitor closed the share sheet */
     }
   };
 
-  const navigateGallery = (direction: number) => {
-    if (selectedIndex === null || !project?.photos) return;
-    const actualPhotos = project.photos.filter(p => !p.isDivider);
-    const currentPhoto = project.photos[selectedIndex];
-    const currentActualIndex = actualPhotos.findIndex(p => p.url === currentPhoto.url);
-    
-    const nextActualIndex = (currentActualIndex + direction + actualPhotos.length) % actualPhotos.length;
-    const nextPhoto = actualPhotos[nextActualIndex];
-    const nextIndexInFullList = project.photos.findIndex(p => p.url === nextPhoto.url);
-    
-    setSelectedIndex(nextIndexInFullList);
-  };
-
-  const handleShare = async (url: string, target?: 'whatsapp' | 'instagram') => {
-    try {
-      const shareUrl = `${window.location.origin}${window.location.pathname}?photo=${selectedIndex}`;
-      const message = `Veja esta foto incrível de ${project?.clientName}:`;
-
-      // Try native sharing first (best experience for images)
-      if (navigator.share && navigator.canShare) {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const file = new File([blob], `GoFocus-${project?.clientName}.jpg`, { type: "image/jpeg" });
-
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `Foto - ${project?.clientName}`,
-            text: `${message} ${shareUrl}`,
-          });
-          return;
-        }
-      }
-
-      // Fallbacks if native share fails or isn't available
-      if (target === 'whatsapp') {
-        const waUrl = `https://wa.me/?text=${encodeURIComponent(message + "\n\n" + shareUrl)}`;
-        window.open(waUrl, "_blank");
-      } else if (target === 'instagram') {
-        // Instagram doesn't have a direct share URL for stories from web
-        // Best we can do is copy the link and tell them to post
-        await navigator.clipboard.writeText(shareUrl);
-        toast.success("Link copiado! Poste no seu Instagram Stories.");
-        setTimeout(() => {
-          window.open("https://instagram.com", "_blank");
-        }, 1500);
-      } else {
-        await navigator.clipboard.writeText(shareUrl);
-        toast.success("Link copiado para a área de transferência!");
-      }
-    } catch (error) {
-      console.error("Erro ao compartilhar:", error);
-      toast.error("Não foi possível compartilhar no momento.");
-    }
-  };
-
-  /* ── Loading / not found states ── */
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
-        <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+      <div className="grid min-h-[100svh] place-items-center bg-[#0B0B0B]" role="status">
+        <p className="font-archivo text-[15px] text-[#C9C4BA]">Imprimindo o álbum…</p>
       </div>
     );
   }
 
   if (notFound || !project) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#0a0a0a]">
-        <p className="text-sm text-white/35 uppercase tracking-widest">
-          Projeto não encontrado.
-        </p>
+      <div className="grid min-h-[100svh] place-items-center bg-[#A7AAAF] px-6 text-center text-[#141414]">
+        <div>
+          <h1 className="font-marquee text-[clamp(3rem,10vw,6rem)] font-black uppercase leading-[0.86]">Álbum não encontrado</h1>
+          <p className="mx-auto mt-5 max-w-[40ch] font-archivo text-[17px] text-[#23252A]">O link pode estar errado ou o álbum foi retirado. Veja todas as tiras na página inicial.</p>
+          <Link to="/#portfolio" className="mt-8 inline-flex rounded-full bg-[#141414] px-6 py-3.5 font-archivo text-[15px] font-semibold text-[#E9EAEC] hover:bg-black">
+            Ver todas as tiras
+          </Link>
+        </div>
       </div>
     );
   }
 
-  const photos = project.photos || [];
+  const meta = [category, `${frames.length} ${frames.length === 1 ? "foto" : "fotos"}`, dates.length ? (dates.length > 1 ? `${dates[0]} a ${dates[dates.length - 1]}` : dates[0]) : null]
+    .filter(Boolean)
+    .join(", ");
 
   return (
-    <>
-      <meta name="robots" content="noindex, nofollow" />
+    <div className="min-h-[100svh] bg-[#0B0B0B] font-archivo selection:bg-[#141414] selection:text-[#E9EAEC]">
+      {/* ── Booth front: sign, details, actions ── */}
+      <header className="bg-[#A7AAAF] text-[#141414]">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 pt-5 sm:px-10 sm:pt-7">
+          <Link to="/" aria-label="GoFocus, página inicial" className="flex items-center gap-3 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#141414]">
+            <img src={logo} alt="" width={1024} height={1024} className="h-8 w-auto" style={{ filter: "brightness(0)" }} />
+            <span className="font-marquee text-[1.5rem] font-black uppercase leading-none">GoFocus</span>
+          </Link>
+          <nav aria-label="Principal" className="flex items-center gap-1 text-[15px] font-medium">
+            <Link to="/#portfolio" className="flex items-center gap-1.5 rounded-full px-3 py-2 transition-colors hover:bg-[#141414]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#141414]">
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Todas as tiras
+            </Link>
+            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hidden rounded-full bg-[#141414] px-4 py-2 text-[#E9EAEC] transition-colors hover:bg-black sm:inline-block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#141414]">
+              Instagram
+            </a>
+          </nav>
+        </div>
 
-      <div className="min-h-screen bg-[#0a0a0a] text-white transition-opacity duration-500 opacity-100" style={{ touchAction: 'pan-y' }}>
+        <div className="mx-auto max-w-6xl px-5 pb-10 pt-12 sm:px-10 md:pt-16">
+          <h1 className="text-balance font-marquee text-[clamp(3.2rem,9vw,6rem)] font-black uppercase leading-[0.86] tracking-[-0.01em]">{project.clientName}</h1>
+          <p className="mt-4 text-[17px] text-[#23252A]">{meta}</p>
 
-        {/* ── HEADER ── */}
-        <motion.header
-          className="px-4 sm:px-6 pt-14 pb-12 sm:pt-20 sm:pb-16 border-b border-white/6 text-center"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.45em] text-white/30 font-medium mb-4">
-            Portfólio GoFocus
-          </p>
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-serif font-normal text-white leading-tight">
-            {project.clientName}
-          </h1>
-
-          {/* ── SEÇÃO DE APOIO ── */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mt-10 max-w-lg mx-auto px-6 py-8 border border-white/5 bg-white/[0.01] rounded-sm backdrop-blur-sm"
-          >
-            <div className="flex flex-col items-center gap-4">
-              <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center mb-2">
-                <Coffee className="h-5 w-5 text-white/40" />
-              </div>
-              <h3 className="text-[11px] uppercase tracking-[0.3em] text-white/80 font-semibold">Gostou das fotos?</h3>
-              <p className="text-[11px] text-white/40 leading-relaxed font-serif italic">
-                Sua contribuição, de qualquer valor, nos ajuda a continuar capturando histórias e evoluindo nosso trabalho. É sempre muito bem-vinda!
-              </p>
-              <button 
-                onClick={() => setIsDonationOpen(true)}
-                className="mt-4 px-8 py-3 bg-white/5 border border-white/10 hover:bg-white hover:text-black transition-all duration-500 rounded-sm text-[10px] font-bold uppercase tracking-[0.3em]"
-              >
-                Fazer uma Doação
-              </button>
-            </div>
-          </motion.div>
-
-          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
-            {/* Like button */}
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             <button
-              onClick={handleLike}
+              type="button"
+              onClick={like}
               disabled={liked}
-              className={`relative flex items-center justify-center gap-3 px-8 py-3.5 w-full sm:w-auto text-[10px] font-semibold uppercase tracking-[0.3em] rounded-sm transition-all duration-500 overflow-hidden ${
-                liked
-                  ? "border border-white/10 text-white/30 cursor-default"
-                  : "bg-white text-black hover:opacity-80 active:scale-95"
-              }`}
+              aria-pressed={liked}
+              className="inline-flex items-center gap-2.5 rounded-full bg-[#141414] py-3 pl-4 pr-5 text-[15px] font-semibold text-[#E9EAEC] transition-colors hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#141414] disabled:cursor-default"
             >
-              <Heart
-                className={`h-4 w-4 transition-all duration-500 ${
-                  liked ? "fill-white/30 text-white/30" : ""
-                }`}
-                strokeWidth={liked ? 0 : 1.8}
-              />
-              <span>{liked ? "Projeto Curtido" : "Curtir Projeto"}</span>
-              {likeCount > 0 && (
-                <span
-                  className={`ml-2 border-l pl-3 text-sm ${
-                    liked ? "border-white/10" : "border-black/15"
-                  }`}
-                >
-                  {likeCount}
-                </span>
-              )}
-
-              {/* floating hearts */}
-              <div className="absolute inset-0 pointer-events-none overflow-visible">
-                {activeHearts.map((h) => (
-                  <motion.div
-                    key={h.id}
-                    initial={{ opacity: 1, scale: 0, x: 0, y: 0 }}
-                    animate={{
-                      opacity: 0,
-                      scale: [0, 1.4, 1],
-                      x: h.x,
-                      y: h.y - 120,
-                      rotate: h.x / 2,
-                    }}
-                    transition={{ duration: 1.2, ease: "easeOut" }}
-                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-                  >
-                    <Heart
-                      className="fill-white text-white"
-                      style={{ width: h.size, height: h.size }}
-                    />
-                  </motion.div>
-                ))}
-              </div>
+              <Heart className={`h-[18px] w-[18px] ${liked ? "fill-[#FF4D3D] text-[#FF4D3D]" : ""}`} aria-hidden="true" />
+              {liked ? "Curtido" : "Curtir álbum"}
+              {likeCount > 0 && <span className="border-l border-white/20 pl-2.5 tabular-nums text-[#C9CCD1]">{likeCount}</span>}
             </button>
-
-            {/* QR button */}
-            <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
-              <DialogTrigger asChild>
-                <button className="flex items-center justify-center gap-2.5 px-6 py-3.5 w-full sm:w-auto border border-white/10 text-white/40 text-[10px] uppercase tracking-[0.3em] rounded-sm hover:border-white/25 hover:text-white/60 transition-all duration-300">
-                  <QrCode className="h-4 w-4" />
-                  Compartilhar via QR
-                </button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md bg-[#111] border-white/10">
-                <DialogHeader className="text-center sm:text-center">
-                  <DialogTitle className="font-serif text-lg font-normal text-center tracking-wide text-white">
-                    QR Code do Projeto
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="flex flex-col items-center gap-7 py-6">
-                  <div className="bg-white p-5 rounded-sm shadow-2xl">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(window.location.href)}`}
-                      alt="QR Code"
-                      className="w-[180px] h-[180px] sm:w-[220px] sm:h-[220px]"
-                    />
-                  </div>
-                  <p className="text-[9px] text-center uppercase tracking-[0.3em] text-white/30 px-4 leading-relaxed">
-                    Escaneie para abrir este projeto em outro dispositivo
-                  </p>
-                </div>
-              </DialogContent>
-            </Dialog>
-
-            {/* ── DONATION MODAL ── */}
-            <Dialog open={isDonationOpen} onOpenChange={setIsDonationOpen}>
-              <DialogContent className="bg-[#0f0f0f] border-white/10 text-white max-w-sm">
-                <DialogHeader>
-                  <DialogTitle className="text-center text-sm font-serif italic tracking-widest uppercase text-white/80">
-                    Apoie nosso trabalho
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="flex flex-col items-center gap-8 py-6">
-                   <div className="p-4 bg-white rounded-lg shadow-2xl overflow-hidden">
-                     {/* QR CODE PIX */}
-                     <img 
-                       src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=00020126360014br.gov.bcb.pix0114577222120001085204000053039865802BR5915GoFocus%20Fotogr6009Sao%20Paulo62070503***63047B4A" 
-                       alt="PIX QR Code" 
-                       className="w-48 h-48 sm:w-56 sm:h-56"
-                     />
-                   </div>
-                   
-                   <div className="w-full space-y-3">
-                     <div className="text-center">
-                       <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1">Chave PIX (CNPJ)</p>
-                       <p className="text-xs font-mono text-white/90">57.722.212/0001-08</p>
-                     </div>
-                     
-                     <button
-                       onClick={() => {
-                         navigator.clipboard.writeText("57722212000108");
-                         toast.success("Chave PIX copiada!");
-                       }}
-                       className="w-full flex items-center justify-center gap-3 py-4 bg-white text-black rounded-sm text-[10px] font-bold uppercase tracking-[0.3em] hover:opacity-90 active:scale-95 transition-all"
-                     >
-                       <Copy className="h-4 w-4" />
-                       Copiar Chave PIX
-                     </button>
-                   </div>
-                   
-                   <p className="text-[9px] text-white/20 uppercase tracking-[0.3em] text-center leading-relaxed">
-                     Obrigado por fazer parte<br/> da nossa história.
-                   </p>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <ToolButton icon={Share2} label="Compartilhar" onClick={shareAlbum} />
+            <ToolButton icon={QrCode} label="QR code" onClick={() => setQrOpen(true)} />
+            <ToolButton icon={Copy} label="Apoiar com PIX" onClick={() => setPixOpen(true)} />
           </div>
+        </div>
 
-          <AnimatePresence>
-            {showThanks && (
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="mt-5 text-[10px] uppercase tracking-[0.4em] text-white/50"
-              >
-                ✦ Obrigado pelo apoio ✦
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </motion.header>
+        {/* Print slot the roll feeds out of. */}
+        <div className="mx-auto max-w-6xl px-5 sm:px-10">
+          <div className="relative mx-auto h-5 w-full max-w-[940px] translate-y-1/2 rounded-full bg-[linear-gradient(180deg,#e2e4e6,#8f9398)] p-[4px] shadow-[0_3px_6px_rgba(0,0,0,0.55)]">
+            <div className="h-full w-full rounded-full bg-[linear-gradient(180deg,#000,#1b1b1d)] shadow-[inset_0_2px_3px_rgba(0,0,0,0.95)]" />
+          </div>
+        </div>
+      </header>
 
-        {/* ── PHOTO GRID ── */}
-        <main className="px-2 sm:px-4 py-8 sm:py-12 max-w-7xl mx-auto">
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2.5 lg:grid-cols-3 xl:grid-cols-4">
-            {photos.map((photo, index) => (
-              photo.isDivider ? (
-                <div key={photo.url} className="col-span-full py-16 sm:py-24 flex flex-col items-center gap-4">
-                  <div className="flex items-center gap-6 w-full max-w-2xl px-4">
-                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-white/5"></div>
-                    <div className="flex items-center gap-4 px-8 py-3.5 border border-white/5 bg-white/[0.02] rounded-sm backdrop-blur-sm">
-                       <Calendar className="h-3.5 w-3.5 text-white/20" />
-                       <span className="text-[10px] sm:text-xs font-serif italic tracking-[0.3em] text-white/50 uppercase">
-                         {photo.date}
-                       </span>
-                    </div>
-                    <div className="flex-1 h-px bg-gradient-to-l from-transparent via-white/10 to-white/5"></div>
-                  </div>
-                </div>
+      {/* ── The roll ── */}
+      <main className="overflow-hidden px-3 pb-24 sm:px-10">
+        <div ref={roll} className="mx-auto max-w-[900px] bg-[#FBFAF7] px-3 pb-10 pt-6 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.9)] sm:px-6 sm:pt-8">
+          <h2 className="sr-only">Fotos do álbum</h2>
+          <ol className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3">
+            {items.map((item) =>
+              item.kind === "tear" ? (
+                <li key={item.key} className="col-span-full my-3 flex items-center gap-4 sm:my-5" aria-label={`Fotos de ${item.label}`}>
+                  <span aria-hidden="true" className="h-0 flex-1 border-t-2 border-dashed border-[#B9B5AD]" />
+                  <span className="font-marquee text-[1.25rem] font-extrabold uppercase leading-none text-[#141414] sm:text-[1.5rem]">{item.label}</span>
+                  <span aria-hidden="true" className="h-0 flex-1 border-t-2 border-dashed border-[#B9B5AD]" />
+                </li>
               ) : (
-                <motion.div
-                  key={`${photo.url}-${index}`}
-                  className="group relative cursor-pointer overflow-hidden bg-white/3"
-                  initial={{ opacity: 0 }}
-                  whileInView={{ opacity: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: (index % 4) * 0.06, duration: 0.5 }}
-                >
-                  <ImageWithLoader
-                    src={photo.url}
-                    alt={`${project.clientName} - Foto ${index + 1}`}
-                    width={1200}
-                    className="w-full aspect-[4/5] object-cover transition-transform duration-500 group-hover:scale-105 opacity-85 group-hover:opacity-100"
-                    onClick={() => setSelectedIndex(index)}
-                  />
-                </motion.div>
+                <li key={item.frame.index}>
+                  <button
+                    type="button"
+                    onClick={() => setSelected(item.frame.index)}
+                    aria-label={`Abrir foto ${item.frame.number} de ${frames.length}`}
+                    className="group block w-full overflow-hidden bg-[#1a1a1a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#141414]"
+                  >
+                    <img
+                      src={thumb(item.frame.url, 520)}
+                      alt=""
+                      width={520}
+                      height={650}
+                      loading={item.frame.number <= 6 ? "eager" : "lazy"}
+                      decoding="async"
+                      className="aspect-[4/5] w-full object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.035]"
+                    />
+                  </button>
+                </li>
               )
-            ))}
-          </div>
-        </main>
-
-        {/* ── FOOTER ── */}
-        <footer className="py-10 text-center border-t border-white/6">
-          <p className="text-[8px] uppercase tracking-[0.5em] text-white/18">
-            © {new Date().getFullYear()} GoFocus — Evolução Constante
-          </p>
-        </footer>
-      </div>
-
-      {/* ── LIGHTBOX ── */}
-      <AnimatePresence initial={false}>
-        {selectedIndex !== null && (
-          <motion.div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/98 backdrop-blur-xl"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSelectedIndex(null)}
-          >
-            {/* Top Bar */}
-            <div className="absolute top-0 left-0 right-0 z-[110] flex items-center justify-between px-4 py-6 sm:px-8">
-              <div className="flex flex-col">
-                <span className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium">
-                  {project.clientName}
-                </span>
-                <span className="text-[11px] text-white/20 font-mono mt-1">
-                  {project.photos.filter((p, i) => !p.isDivider && i <= selectedIndex).length} / {project.photos.filter(p => !p.isDivider).length}
-                </span>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleShare(photos[selectedIndex].url);
-                  }}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white/5 border border-white/10 text-white hover:bg-white/10 active:scale-90 transition-all"
-                  title="Compartilhar"
-                >
-                  <Share2 className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDownload(photos[selectedIndex].url);
-                  }}
-                  disabled={isDownloading}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white/5 border border-white/10 text-white hover:bg-white/10 active:scale-90 transition-all"
-                  title="Baixar para galeria"
-                >
-                  {isDownloading ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-white/50" />
-                  ) : (
-                    <Download className="h-4 w-4" />
-                  )}
-                </button>
-                <button
-                  onClick={() => setSelectedIndex(null)}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white/5 border border-white/10 text-white hover:bg-white/10 active:scale-90 transition-all"
-                  title="Fechar"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Navigation Arrows (Desktop) */}
-            <button
-              className="absolute left-4 z-[110] hidden sm:flex h-12 w-12 items-center justify-center rounded-full bg-white/5 text-white hover:bg-white/10 transition-all"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigateGallery(-1);
-              }}
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </button>
-            <button
-              className="absolute right-4 z-[110] hidden sm:flex h-12 w-12 items-center justify-center rounded-full bg-white/5 text-white hover:bg-white/10 transition-all"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigateGallery(1);
-              }}
-            >
-              <ChevronRight className="h-6 w-6" />
-            </button>
-
-            {/* Image Container with Pinch-to-Zoom */}
-            <PinchZoomImage 
-              src={photos[selectedIndex].url}
-              alt={`Foto ${selectedIndex + 1}`}
-              onSwipe={navigateGallery}
-              onZoomChange={setIsGalleryZoomed}
-            />
-
-            {/* Mobile Swipe Indicator */}
-            {!isGalleryZoomed && (
-              <div className="absolute bottom-10 left-0 right-0 z-[110] flex flex-col items-center gap-4 sm:hidden">
-                <div className="flex gap-3">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleShare(photos[selectedIndex].url, 'whatsapp');
-                    }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-[#25D366] text-white rounded-full font-bold text-[10px] uppercase tracking-wider shadow-lg active:scale-95 transition-all"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    Status
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleShare(photos[selectedIndex].url, 'instagram');
-                    }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] text-white rounded-full font-bold text-[10px] uppercase tracking-wider shadow-lg active:scale-95 transition-all"
-                  >
-                    <Instagram className="w-4 h-4" />
-                    Stories
-                  </button>
-                </div>
-                <div className="px-4 py-2 bg-white/5 backdrop-blur-md rounded-full border border-white/5">
-                  <p className="text-[8px] uppercase tracking-[0.3em] text-white/40">
-                    Arraste ou Pinça para Zoom
-                  </p>
-                </div>
-              </div>
             )}
-          </motion.div>
+          </ol>
+
+          {/* Printed foot of the roll. */}
+          <div className="mt-10 border-t-2 border-dashed border-[#B9B5AD] pt-8 text-center text-[#141414]">
+            <p className="font-marquee text-[1.9rem] font-extrabold uppercase leading-none">{project.clientName}</p>
+            <p className="mt-2 text-[14px] text-[#55524C]">
+              {frames.length} fotos, GoFocus, cabine de fotos
+            </p>
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={like}
+                disabled={liked}
+                className="inline-flex items-center gap-2 rounded-full bg-[#141414] px-5 py-3 text-[15px] font-semibold text-[#E9EAEC] transition-colors hover:bg-black disabled:cursor-default"
+              >
+                <Heart className={`h-4 w-4 ${liked ? "fill-[#FF4D3D] text-[#FF4D3D]" : ""}`} aria-hidden="true" />
+                {liked ? "Você curtiu este álbum" : "Curtir álbum"}
+              </button>
+              <Link to="/#portfolio" className="rounded-full px-5 py-3 text-[15px] font-semibold ring-2 ring-[#141414] transition-colors hover:bg-[#141414] hover:text-[#E9EAEC]">
+                Ver outras tiras
+              </Link>
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-[15px] font-semibold ring-2 ring-[#141414] transition-colors hover:bg-[#141414] hover:text-[#E9EAEC]">
+                <Instagram className="h-4 w-4" aria-hidden="true" /> Falar no Instagram
+              </a>
+            </div>
+          </div>
+        </div>
+        <p className="mt-10 text-center text-[13px] text-[#8F8A80]">© {new Date().getFullYear()} GoFocus. Todos os direitos reservados.</p>
+      </main>
+
+      {/* ── QR code ── */}
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className="max-w-sm border-0 bg-[#A7AAAF] text-[#141414]">
+          <DialogHeader>
+            <DialogTitle className="font-marquee text-[1.8rem] font-black uppercase leading-none">QR code do álbum</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-2">
+            <div className="rounded-[3px] bg-[#FBFAF7] p-4 shadow-[0_18px_40px_-18px_rgba(0,0,0,0.55)]">
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(window.location.href)}`} alt={`QR code para abrir o álbum ${project.clientName}`} width={200} height={200} className="h-[200px] w-[200px]" />
+            </div>
+            <p className="text-center text-[15px] text-[#23252A]">Aponte a câmera do celular para abrir este álbum.</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── PIX support ── */}
+      <Dialog open={pixOpen} onOpenChange={setPixOpen}>
+        <DialogContent className="max-w-sm border-0 bg-[#A7AAAF] text-[#141414]">
+          <DialogHeader>
+            <DialogTitle className="font-marquee text-[1.8rem] font-black uppercase leading-none">Apoie nosso trabalho</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-5 py-2">
+            <div className="rounded-[3px] bg-[#FBFAF7] p-4 shadow-[0_18px_40px_-18px_rgba(0,0,0,0.55)]">
+              <img src={PIX_QR} alt="QR code PIX da GoFocus" width={200} height={200} className="h-[200px] w-[200px]" />
+            </div>
+            <div className="text-center">
+              <p className="text-[14px] text-[#23252A]">Chave PIX (CNPJ)</p>
+              <p className="mt-1 text-[17px] font-semibold tabular-nums">{PIX_KEY_LABEL}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(PIX_KEY);
+                toast.success("Chave PIX copiada");
+              }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#141414] py-3.5 text-[15px] font-semibold text-[#E9EAEC] hover:bg-black"
+            >
+              <Copy className="h-4 w-4" aria-hidden="true" /> Copiar chave PIX
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AnimatePresence>
+        {selected !== null && (
+          <Viewer
+            key="viewer"
+            album={project.clientName}
+            frames={frames}
+            photos={photos}
+            selected={selected}
+            onSelect={setSelected}
+            onClose={() => setSelected(null)}
+          />
         )}
       </AnimatePresence>
-    </>
+    </div>
   );
-};
+}
 
-export default ClientPreview;
+function ToolButton({ icon: Icon, label, onClick }: { icon: typeof Share2; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-2 rounded-full px-4 py-3 text-[15px] font-semibold text-[#141414] ring-2 ring-[#141414]/80 transition-colors hover:bg-[#141414] hover:text-[#E9EAEC] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#141414]"
+    >
+      <Icon className="h-4 w-4" aria-hidden="true" /> {label}
+    </button>
+  );
+}
+
+/* ─────────────────────────── Full-screen viewer ─────────────────────────── */
+
+function Viewer({
+  album,
+  frames,
+  photos,
+  selected,
+  onSelect,
+  onClose,
+}: {
+  album: string;
+  frames: Frame[];
+  photos: Project["photos"];
+  selected: number;
+  onSelect: (i: number) => void;
+  onClose: () => void;
+}) {
+  const [downloading, setDownloading] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
+  const position = frames.findIndex((f) => f.index === selected);
+  const current = frames[position];
+
+  const go = useCallback(
+    (dir: number) => {
+      if (!frames.length) return;
+      onSelect(frames[(position + dir + frames.length) % frames.length].index);
+    },
+    [frames, position, onSelect]
+  );
+
+  // Keyboard, scroll lock, and preloading the neighbours.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight") go(1);
+      if (e.key === "ArrowLeft") go(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    const html = document.documentElement;
+    const prev = html.style.overflow;
+    html.style.overflow = "hidden";
+    [1, -1].forEach((d) => {
+      const f = frames[(position + d + frames.length) % frames.length];
+      if (f) new Image().src = thumb(f.url, 2000);
+    });
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      html.style.overflow = prev;
+    };
+  }, [go, onClose, frames, position]);
+
+  if (!current) return null;
+  const photo = photos[selected];
+
+  const download = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const blob = await (await fetch(photo.url)).blob();
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = u;
+      a.download = `${album}-${current.number}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(u);
+      toast.success("Foto baixada");
+    } catch {
+      toast.error("Não deu para baixar. Tente de novo.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const share = async (target?: "whatsapp" | "instagram") => {
+    const link = `${window.location.origin}${window.location.pathname}?photo=${selected}`;
+    const text = `Olha essa foto de ${album}, da GoFocus:`;
+    try {
+      if (!target && navigator.share) {
+        await navigator.share({ title: album, text, url: link });
+      } else if (target === "whatsapp") {
+        window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n\n${link}`)}`, "_blank");
+      } else {
+        await navigator.clipboard.writeText(link);
+        toast.success(target === "instagram" ? "Link copiado. Cole no seu Stories." : "Link da foto copiado");
+        if (target === "instagram") setTimeout(() => window.open("https://instagram.com", "_blank"), 1200);
+      }
+    } catch {
+      /* closed the share sheet */
+    }
+  };
+
+  const iconButton =
+    "grid h-11 w-11 place-items-center rounded-full bg-[#1c1c1c] text-[#E9EAEC] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-colors hover:bg-[#2a2a2a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#A7AAAF]";
+
+  return (
+    <motion.div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Foto ${current.number} de ${frames.length}, ${album}`}
+      className="fixed inset-0 z-[100] flex flex-col bg-black"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
+        <div className="min-w-0">
+          <p className="truncate font-marquee text-[1.35rem] font-extrabold uppercase leading-none text-[#E9EAEC]">{album}</p>
+          <p className="mt-1 text-[13px] tabular-nums text-[#A7AAAF]">
+            {String(current.number).padStart(2, "0")} / {String(frames.length).padStart(2, "0")}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => share()} aria-label="Compartilhar foto" className={iconButton}>
+            <Share2 className="h-[18px] w-[18px]" />
+          </button>
+          <button type="button" onClick={download} disabled={downloading} aria-label="Baixar foto" className={iconButton}>
+            {downloading ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Download className="h-[18px] w-[18px]" />}
+          </button>
+          <button type="button" onClick={onClose} aria-label="Fechar foto" className={iconButton}>
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="relative min-h-0 flex-1">
+        <PinchZoom key={current.url} src={current.url} onSwipe={go} onZoomChange={setZoomed} />
+        <button type="button" onClick={() => go(-1)} aria-label="Foto anterior" className={`${iconButton} absolute left-3 top-1/2 hidden h-12 w-12 -translate-y-1/2 sm:grid sm:left-6`}>
+          <ChevronLeft className="h-6 w-6" />
+        </button>
+        <button type="button" onClick={() => go(1)} aria-label="Próxima foto" className={`${iconButton} absolute right-3 top-1/2 hidden h-12 w-12 -translate-y-1/2 sm:grid sm:right-6`}>
+          <ChevronRight className="h-6 w-6" />
+        </button>
+      </div>
+
+      {!zoomed && (
+        <div className="flex flex-col items-center gap-3 px-4 pb-5 pt-3">
+          <div className="flex gap-2">
+            <button type="button" onClick={() => share("whatsapp")} className="inline-flex items-center gap-2 rounded-full bg-[#1c1c1c] px-4 py-2.5 text-[14px] font-semibold text-[#E9EAEC] hover:bg-[#2a2a2a]">
+              <MessageCircle className="h-4 w-4" aria-hidden="true" /> Enviar no WhatsApp
+            </button>
+            <button type="button" onClick={() => share("instagram")} className="inline-flex items-center gap-2 rounded-full bg-[#1c1c1c] px-4 py-2.5 text-[14px] font-semibold text-[#E9EAEC] hover:bg-[#2a2a2a]">
+              <Instagram className="h-4 w-4" aria-hidden="true" /> Postar nos Stories
+            </button>
+          </div>
+          <p className="text-[13px] text-[#8F8A80] sm:hidden">Deslize para o lado para ver a próxima</p>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+/* Pinch / double-tap zoom and swipe, for touch; wheel-free so the page never fights it. */
+function PinchZoom({ src, onSwipe, onZoomChange }: { src: string; onSwipe: (d: number) => void; onZoomChange: (z: boolean) => void }) {
+  const scale = useMotionValue(1);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const [zoomed, setZoomed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const lastTap = useRef(0);
+  const startDist = useRef(0);
+  const startScale = useRef(1);
+
+  useEffect(() => onZoomChange(zoomed), [zoomed, onZoomChange]);
+
+  const reset = () => {
+    scale.set(1);
+    x.set(0);
+    y.set(0);
+    setZoomed(false);
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      startDist.current = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+      startScale.current = scale.get();
+    } else if (e.touches.length === 1) {
+      const now = Date.now();
+      if (now - lastTap.current < 300) {
+        if (scale.get() > 1) reset();
+        else {
+          scale.set(2.5);
+          setZoomed(true);
+        }
+      }
+      lastTap.current = now;
+    }
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length !== 2) return;
+    const d = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+    const s = Math.max(1, Math.min(startScale.current * (d / startDist.current), 5));
+    scale.set(s);
+    setZoomed(s > 1.05);
+  };
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center" onTouchStart={onTouchStart} onTouchMove={onTouchMove}>
+      {/* The roll's copy is cached: show it at once, the large one fades over it. */}
+      <motion.div
+        style={{ scale, x, y }}
+        drag={zoomed ? true : "x"}
+        dragConstraints={zoomed ? undefined : { left: 0, right: 0 }}
+        dragElastic={zoomed ? 0.1 : 0.5}
+        onDragEnd={(_, info) => {
+          if (!zoomed && Math.abs(info.offset.x) > 50) onSwipe(info.offset.x > 0 ? -1 : 1);
+        }}
+        className="relative flex h-full w-full items-center justify-center px-2 sm:px-20"
+      >
+        <img src={thumb(src, 520)} alt="" className={`pointer-events-none max-h-full max-w-full select-none object-contain ${loaded ? "hidden" : ""}`} draggable={false} />
+        <img
+          src={thumb(src, 2000)}
+          alt=""
+          onLoad={() => setLoaded(true)}
+          className={`pointer-events-none max-h-full max-w-full select-none object-contain ${loaded ? "" : "absolute opacity-0"}`}
+          draggable={false}
+        />
+      </motion.div>
+      {zoomed && (
+        <button type="button" onClick={reset} className="absolute bottom-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-[#1c1c1c] px-4 py-2.5 text-[14px] font-semibold text-[#E9EAEC]">
+          <ZoomOut className="h-4 w-4" aria-hidden="true" /> Tirar o zoom
+        </button>
+      )}
+    </div>
+  );
+}

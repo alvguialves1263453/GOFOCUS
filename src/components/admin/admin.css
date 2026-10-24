@@ -1,0 +1,67 @@
+/*
+ * GoFocus admin theme (Operate mode).
+ * Applied to <body> while an admin screen is mounted, so overlays rendered in
+ * portals (dialogs, selects, menus, toasts) pick it up too. The shadcn/ui
+ * variables below make every stock component speak the admin vocabulary.
+ */
+body.admin-ui {
+  /* Neutral graphite workspace: photos are judged on neutral grey, like Lightroom. */
+  --background: 220 4% 8.5%; /* #141516 canvas */
+  --foreground: 220 8% 93%; /* #ECEDEF text */
+  --card: 220 4% 11.5%; /* #1C1D1F panels */
+  --card-foreground: 220 8% 93%;
+  --popover: 220 4% 13%; /* #202123 overlays */
+  --popover-foreground: 220 8% 93%;
+  --primary: 220 6% 92%; /* #E9EAEC chrome: primary actions, selection */
+  --primary-foreground: 0 0% 8%;
+  --secondary: 220 4% 17%; /* #2a2b2e secondary buttons */
+  --secondary-foreground: 220 8% 93%;
+  --muted: 220 4% 15%;
+  --muted-foreground: 220 4% 66%; /* #A3A6AB secondary text, 7:1 on canvas */
+  --accent: 220 4% 19%; /* hover fill */
+  --accent-foreground: 220 8% 96%;
+  --destructive: 3 84% 60%; /* #EE4B43 */
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 4% 19%; /* #2E2F32 hairlines */
+  --input: 220 4% 23%; /* #39393D field borders */
+  --ring: 220 8% 72%;
+  --radius: 0.625rem;
+
+  /* Admin-only roles (status only, never decoration). */
+  --admin-sidebar: 220 5% 6.5%; /* #0F1011 a second, darker neutral layer */
+  --admin-success: 150 52% 49%; /* #3BBE7A paid, published, done */
+  --admin-warning: 37 73% 55%; /* #E0A33B pending, draft */
+  --admin-info: 212 70% 62%; /* #5B9BE6 informational */
+
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: "Archivo", system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+body.admin-ui ::selection {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+body.admin-ui :focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+body.admin-ui {
+  scrollbar-color: hsl(220 4% 26%) transparent;
+}
+
+/* The public site sets a display serif on every heading; the admin is one family. */
+body.admin-ui h1,
+body.admin-ui h2,
+body.admin-ui h3,
+body.admin-ui h4,
+body.admin-ui h5,
+body.admin-ui h6 {
+  font-family: inherit;
+  line-height: 1.25;
+}

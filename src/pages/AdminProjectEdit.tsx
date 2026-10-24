@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   getProjectsAsync, updateProjectAsync, getCategoriesAsync,
   type Project, type ProjectPhoto, type Category,
@@ -9,11 +8,19 @@ import { uploadToImageKit, getOptimizedUrl, deleteFromImageKit } from "@/lib/ima
 import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowLeft, Plus, Trash2, Copy, Check, Loader2,
-  ExternalLink, Tag, Image as ImageIcon, X, Calendar, Edit2
+  ExternalLink, Image as ImageIcon, Calendar, Edit2, X,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { AdminPage, Panel, Field, StatusBadge, EmptyState, LoadingBlock } from "@/components/admin/ui";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   DndContext, closestCenter, KeyboardSensor, MouseSensor, TouchSensor,
@@ -37,6 +44,10 @@ interface SortablePhotoProps {
   insertDividerBefore?: (index: number) => void;
 }
 
+/* Small square icon button used on top of photos (40px tap target). */
+const tileBtn =
+  "action-btn grid h-10 w-10 place-items-center rounded-lg border border-border bg-card text-foreground transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-accent";
+
 const DividerItem = ({ photo, index, handleRemoveSingle, updateDividerDate }: SortablePhotoProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempDate, setTempDate] = useState(photo.date || "");
@@ -47,15 +58,16 @@ const DividerItem = ({ photo, index, handleRemoveSingle, updateDividerDate }: So
   }, [photo.date]);
 
   return (
-    <div className="w-full py-8 group">
-      <div className="flex items-center gap-6">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-white/5" />
-        <div className="flex items-center gap-4 bg-white/[0.03] border border-white/10 px-6 py-3 rounded-sm group-hover:border-white/30 transition-all duration-500">
-          <Calendar className="h-4 w-4 text-white/40" />
+    <div className="group w-full px-1 py-4">
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-border" aria-hidden="true" />
+        <div className="flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-border bg-secondary py-1 pl-3 pr-1 transition-colors duration-150 group-hover:border-input">
+          <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           {isEditing ? (
-            <input
+            <Input
               type="text"
               autoFocus
+              aria-label="Data da divisória"
               value={tempDate}
               onChange={(e) => setTempDate(e.target.value)}
               onBlur={() => {
@@ -68,29 +80,35 @@ const DividerItem = ({ photo, index, handleRemoveSingle, updateDividerDate }: So
                   if (updateDividerDate) updateDividerDate(index, tempDate);
                 }
               }}
-              className="bg-transparent text-sm font-serif italic outline-none border-b border-white/20 w-44 text-white/90"
+              className="h-10 w-40 rounded-lg text-[15px] sm:w-48"
             />
           ) : (
-            <span
-              className="text-xs font-serif italic tracking-[0.2em] text-white/80 uppercase cursor-pointer"
+            <button
+              type="button"
+              className="min-h-10 min-w-0 truncate rounded-lg px-1 text-left text-[15px] font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => setIsEditing(true)}
             >
-              {photo.date || "Nova Divisória"}
-            </span>
-          )}
-          <div className="flex items-center gap-1 ml-3 pl-3 border-l border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <button className="p-1.5 hover:text-white text-white/30 transition-colors" onClick={() => setIsEditing(true)}>
-              <Edit2 className="h-3.5 w-3.5" />
+              {photo.date || "Nova divisória"}
             </button>
-            <button
-              className="p-1.5 hover:text-red-400 text-white/30 transition-colors"
+          )}
+          <div className="flex shrink-0 items-center gap-1 border-l border-border pl-1 transition-opacity duration-150 md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
+            <Button type="button" variant="ghost" size="icon" className="rounded-lg" aria-label="Editar data" title="Editar data" onClick={() => setIsEditing(true)}>
+              <Edit2 />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="rounded-lg text-destructive hover:bg-destructive/15 hover:text-destructive"
+              aria-label="Remover divisória"
+              title="Remover divisória"
               onClick={(e) => { e.stopPropagation(); handleRemoveSingle(index, e); }}
             >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+              <Trash2 />
+            </Button>
           </div>
         </div>
-        <div className="h-px flex-1 bg-gradient-to-l from-transparent via-white/10 to-white/5" />
+        <div className="h-px flex-1 bg-border" aria-hidden="true" />
       </div>
     </div>
   );
@@ -108,126 +126,92 @@ const SortablePhoto = ({ photo, index, isSelected, isCover, toggleSelect, handle
     opacity: isDragging ? 0.4 : 1,
   };
 
+  const number = String(index + 1).padStart(2, "00");
+
   return (
-    <div ref={setNodeRef} style={dndStyle} className="w-1/2 sm:w-1/4 md:w-1/5 lg:w-[16.666%] xl:w-[12.5%] p-1">
+    <div ref={setNodeRef} style={dndStyle} className="w-1/2 p-1 sm:w-1/3 md:w-1/4 lg:w-1/5 xl:w-1/6">
       <div
-        className={`group relative aspect-[3/4] overflow-hidden rounded-sm bg-white/4 cursor-grab active:cursor-grabbing transition-shadow duration-300 ${
-          isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : 'hover:ring-1 hover:ring-white/20'
-        }`}
+        className={cn(
+          "group relative aspect-[3/4] cursor-grab overflow-hidden rounded-lg bg-muted outline-none transition-shadow duration-200 active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-ring",
+          isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:ring-1 hover:ring-input"
+        )}
         onClick={(e) => {
            if((e.target as HTMLElement).closest('.action-btn')) return;
            toggleSelect(index);
         }}
+        aria-label={`Foto ${number}${isCover ? " (capa)" : ""}${isSelected ? ", selecionada" : ""}. Toque para selecionar, arraste para reordenar.`}
         {...attributes}
         {...listeners}
       >
         <img
           src={getOptimizedUrl(photo.url, 400)}
-          alt=""
-          className={`h-full w-full object-cover transition-all duration-500 pointer-events-none ${
-              isSelected ? 'scale-105 opacity-50' : 'opacity-80 group-hover:opacity-100'
-          }`}
+          alt={`Foto ${number}`}
+          className={cn(
+            "pointer-events-none h-full w-full object-cover transition-opacity duration-200",
+            isSelected ? "opacity-50" : "opacity-100"
+          )}
           loading="lazy"
         />
 
-        <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-0'}`}>
-           <div className="bg-white rounded-full p-2 text-black">
-              <Check className="h-4 w-4" strokeWidth={3} />
-           </div>
-        </div>
-
-        <div className={`absolute inset-0 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto ${isSelected ? 'opacity-0' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'}`}>
-          <button
-            className="action-btn absolute top-2 left-2 flex h-8 w-8 items-center justify-center rounded-sm transition-all shadow-xl bg-black/60 text-white/70 hover:bg-white hover:text-black active:scale-90"
-            onClick={(e) => { e.stopPropagation(); handleSetCover(index, e); }} title="Definir capa">
-            <ImageIcon className="h-3.5 w-3.5" />
-          </button>
-          <button
-            className="action-btn absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-sm text-red-400 hover:bg-red-500 hover:text-white transition-all shadow-xl bg-black/40 active:scale-90"
-            onClick={(e) => { e.stopPropagation(); handleRemoveSingle(index, e); }} title="Remover foto">
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-
-          {insertDividerBefore && (
-            <button
-              className="action-btn absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-1 rounded-sm bg-black/70 text-white/70 hover:bg-white hover:text-black transition-all shadow-xl text-[8px] font-bold uppercase tracking-wider whitespace-nowrap"
-              onClick={(e) => { e.stopPropagation(); insertDividerBefore(index); }}
-              title="Inserir divisória antes desta foto"
-            >
-              <Calendar className="h-3 w-3" />
-              Data aqui
-            </button>
-          )}
-        </div>
-
-        {isCover && (
-          <div className="absolute bottom-7 left-1.5 bg-white/90 px-2 py-0.5 rounded-sm">
-            <span className="text-[7px] font-bold uppercase tracking-wider text-black">Imagem de Capa</span>
+        {/* Selected marker */}
+        <div className={cn("pointer-events-none absolute inset-0 grid place-items-center transition-opacity duration-150", isSelected ? "opacity-100" : "opacity-0")}>
+          <div className="rounded-full bg-primary p-2 text-primary-foreground">
+            <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
           </div>
-        )}
+        </div>
 
-        <div className="absolute bottom-1.5 right-1.5">
-          <span className="text-[8px] tabular-nums text-white/20 font-bold tracking-tighter">
-            {String(index + 1).padStart(2, "00")}
+        {/* Top row: cover badge + number */}
+        <div className="pointer-events-none absolute inset-x-2 top-2 flex items-start justify-between gap-2">
+          {isCover ? <StatusBadge tone="neutral" className="shadow-sm">Capa</StatusBadge> : <span />}
+          <span className="rounded-md bg-card px-1.5 py-0.5 text-[12px] font-medium tabular-nums text-muted-foreground">
+            {number}
           </span>
+        </div>
+
+        {/* Actions: always visible on touch, on hover/focus with a mouse */}
+        <div
+          className={cn(
+            "absolute inset-x-2 bottom-2 flex items-center justify-between gap-1 transition-opacity duration-150",
+            isSelected ? "pointer-events-none opacity-0" : "opacity-100 md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100"
+          )}
+        >
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className={cn(tileBtn, isCover && "bg-primary text-primary-foreground hover:bg-primary")}
+              onClick={(e) => { e.stopPropagation(); handleSetCover(index, e); }}
+              aria-label={isCover ? "Esta é a capa" : "Definir como capa"}
+              aria-pressed={isCover}
+              title="Definir capa"
+            >
+              <ImageIcon className="h-4 w-4" aria-hidden="true" />
+            </button>
+            {insertDividerBefore && (
+              <button
+                type="button"
+                className={tileBtn}
+                onClick={(e) => { e.stopPropagation(); insertDividerBefore(index); }}
+                aria-label="Inserir divisória de data antes desta foto"
+                title="Inserir data aqui"
+              >
+                <Calendar className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            className={cn(tileBtn, "text-destructive hover:bg-destructive hover:text-destructive-foreground")}
+            onClick={(e) => { e.stopPropagation(); handleRemoveSingle(index, e); }}
+            aria-label="Remover foto"
+            title="Remover foto"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </button>
         </div>
       </div>
     </div>
   );
 };
-
-
-/* ── Confirm Dialog ── */
-const ConfirmDialog = ({ message, onConfirm, onCancel }: {
-  message: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) => (
-  <motion.div
-    className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-  >
-    {/* Backdrop */}
-    <motion.div
-      className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-      onClick={onCancel}
-    />
-    {/* Modal */}
-    <motion.div
-      className="relative z-10 w-full max-w-sm bg-[#111] border border-white/10 rounded-sm p-8 shadow-2xl"
-      initial={{ scale: 0.92, opacity: 0, y: 20 }}
-      animate={{ scale: 1, opacity: 1, y: 0 }}
-      exit={{ scale: 0.92, opacity: 0, y: 20 }}
-      transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-    >
-      <div className="flex flex-col items-center text-center gap-6">
-        <div className="h-14 w-14 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-          <Trash2 className="h-6 w-6 text-red-400" strokeWidth={1.5} />
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-white mb-2">Confirmar exclusão</h3>
-          <p className="text-[11px] text-white/50 leading-relaxed">{message}</p>
-        </div>
-        <div className="flex gap-3 w-full">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-2.5 border border-white/10 rounded-sm text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white hover:border-white/25 transition-all"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 py-2.5 bg-red-500 rounded-sm text-[10px] font-bold uppercase tracking-widest text-white hover:bg-red-600 transition-all active:scale-95"
-          >
-            Excluir
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  </motion.div>
-);
 
 
 const AdminProjectEdit = () => {
@@ -550,195 +534,236 @@ const AdminProjectEdit = () => {
     } catch { toast.error("Erro ao atualizar categoria"); }
   };
 
+
   if (loading || authLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
-        <Loader2 className="h-5 w-5 animate-spin text-white/30" />
-      </div>
-    );
+    return <LoadingBlock label="Carregando projeto…" />;
   }
 
   if (!project) return null;
   const photos = project.photos || [];
+  const photoCount = photos.filter(p => !p.isDivider).length;
+  const clientPath = `/cliente/${project.slug}`;
 
   const activePhoto = activeId ? photos.find(p => p.url === activeId) : null;
+  const uploadPct = uploadStatus.total > 0 ? Math.round((uploadStatus.current / uploadStatus.total) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-white/10 pb-24" style={{ touchAction: 'pan-y' }}>
-      <header className="sticky top-0 z-50 border-b border-white/6 bg-[#0a0a0a]/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={() => navigate("/admin/dashboard")}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border border-white/10 text-white/40 hover:text-white hover:border-white/25 transition-colors"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-            </button>
-            <input
-              type="text"
-              defaultValue={project.clientName}
-              onBlur={(e) => updateName(e.target.value)}
-              className="bg-transparent font-serif text-base sm:text-lg text-white/85 outline-none border-b border-transparent focus:border-white/20 transition-colors min-w-0 truncate max-w-[140px] sm:max-w-xs"
-            />
-          </div>
+    <div style={{ touchAction: 'pan-y' }} className={cn(uploadStatus.isUploading && "pb-16")}>
+      <AdminPage
+        title={<span className="break-words">{project.clientName}</span>}
+        description={`${photoCount} ${photoCount === 1 ? "foto" : "fotos"} · arraste para reordenar, toque para selecionar`}
+        back={
+          <Button variant="ghost" size="sm" className="-ml-2 rounded-lg text-muted-foreground hover:text-foreground" onClick={() => navigate("/admin/dashboard")}>
+            <ArrowLeft /> Projetos
+          </Button>
+        }
+        actions={
+          <>
+            <Button variant="outline" className="rounded-lg" onClick={handleCopyLink}>
+              {copied ? <Check /> : <Copy />}
+              {copied ? "Copiado" : "Copiar link"}
+            </Button>
+            <Button asChild className="rounded-lg">
+              <a href={clientPath} target="_blank" rel="noopener noreferrer">
+                <ExternalLink /> Ver prévia
+              </a>
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-6">
+          {/* Details */}
+          <Panel title="Detalhes do projeto" description="As alterações são salvas automaticamente.">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="Nome do projeto" htmlFor="project-name" hint="Salvo ao sair do campo.">
+                <Input
+                  id="project-name"
+                  type="text"
+                  defaultValue={project.clientName}
+                  onBlur={(e) => updateName(e.target.value)}
+                  className="rounded-lg text-[15px]"
+                />
+              </Field>
+              <Field label="Categoria" htmlFor="project-category">
+                <Select value={project.categoryId || "none"} onValueChange={updateCategory}>
+                  <SelectTrigger id="project-category" className="h-10 rounded-lg text-[15px]">
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" className="text-[15px]">Sem categoria</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id} className="text-[15px]">
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Link do cliente" className="sm:col-span-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <code className="flex h-10 min-w-0 flex-1 items-center truncate rounded-lg border border-border bg-muted px-3 text-[14px] text-muted-foreground">
+                    <span className="truncate">{clientPath}</span>
+                  </code>
+                  <Button variant="secondary" size="icon" className="shrink-0 rounded-lg" onClick={handleCopyLink} aria-label={copied ? "Link copiado" : "Copiar link do cliente"}>
+                    {copied ? <Check /> : <Copy />}
+                  </Button>
+                </div>
+              </Field>
+            </div>
+          </Panel>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Category Select */}
-            <div className="block">
-              <Select value={project.categoryId || "none"} onValueChange={updateCategory}>
-                <SelectTrigger className="h-8 w-[120px] sm:w-[140px] bg-transparent border-white/10 text-[9px] font-semibold uppercase tracking-wider text-white/50 focus:ring-0 focus:ring-offset-0">
-                  <Tag className="h-3 w-3 mr-2 text-white/30" />
-                  <SelectValue placeholder="Categoria" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#111] border-white/10 text-white">
-                  <SelectItem value="none" className="text-[9px] uppercase tracking-wider focus:bg-white/10 focus:text-white">Sem Categoria</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id} className="text-[9px] uppercase tracking-wider focus:bg-white/10 focus:text-white">
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Photos */}
+          <Panel
+            title="Fotos"
+            description={photoCount > 0 ? `${photoCount} ${photoCount === 1 ? "foto" : "fotos"} neste projeto` : undefined}
+            bodyClassName="flex flex-col gap-5"
+          >
+            {/* Upload */}
+            <div
+              className={cn(
+                "group relative overflow-hidden rounded-xl border border-dashed border-input bg-muted transition-colors duration-150 focus-within:ring-2 focus-within:ring-ring",
+                uploadStatus.isUploading ? "cursor-progress" : "hover:bg-accent"
+              )}
+            >
+              <input
+                ref={fileInputRef} type="file" multiple accept="image/*"
+                onChange={handleAddPhotos}
+                aria-label="Adicionar fotos"
+                className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-progress"
+                disabled={uploadStatus.isUploading}
+              />
+              <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
+                <div className="mb-3 grid h-11 w-11 place-items-center rounded-full bg-secondary text-muted-foreground">
+                  {uploadStatus.isUploading ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <Plus className="h-5 w-5" aria-hidden="true" />}
+                </div>
+                <p className="text-[15px] font-medium text-foreground" aria-live="polite">
+                  {uploadStatus.isUploading ? `Enviando ${uploadStatus.current}/${uploadStatus.total}` : 'Adicionar novas fotos'}
+                </p>
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  {uploadStatus.isUploading ? `${uploadPct}% concluído` : 'Clique ou arraste imagens até aqui · até 25MB por arquivo'}
+                </p>
+              </div>
+              {uploadStatus.isUploading && (
+                <div className="absolute inset-x-0 bottom-0 h-1 bg-secondary" aria-hidden="true">
+                  <div className="h-full bg-primary transition-[width] duration-200 ease-out" style={{ width: `${uploadPct}%` }} />
+                </div>
+              )}
             </div>
 
-            <button onClick={handleCopyLink} className="flex items-center gap-1.5 px-3 py-1.5 border border-white/8 rounded-sm text-[9px] font-semibold uppercase tracking-wider text-white/40 hover:text-white hover:border-white/20 transition-colors">
-              {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-              <span className="hidden sm:inline">{copied ? "Copiado" : "Copiar link"}</span>
-            </button>
-            <a href={`/cliente/${project.slug}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-black rounded-sm text-[9px] font-semibold uppercase tracking-wider hover:opacity-80 transition-opacity">
-              <ExternalLink className="h-3 w-3" />
-              <span className="hidden sm:inline">Ver prévia</span>
-            </a>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-7xl px-3 sm:px-6 py-6 sm:py-8">
-        
-        <AnimatePresence>
-          {selectedIndices.size > 0 && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-6">
-              <div className="bg-white/[0.03] border border-white/10 p-4 rounded-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                   <div className="bg-white text-black text-[10px] font-bold px-2 py-0.5 rounded-sm">{selectedIndices.size}</div>
-                   <span className="text-[10px] uppercase tracking-[0.2em] text-white/60">Fotos Selecionadas</span>
-                </div>
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <button onClick={() => setSelectedIndices(new Set())} className="flex-1 sm:flex-none text-[9px] uppercase tracking-widest text-white/30 hover:text-white transition-colors px-4 py-2">Cancelar</button>
-                  <button onClick={handleRemoveSelected} disabled={isDeletingBulk} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-sm text-[9px] font-bold uppercase tracking-widest hover:bg-red-600 transition-colors disabled:opacity-50 active:scale-95">
-                    {isDeletingBulk ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                    Excluir
-                  </button>
+            {/* Selection bar */}
+            {selectedIndices.size > 0 && (
+              <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary p-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="flex items-center gap-2 text-[15px] font-medium text-foreground" aria-live="polite">
+                  <span className="rounded-md bg-primary px-2 py-0.5 text-[13px] font-semibold tabular-nums text-primary-foreground">{selectedIndices.size}</span>
+                  {selectedIndices.size === 1 ? "foto selecionada" : "fotos selecionadas"}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" className="flex-1 rounded-lg sm:flex-none" onClick={() => setSelectedIndices(new Set())}>
+                    <X /> Cancelar
+                  </Button>
+                  <Button variant="destructive" className="flex-1 rounded-lg sm:flex-none" onClick={handleRemoveSelected} disabled={isDeletingBulk}>
+                    {isDeletingBulk ? <Loader2 className="animate-spin" /> : <Trash2 />}
+                    {isDeletingBulk ? "Excluindo…" : "Excluir"}
+                  </Button>
                 </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
 
-        <div className="relative mb-8 border border-dashed border-white/10 rounded-sm bg-white/[0.015] hover:bg-white/[0.03] transition-colors group overflow-hidden">
-          <input
-            ref={fileInputRef} type="file" multiple accept="image/*"
-            onChange={handleAddPhotos}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-            disabled={uploadStatus.isUploading}
-          />
-          <div className="flex flex-col items-center justify-center py-10 sm:py-14 text-center">
-             <div className="h-10 w-10 mb-4 rounded-sm border border-white/10 flex items-center justify-center bg-white/5 group-hover:scale-110 transition-transform duration-300">
-                {uploadStatus.isUploading ? <Loader2 className="h-5 w-5 animate-spin text-white/40" /> : <Plus className="h-5 w-5 text-white/30" />}
-             </div>
-             <p className="text-[11px] uppercase tracking-[0.4em] text-white/50 group-hover:text-white transition-colors">
-                {uploadStatus.isUploading ? `Enviando ${uploadStatus.current}/${uploadStatus.total}` : 'Adicionar Novas Fotos'}
-             </p>
-          </div>
-          {uploadStatus.isUploading && (
-            <motion.div className="absolute bottom-0 left-0 h-0.5 bg-white" initial={{ width: 0 }} animate={{ width: `${(uploadStatus.current / uploadStatus.total) * 100}%` }} transition={{ type: "spring", bounce: 0, duration: 0.4 }} />
-          )}
+            {photos.length === 0 ? (
+              <EmptyState
+                icon={<ImageIcon />}
+                title="Nenhuma foto adicionada"
+                description="Envie as fotos do projeto pela área acima. Depois você pode reordenar, escolher a capa e separar por datas."
+              />
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={photos.filter(p => !p.isDivider).map(p => p.url)} strategy={rectSortingStrategy}>
+                  <div className="-m-1 flex flex-wrap">
+                    {photos.map((photo, index) => (
+                      photo.isDivider ? (
+                        <DividerItem
+                          key={photo.url}
+                          photo={photo}
+                          index={index}
+                          isSelected={false}
+                          isCover={false}
+                          toggleSelect={() => {}}
+                          handleSetCover={() => {}}
+                          handleRemoveSingle={handleRemoveSingle}
+                          updateDividerDate={updateDividerDate}
+                        />
+                      ) : (
+                        <SortablePhoto
+                          key={photo.url}
+                          photo={photo}
+                          index={index}
+                          isSelected={selectedIndices.has(index)}
+                          isCover={project.coverIndex === index}
+                          toggleSelect={toggleSelect}
+                          handleSetCover={handleSetCover}
+                          handleRemoveSingle={handleRemoveSingle}
+                          insertDividerBefore={insertDividerBefore}
+                        />
+                      )
+                    ))}
+                  </div>
+                </SortableContext>
+
+                <DragOverlay dropAnimation={{ duration: 250, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                  {activePhoto && !activePhoto.isDivider ? (
+                    <div style={{ transform: 'scale(1.08) rotate(2deg)' }} className="relative aspect-[3/4] w-24 cursor-grabbing overflow-hidden rounded-lg shadow-2xl ring-1 ring-border">
+                      <img src={getOptimizedUrl(activePhoto.url, 400)} alt="" className="h-full w-full object-cover" />
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            )}
+
+            {/* Divider button — always visible below the photos */}
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 w-full rounded-lg border-dashed text-[15px]"
+              onClick={handleAddDivider}
+            >
+              <Calendar /> Adicionar divisória de data
+            </Button>
+          </Panel>
         </div>
+      </AdminPage>
 
-
-
-        {photos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 border border-dashed border-white/6 rounded-sm">
-            <ImageIcon className="h-7 w-7 text-white/10 mb-3" strokeWidth={1} />
-            <p className="text-[10px] uppercase tracking-[0.4em] text-white/20">Nenhuma foto adicionada.</p>
-          </div>
-        ) : (
-          <DndContext 
-            sensors={sensors} 
-            collisionDetection={closestCenter} 
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext items={photos.filter(p => !p.isDivider).map(p => p.url)} strategy={rectSortingStrategy}>
-              <div className="flex flex-wrap">
-                {photos.map((photo, index) => (
-                  photo.isDivider ? (
-                    <DividerItem
-                      key={photo.url}
-                      photo={photo}
-                      index={index}
-                      isSelected={false}
-                      isCover={false}
-                      toggleSelect={() => {}}
-                      handleSetCover={() => {}}
-                      handleRemoveSingle={handleRemoveSingle}
-                      updateDividerDate={updateDividerDate}
-                    />
-                  ) : (
-                    <SortablePhoto
-                      key={photo.url}
-                      photo={photo}
-                      index={index}
-                      isSelected={selectedIndices.has(index)}
-                      isCover={project.coverIndex === index}
-                      toggleSelect={toggleSelect}
-                      handleSetCover={handleSetCover}
-                      handleRemoveSingle={handleRemoveSingle}
-                      insertDividerBefore={insertDividerBefore}
-                    />
-                  )
-                ))}
-              </div>
-            </SortableContext>
-            
-            <DragOverlay dropAnimation={{ duration: 250, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
-              {activePhoto && !activePhoto.isDivider ? (
-                <div style={{ transform: 'scale(1.12) rotate(2deg)', boxShadow: '0px 30px 60px rgba(0,0,0,0.9)' }} className="relative aspect-[3/4] w-24 overflow-hidden rounded-sm cursor-grabbing">
-                  <img src={getOptimizedUrl(activePhoto.url, 400)} alt="" className="h-full w-full object-cover" />
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        )}
-
-        {/* Botão de divisória — SEMPRE visível abaixo das fotos */}
-        <button
-          onClick={handleAddDivider}
-          className="mt-6 w-full flex items-center justify-center gap-3 py-5 border border-dashed border-white/15 rounded-sm text-[10px] font-bold uppercase tracking-[0.25em] text-white/40 hover:text-white hover:border-white/40 hover:bg-white/[0.04] active:scale-[0.99] transition-all duration-300 group"
+      {uploadStatus.isUploading && (
+        <div
+          role="status"
+          className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-center gap-3 border-t border-border bg-card px-4 py-3 text-[14px] font-medium text-foreground lg:left-[232px]"
         >
-          <Calendar className="h-4 w-4 group-hover:scale-110 transition-transform" />
-          Adicionar Divisória de Data
-        </button>
-      </div>
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          Enviando arquivos — {uploadPct}%
+        </div>
+      )}
 
-      <AnimatePresence>
-        {uploadStatus.isUploading && (
-           <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="fixed bottom-0 left-0 right-0 z-50 bg-white text-black py-3 px-6 flex items-center justify-center gap-6">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.4em]">Enviando Arquivos — {Math.round((uploadStatus.current / uploadStatus.total) * 100)}%</span>
-           </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {confirmDialog && (
-          <ConfirmDialog
-            message={confirmDialog.message}
-            onConfirm={confirmDialog.onConfirm}
-            onCancel={closeConfirm}
-          />
-        )}
-      </AnimatePresence>
+      <AlertDialog open={!!confirmDialog} onOpenChange={(open) => { if (!open) closeConfirm(); }}>
+        <AlertDialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[17px]">Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription className="text-[15px]">{confirmDialog?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="mt-0 rounded-lg">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => confirmDialog?.onConfirm()}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -1,25 +1,17 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Instagram, Plus, Users, DollarSign, TrendingUp, 
-  Search, MoreVertical, Edit2, LayoutDashboard,
-  Calendar, CheckCircle2, AlertCircle, Clock,
-  Filter, ArrowRight, LayoutGrid, List,
-  TrendingDown, Briefcase, MessageSquare,
-  ShieldAlert, BadgeDollarSign, UserPlus,
-  ExternalLink, Trash2, Camera, LogOut, ArrowUpRight,
-  Layers, Tag, Eye, EyeOff, ListTodo, X, Settings
+import {
+  Instagram, Plus, Search, MoreVertical, Edit2, LayoutDashboard,
+  CheckCircle2, ArrowRight, ExternalLink, Trash2, Camera,
+  Eye, EyeOff, X, Settings, Plug
 } from "lucide-react";
-import logoImg from "@/assets/logo.png";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
@@ -34,10 +26,12 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InstagramIntegrationsModal } from "@/components/instagram/InstagramIntegrationsModal";
+import { AdminPage, EmptyState, Field, StatusBadge } from "@/components/admin/ui";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { 
-  getInstagramClients, 
-  createInstagramClient, 
+import {
+  getInstagramClients,
+  createInstagramClient,
   updateInstagramClient,
   deleteInstagramClient,
   InstagramClient,
@@ -48,9 +42,17 @@ import {
   setScrappaKey,
   getAllFollowerHistory
 } from "@/lib/instagram";
-import { useAuth } from "@/hooks/useAuth";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+
+const brl = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+
+const STATUS_META: Record<string, { label: string; tone: "success" | "warning" | "info" | "danger" }> = {
+  ativo: { label: "Ativo", tone: "success" },
+  pendente: { label: "Pendente", tone: "warning" },
+  pausado: { label: "Pausado", tone: "info" },
+  cancelado: { label: "Encerrado", tone: "danger" },
+};
+const statusMeta = (status: string) => STATUS_META[status] ?? { label: status, tone: "danger" as const };
 
 const AdminInstagram = () => {
   const navigate = useNavigate();
@@ -79,12 +81,6 @@ const AdminInstagram = () => {
     notes: ""
   });
   const [showRevenue, setShowRevenue] = useState(true);
-
-  useEffect(() => {
-    if (isSettingsModalOpen) {
-      setScrappaKeyInput(getScrappaKey());
-    }
-  }, [isSettingsModalOpen]);
 
   const handleSaveSettings = () => {
     setScrappaKey(scrappaKeyInput);
@@ -151,11 +147,18 @@ const AdminInstagram = () => {
     };
   }, [allFollowers, allPosts]);
 
+  const mountedRef = useRef(true);
+
   useEffect(() => {
+    mountedRef.current = true;
     loadClients();
+
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
-  const loadClients = async () => {
+  async function loadClients() {
     try {
       setLoading(true);
       const [clientsData, followersData, postsData] = await Promise.all([
@@ -163,19 +166,21 @@ const AdminInstagram = () => {
           console.error("Erro ao carregar clientes:", err);
           throw err;
         }),
-        getAllFollowerHistory().catch(err => {
-          console.warn("Error loading all follower history:", err);
+        getAllFollowerHistory(90).catch(err => {
+          console.warn("Error loading follower history:", err);
           return [];
         }),
-        getAllInstagramPosts().catch(err => {
-          console.warn("Error loading all posts:", err);
+        getAllInstagramPosts(90).catch(err => {
+          console.warn("Error loading posts:", err);
           return [];
         })
       ]);
+      if (!mountedRef.current) return;
       setClients(clientsData);
       setAllFollowers(followersData);
       setAllPosts(postsData);
     } catch (error: any) {
+      if (!mountedRef.current) return;
       const msg = error?.message || "";
       if (msg.includes("relation") && msg.includes("does not exist")) {
         toast.error("Tabelas do Instagram não encontradas. Execute o script SQL no Supabase.");
@@ -184,9 +189,9 @@ const AdminInstagram = () => {
       }
       console.error(error);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
-  };
+  }
 
   const handleAddClient = async () => {
     if (!newClient.name || !newClient.username) {
@@ -325,663 +330,389 @@ const AdminInstagram = () => {
 
   const stats = useMemo(() => {
     const active = clients.filter(c => c.status === 'ativo').length;
-    const totalMonthly = clients.reduce((acc, c) => acc + (Number(c.monthly_value) || 0), 0);
+    const encerrados = clients.filter(c => c.status === 'cancelado').length;
+    const totalMonthly = clients
+      .filter(c => c.status !== 'cancelado')
+      .reduce((acc, c) => acc + (Number(c.monthly_value) || 0), 0);
     const pendingPayments = clients.filter(c => c.status === 'pendente').length;
     
     return {
       total: clients.length,
       active,
+      encerrados,
       revenue: totalMonthly,
       pending: pendingPayments
     };
   }, [clients]);
 
-  const { signOut } = useAuth();
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate("/login");
-  };
+  const clientForm = (
+    values: { name: string; username: string; niche?: string; monthly_value: number; payment_day: number; status: string; profile_picture?: string; notes?: string },
+    update: (patch: Record<string, any>) => void,
+    onFetchPhoto: () => void,
+    idPrefix: string
+  ) => (
+    <div className="grid gap-4 py-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Nome" htmlFor={`${idPrefix}-name`}>
+          <Input id={`${idPrefix}-name`} value={values.name} onChange={e => update({ name: e.target.value })} />
+        </Field>
+        <Field label="@ do Instagram" htmlFor={`${idPrefix}-username`}>
+          <Input id={`${idPrefix}-username`} value={values.username} onChange={e => update({ username: e.target.value })} />
+        </Field>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Nicho" htmlFor={`${idPrefix}-niche`}>
+          <Input id={`${idPrefix}-niche`} value={values.niche} onChange={e => update({ niche: e.target.value })} />
+        </Field>
+        <Field label="Valor mensal (R$)" htmlFor={`${idPrefix}-value`}>
+          <Input id={`${idPrefix}-value`} type="number" inputMode="decimal" className="tabular-nums" value={values.monthly_value || ""} onChange={e => update({ monthly_value: e.target.value === "" ? 0 : Number(e.target.value) })} />
+        </Field>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Dia do pagamento" htmlFor={`${idPrefix}-day`}>
+          <Input id={`${idPrefix}-day`} type="number" inputMode="numeric" min="1" max="31" className="tabular-nums" value={values.payment_day || ""} onChange={e => update({ payment_day: e.target.value === "" ? 0 : Number(e.target.value) })} />
+        </Field>
+        <Field label="Status" htmlFor={`${idPrefix}-status`}>
+          <Select value={values.status} onValueChange={v => update({ status: v })}>
+            <SelectTrigger id={`${idPrefix}-status`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ativo">Ativo</SelectItem>
+              <SelectItem value="pendente">Pendente</SelectItem>
+              <SelectItem value="pausado">Pausado</SelectItem>
+              <SelectItem value="cancelado">Encerrado</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <Field label="URL da foto" htmlFor={`${idPrefix}-photo`} hint="Use Buscar para puxar a foto pelo @.">
+        <div className="flex gap-2">
+          <Input id={`${idPrefix}-photo`} className="flex-1" value={values.profile_picture || ""} onChange={e => update({ profile_picture: e.target.value })} />
+          <Button type="button" variant="outline" onClick={onFetchPhoto}>Buscar</Button>
+        </div>
+      </Field>
+      <Field label="Observações" htmlFor={`${idPrefix}-notes`}>
+        <Input id={`${idPrefix}-notes`} value={values.notes} onChange={e => update({ notes: e.target.value })} />
+      </Field>
+    </div>
+  );
+
+  const statTiles = [
+    { label: "Total já trabalhados", value: stats.total },
+    { label: "Clientes ativos", value: stats.active },
+    { label: "Clientes encerrados", value: stats.encerrados },
+    { label: "Faturamento mensal", value: brl(stats.revenue), eye: true },
+    { label: "Pendências", value: stats.pending },
+  ];
+
+  const openClient = (id: string) => navigate(`/admin/instagram/cliente/${id}`);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-purple-500/30 relative overflow-hidden">
-      {/* Dynamic Background Glows */}
-      <div className="absolute top-10 left-10 w-[400px] h-[400px] bg-purple-950/10 rounded-full blur-[150px] pointer-events-none" />
-      <div className="absolute top-[40%] right-20 w-[500px] h-[500px] bg-pink-950/8 rounded-full blur-[160px] pointer-events-none" />
-      <div className="absolute bottom-10 left-1/3 w-[600px] h-[600px] bg-purple-900/5 rounded-full blur-[200px] pointer-events-none" />
-      
-      {/* ── TOP BAR (Matching Dashboard) ── */}
-      <header className="sticky top-0 z-50 border-b border-white/6 bg-[#0a0a0a]/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 h-14 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <img src={logoImg} alt="GoFocus" className="h-6 w-auto object-contain" />
-            <span className="hidden sm:block text-white/15">|</span>
-            <span className="hidden xs:block text-[8px] sm:text-[9px] uppercase tracking-[0.4em] text-white/30 font-medium whitespace-nowrap">
-              Painel Admin
-            </span>
-          </div>
-          <div className="flex items-center gap-3 sm:gap-5">
-            <a
-              href="/links"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 border border-white/10 rounded-sm text-[9px] uppercase tracking-[0.3em] text-white hover:bg-white hover:text-black transition-colors"
-            >
-              Página de Links
-              <ArrowUpRight className="h-3 w-3" />
-            </a>
-            <a
-              href="/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-white/5 rounded-sm text-[8px] sm:text-[9px] uppercase tracking-widest text-white/50 hover:text-white transition-colors"
-            >
-              <span className="hidden xs:inline">Ver Site</span>
-              <ArrowUpRight className="h-3 w-3" />
-            </a>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1 text-[8px] sm:text-[9px] uppercase tracking-widest text-white/35 hover:text-white transition-colors"
-            >
-              <LogOut className="h-3 w-3" />
-              <span className="hidden xs:inline">Sair</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Area */}
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 py-8 sm:py-12">
-
-        {/* ── PAGE TITLE + TABS (Matching Dashboard) ── */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10 pb-8 border-b border-white/6">
-          <div>
-            <p className="text-[9px] uppercase tracking-[0.45em] text-white/30 mb-2 font-medium">Administração</p>
-            <h1 className="text-2xl sm:text-3xl font-serif font-normal text-white">Gestão Social Media</h1>
-          </div>
-
-          {/* Tab switcher */}
-          <div className="flex items-center border border-white/10 rounded-sm overflow-x-auto custom-scrollbar self-start w-full sm:w-auto">
-            <button
-              onClick={() => navigate("/admin/dashboard")}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all text-white/40 hover:text-white/70 whitespace-nowrap"
-            >
-              <LayoutGrid className="h-3 w-3" />
-              Projetos
-            </button>
-            <button
-              onClick={() => navigate("/admin/dashboard?tab=categories")}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 text-white/40 hover:text-white/70 whitespace-nowrap"
-            >
-              <Layers className="h-3 w-3" />
-              Categorias
-            </button>
-            <button
-              onClick={() => navigate("/admin/planner")}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 text-white/40 hover:text-white/70 whitespace-nowrap"
-            >
-              <Calendar className="h-3 w-3" />
-              Planner
-            </button>
-            <button
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 bg-white text-black shadow-lg whitespace-nowrap"
-            >
-              <Instagram className="h-3 w-3" />
-              Instagram
-            </button>
-            <button
-              onClick={() => navigate("/admin/demandas")}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-[9px] font-bold uppercase tracking-widest transition-all border-l border-white/10 text-white/40 hover:text-white/70 whitespace-nowrap"
-            >
-              <ListTodo className="h-3 w-3" />
-              Demandas
-            </button>
-          </div>
-        </div>
-
-        {/* Header Content */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-          <div>
-            <h2 className="text-xl font-serif text-white/90">Gerenciamento Instagram</h2>
-            <p className="text-white/30 text-[11px] uppercase tracking-widest mt-1">Controle de clientes e métricas</p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <div className="relative w-full sm:w-auto">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-              <Input 
-                placeholder="Buscar cliente..." 
-                className="pl-10 bg-white/5 border-white/10 w-full sm:w-[200px] md:w-[300px] focus:border-purple-500/50 transition-all"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            
-            <Button 
-              variant="outline"
-              onClick={() => setIsSettingsModalOpen(true)}
-              className="flex-1 sm:flex-none border-white/10 text-white/60 hover:text-white bg-white/5 hover:bg-white/10 px-4 rounded-xl transition-all"
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
-
-            <Button 
-              variant="outline" 
-              onClick={() => setIsIntegrationsModalOpen(true)}
-              className="flex-1 sm:flex-none bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500 hover:text-white px-4 sm:px-6 rounded-xl font-bold transition-all gap-2"
-            >
-              <TrendingUp className="w-4 h-4" />
-              <span className="hidden xs:inline">Integrações Avançadas</span>
-              <span className="xs:hidden">Integrações</span>
-            </Button>
-
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-700 text-white gap-2 shadow-lg shadow-purple-600/20">
-                  <Plus className="w-4 h-4" />
-                  <span className="hidden xs:inline">Novo Cliente</span>
-                  <span className="xs:hidden">Novo</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-[#0f0f0f] border-white/10 text-white sm:max-w-[500px] max-h-[90vh] overflow-y-auto custom-scrollbar">
-                <DialogHeader className="flex flex-row items-start justify-between">
-                  <div>
-                    <DialogTitle className="font-serif text-2xl">Adicionar Novo Cliente</DialogTitle>
-                    <DialogDescription className="text-white/40">
-                      Preencha os dados básicos para iniciar a gestão do Instagram.
-                    </DialogDescription>
-                  </div>
-                  <button onClick={() => setIsAddDialogOpen(false)} className="p-2 text-white/40 hover:text-white bg-white/5 rounded-sm transition-colors mt-0">
-                    <X className="h-4 w-4" />
-                  </button>
-                </DialogHeader>
-                
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">Nome do Cliente</label>
-                      <Input 
-                        placeholder="Ex: João Silva" 
-                        value={newClient.name}
-                        onChange={(e) => setNewClient({...newClient, name: e.target.value})}
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">@ do Instagram</label>
-                      <Input 
-                        placeholder="Ex: @joaosilva" 
-                        value={newClient.username}
-                        onChange={(e) => setNewClient({...newClient, username: e.target.value})}
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">Nicho</label>
-                      <Input 
-                        placeholder="Ex: Moda, Gastronomia" 
-                        value={newClient.niche}
-                        onChange={(e) => setNewClient({...newClient, niche: e.target.value})}
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">Valor Mensal (R$)</label>
-                      <Input 
-                        type="number"
-                        placeholder="0.00" 
-                        value={newClient.monthly_value || ""}
-                        onChange={(e) => setNewClient({...newClient, monthly_value: e.target.value === "" ? 0 : Number(e.target.value)})}
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">Dia de Pagamento</label>
-                      <Input 
-                        type="number"
-                        min="1"
-                        max="31"
-                        placeholder="10" 
-                        value={newClient.payment_day || ""}
-                        onChange={(e) => setNewClient({...newClient, payment_day: e.target.value === "" ? 0 : Number(e.target.value)})}
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">Status Inicial</label>
-                      <Select 
-                        value={newClient.status} 
-                        onValueChange={(v) => setNewClient({...newClient, status: v})}
-                      >
-                        <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                          <SelectValue placeholder="Selecione o status" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
-                          <SelectItem value="ativo">Ativo</SelectItem>
-                          <SelectItem value="pendente">Pendente</SelectItem>
-                          <SelectItem value="pausado">Pausado</SelectItem>
-                          <SelectItem value="cancelado">Cancelado</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-widest text-white/40">URL Foto de Perfil</label>
-                    <div className="flex gap-2">
-                      <Input 
-                        placeholder="https://..." 
-                        value={newClient.profile_picture}
-                        onChange={(e) => setNewClient({...newClient, profile_picture: e.target.value})}
-                        className="bg-white/5 border-white/10"
-                      />
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 text-[10px] uppercase tracking-widest px-3 h-10"
-                        onClick={() => fetchInstagramPhoto(newClient.username)}
-                      >
-                        Puxar Foto
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-widest text-white/40">Observações</label>
-                    <Input 
-                      placeholder="Alguma nota importante..." 
-                      value={newClient.notes}
-                      onChange={(e) => setNewClient({...newClient, notes: e.target.value})}
-                      className="bg-white/5 border-white/10"
-                    />
-                  </div>
-                </div>
-
-                <DialogFooter>
-                  <Button variant="ghost" onClick={() => setIsAddDialogOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleAddClient} className="bg-purple-600 hover:bg-purple-700">Criar Cliente</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            <Dialog open={isSettingsModalOpen} onOpenChange={setIsSettingsModalOpen}>
-              <DialogContent className="bg-[#0f0f0f] border-white/10 text-white sm:max-w-[400px]">
-                <DialogHeader className="flex flex-row items-start justify-between">
-                  <div>
-                    <DialogTitle className="font-serif text-xl flex items-center gap-2">
-                      <Settings className="w-5 h-5 text-purple-400" />
-                      Configurações API
-                    </DialogTitle>
-                    <DialogDescription className="text-white/40 mt-1">
-                      Configure a chave de API da Scrappa.co
-                    </DialogDescription>
-                  </div>
-                  <button onClick={() => setIsSettingsModalOpen(false)} className="p-2 text-white/40 hover:text-white bg-white/5 rounded-sm transition-colors mt-0">
-                    <X className="h-4 w-4" />
-                  </button>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-widest text-white/40">Sua Chave API (x-api-key)</label>
-                    <Input 
-                      placeholder="Deixe em branco para usar a padrão" 
-                      value={scrappaKeyInput}
-                      onChange={(e) => setScrappaKeyInput(e.target.value)}
-                      className="bg-white/5 border-white/10"
-                    />
-                    <p className="text-[10px] text-white/30">Crie uma conta no scrappa.co e pegue sua API Key para usar os seus próprios limites gratuitos.</p>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="ghost" onClick={() => setIsSettingsModalOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleSaveSettings} className="bg-purple-600 hover:bg-purple-700">Salvar Chave</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </header>
-
-        {/* Stats Grid with Colors */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-          <Card className="bg-[#0b0b0b]/60 border border-white/5 backdrop-blur-md overflow-hidden group hover:border-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.05)] hover:bg-white/[0.02] transition-all duration-300 relative rounded-2xl">
-            <CardHeader className="pb-3">
-              <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/35 font-black">Total de Clientes</CardDescription>
-              <CardTitle className="text-3xl font-serif flex items-end justify-between text-purple-400">
-                {stats.total}
-                <Users className="w-5 h-5 opacity-40 group-hover:opacity-80 transition-opacity" />
-              </CardTitle>
-            </CardHeader>
-            <div className="h-1 w-full bg-gradient-to-r from-purple-500 to-pink-500 opacity-20 group-hover:opacity-60 transition-opacity" />
-          </Card>
-
-          <Card className="bg-[#0b0b0b]/60 border border-white/5 backdrop-blur-md overflow-hidden group hover:border-emerald-500/20 hover:shadow-[0_0_20px_rgba(16,185,129,0.05)] hover:bg-white/[0.02] transition-all duration-300 relative rounded-2xl">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between mb-1">
-                <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/35 font-black">Faturamento Mensal</CardDescription>
-                <button 
-                  onClick={() => setShowRevenue(!showRevenue)}
-                  className="text-white/20 hover:text-white transition-colors p-1"
+    <AdminPage
+      title="Clientes do Instagram"
+      description={`${stats.total} cliente${stats.total !== 1 ? 's' : ''} cadastrado${stats.total !== 1 ? 's' : ''}`}
+      actions={
+        <>
+          <Button
+            variant="outline"
+            onClick={() => { setIsSettingsModalOpen(true); setScrappaKeyInput(getScrappaKey()); }}
+          >
+            <Settings aria-hidden="true" /> API
+          </Button>
+          <Button variant="secondary" onClick={() => setIsIntegrationsModalOpen(true)}>
+            <Plug aria-hidden="true" /> Integrações
+          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus aria-hidden="true" /> Novo cliente
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[520px]">
+              <DialogHeader>
+                <DialogTitle className="text-[20px] font-semibold">Adicionar cliente</DialogTitle>
+                <DialogDescription className="text-[14px]">
+                  Preencha os dados para começar a gestão.
+                </DialogDescription>
+              </DialogHeader>
+              {clientForm(
+                newClient,
+                patch => setNewClient({ ...newClient, ...patch }),
+                () => fetchInstagramPhoto(newClient.username),
+                "new-client"
+              )}
+              <DialogFooter className="gap-2">
+                <Button variant="ghost" onClick={() => setIsAddDialogOpen(false)}>Cancelar</Button>
+                <Button onClick={handleAddClient}>Criar cliente</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      }
+    >
+      {/* Summary */}
+      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {statTiles.map(stat => (
+          <div key={stat.label} className={cn("rounded-xl border border-border bg-card p-4", stat.eye && "col-span-2 lg:col-span-1")}>
+            <div className="flex min-h-[28px] items-center justify-between gap-2">
+              <dt className="text-[13px] text-muted-foreground">{stat.label}</dt>
+              {stat.eye && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="-my-2 -mr-2"
+                  aria-label={showRevenue ? "Ocultar faturamento" : "Mostrar faturamento"}
+                  aria-pressed={!showRevenue}
+                  onClick={(e) => { e.stopPropagation(); setShowRevenue(!showRevenue); }}
                 >
-                  {showRevenue ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-              <CardTitle className="text-3xl font-serif flex items-end justify-between text-emerald-400">
-                {showRevenue ? 
-                  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.revenue) : 
-                  "R$ ••••••"
-                }
-                <TrendingUp className="w-5 h-5 opacity-40 group-hover:opacity-80 transition-opacity" />
-              </CardTitle>
-            </CardHeader>
-            <div className="h-1 w-full bg-gradient-to-r from-emerald-500 to-teal-500 opacity-20 group-hover:opacity-60 transition-opacity" />
-          </Card>
+                  {showRevenue ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                </Button>
+              )}
+            </div>
+            <dd className="mt-1 text-[24px] font-semibold tabular-nums text-foreground">
+              {loading ? <Skeleton className="h-8 w-16" /> : stat.eye && !showRevenue ? 'R$ ••••••' : stat.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
 
-          <Card className="bg-[#0b0b0b]/60 border border-white/5 backdrop-blur-md overflow-hidden group hover:border-blue-500/20 hover:shadow-[0_0_20px_rgba(59,130,246,0.05)] hover:bg-white/[0.02] transition-all duration-300 relative rounded-2xl">
-            <CardHeader className="pb-3">
-              <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/35 font-black">Clientes Ativos</CardDescription>
-              <CardTitle className="text-3xl font-serif flex items-end justify-between text-blue-400">
-                {stats.active}
-                <CheckCircle2 className="w-5 h-5 opacity-40 group-hover:opacity-80 transition-opacity" />
-              </CardTitle>
-            </CardHeader>
-            <div className="h-1 w-full bg-gradient-to-r from-blue-500 to-indigo-500 opacity-20 group-hover:opacity-60 transition-opacity" />
-          </Card>
-
-          <Card className="bg-[#0b0b0b]/60 border border-white/5 backdrop-blur-md overflow-hidden group hover:border-amber-500/20 hover:shadow-[0_0_20px_rgba(245,158,11,0.05)] hover:bg-white/[0.02] transition-all duration-300 relative rounded-2xl">
-            <CardHeader className="pb-3">
-              <CardDescription className="text-[9px] uppercase tracking-[0.2em] text-white/35 font-black">Pendências</CardDescription>
-              <CardTitle className="text-3xl font-serif flex items-end justify-between text-amber-400">
-                {stats.pending}
-                <Clock className="w-5 h-5 opacity-40 group-hover:opacity-80 transition-opacity" />
-              </CardTitle>
-            </CardHeader>
-            <div className="h-1 w-full bg-gradient-to-r from-amber-500 to-orange-500 opacity-20 group-hover:opacity-60 transition-opacity" />
-          </Card>
+      {/* Toolbar */}
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input
+            type="search"
+            aria-label="Buscar cliente"
+            placeholder="Buscar por nome, @ ou nicho"
+            className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
+        {!loading && searchQuery && (
+          <p className="text-[14px] text-muted-foreground tabular-nums" aria-live="polite">
+            {filteredClients.length} de {clients.length} cliente{clients.length !== 1 ? 's' : ''}
+          </p>
+        )}
+      </div>
 
-        {/* Clients Grid */}
+      {/* Clients grid */}
+      <div className="mt-4">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Carregando clientes">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-11 w-11 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </div>
+                </div>
+                <Skeleton className="mt-4 h-5 w-24" />
+                <Skeleton className="mt-4 h-10 w-full" />
+              </div>
+            ))}
           </div>
         ) : filteredClients.length === 0 ? (
-          <div className="text-center py-20 border border-dashed border-white/10 rounded-3xl">
-            <Instagram className="w-12 h-12 text-white/10 mx-auto mb-4" />
-            <h3 className="text-xl font-serif mb-2">Nenhum cliente encontrado</h3>
-            <p className="text-white/40">Comece adicionando seu primeiro cliente de social media.</p>
-          </div>
+          clients.length === 0 ? (
+            <EmptyState
+              icon={<Instagram />}
+              title="Nenhum cliente cadastrado"
+              description="Adicione um cliente ou importe uma conta pelas integrações para começar a gestão."
+              action={<Button onClick={() => setIsAddDialogOpen(true)}><Plus aria-hidden="true" /> Novo cliente</Button>}
+            />
+          ) : (
+            <EmptyState
+              icon={<Search />}
+              title="Nenhum cliente encontrado"
+              description={`Nada corresponde a “${searchQuery}”. Tente outro nome, @ ou nicho.`}
+              action={<Button variant="outline" onClick={() => setSearchQuery("")}>Limpar busca</Button>}
+            />
+          )
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
-            {filteredClients.map((client) => (
-              <motion.div
-                key={client.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                whileHover={{ y: -5 }}
-                className="group"
-              >
-                <Card className="bg-[#0b0b0b]/60 border border-white/5 hover:border-purple-500/25 transition-all duration-500 overflow-hidden relative rounded-2xl backdrop-blur-md hover:shadow-[0_0_30px_rgba(168,85,247,0.06)]">
-                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 p-0.5 border border-white/10 overflow-hidden group-hover:scale-105 transition-transform duration-500 relative">
-                          {client.profile_picture ? (
-                            <img 
-                              src={client.profile_picture} 
-                              alt={client.name} 
-                              className="w-full h-full object-cover rounded-full"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                                (e.target as HTMLImageElement).parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
-                              }}
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {filteredClients.map((client) => {
+              const meta = statusMeta(client.status);
+              const ended = client.status === 'cancelado';
+              return (
+                <li key={client.id}>
+                  <div
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`Abrir ${client.name}`}
+                    onClick={() => openClient(client.id)}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget) return;
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openClient(client.id); }
+                    }}
+                    className="group flex h-full cursor-pointer flex-col rounded-xl border border-border bg-card p-4 transition-colors duration-150 hover:border-input hover:bg-accent/40"
+                  >
+                    {/* Identity */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="relative grid h-11 w-11 flex-shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-secondary">
+                          <Camera className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                          {client.profile_picture && (
+                            <img
+                              src={client.profile_picture}
+                              alt={`Foto de ${client.name}`}
+                              className={cn("absolute inset-0 h-full w-full object-cover", ended && "grayscale")}
+                              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                             />
-                          ) : null}
-                          <div className={`fallback-icon w-full h-full flex items-center justify-center bg-white/5 text-white/20 ${client.profile_picture ? 'hidden' : ''}`}>
-                            <Camera className="w-6 h-6" />
-                          </div>
+                          )}
                         </div>
-                        <div>
-                          <h3 className="font-serif text-lg leading-tight group-hover:text-purple-300 transition-colors duration-300">{client.name}</h3>
-                          <a 
-                            href={`https://instagram.com/${client.username.replace('@', '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-purple-400 text-sm hover:text-purple-300 transition-colors flex items-center gap-1 group/link mt-0.5"
-                          >
-                            {client.username}
-                            <ExternalLink className="w-3 h-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
-                          </a>
+                        <div className="min-w-0">
+                          <p className={cn("truncate text-[15px] font-semibold", ended ? "text-muted-foreground" : "text-foreground")}>{client.name}</p>
+                          <p className="truncate text-[14px] text-muted-foreground">{client.username}</p>
                         </div>
                       </div>
-                      
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-white/20 hover:text-white hover:bg-white/5 rounded-full">
-                            <MoreVertical className="w-4 h-4" />
+                        <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="-mr-2 -mt-1 flex-shrink-0"
+                            aria-label={`Ações de ${client.name}`}
+                            onKeyDown={e => e.stopPropagation()}
+                          >
+                            <MoreVertical aria-hidden="true" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="bg-[#111] border-white/10 text-white rounded-xl shadow-2xl">
-                          <DropdownMenuItem 
-                            className="gap-2 focus:bg-white/10 cursor-pointer rounded-lg m-1"
-                            onClick={() => handleEditClick(client)}
-                          >
-                            <Edit2 className="w-3.5 h-3.5" /> Editar Cliente
+                        <DropdownMenuContent align="end" className="min-w-[180px]">
+                          <DropdownMenuItem className="gap-2"
+                            onClick={e => { e.stopPropagation(); openClient(client.id); }}>
+                            <LayoutDashboard className="h-4 w-4" aria-hidden="true" /> Dashboard
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="gap-2 text-red-400 focus:bg-red-400/10 cursor-pointer rounded-lg m-1"
-                            onClick={() => handleDeleteClient(client.id)}
+                          <DropdownMenuItem className="gap-2"
+                            onClick={e => { e.stopPropagation(); handleEditClick(client); }}>
+                            <Edit2 className="h-4 w-4" aria-hidden="true" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className={cn("gap-2", !ended && "text-destructive focus:text-destructive")}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const novoStatus = client.status === 'cancelado' ? 'ativo' : 'cancelado';
+                              try {
+                                await updateInstagramClient(client.id, { status: novoStatus });
+                                toast.success(novoStatus === 'ativo' ? 'Contrato reativado' : 'Contrato encerrado');
+                                loadClients();
+                              } catch (err: any) {
+                                console.error('Erro ao alterar status:', err);
+                                toast.error(err?.message || 'Erro ao alterar status');
+                              }
+                            }}
                           >
-                            <Trash2 className="w-3.5 h-3.5" /> Excluir
+                            {ended ? (
+                              <><CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Reativar contrato</>
+                            ) : (
+                              <><X className="h-4 w-4" aria-hidden="true" /> Encerrar contrato</>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive"
+                            onClick={e => { e.stopPropagation(); handleDeleteClient(client.id); }}>
+                            <Trash2 className="h-4 w-4" aria-hidden="true" /> Excluir
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                  </CardHeader>
 
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 group-hover:bg-white/[0.04] transition-colors">
-                        <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Status</p>
-                        <Badge variant="outline" className={`
-                          text-[10px] border-none px-0 h-auto font-bold
-                          ${client.status === 'ativo' ? 'text-emerald-400' : 
-                            client.status === 'pendente' ? 'text-amber-400' : 
-                            client.status === 'pausado' ? 'text-blue-400' : 'text-red-400'}
-                        `}>
-                          <div className={`w-1.5 h-1.5 rounded-full mr-2 ${
-                            client.status === 'ativo' ? 'bg-emerald-400' : 
-                            client.status === 'pendente' ? 'bg-amber-400' : 
-                            client.status === 'pausado' ? 'bg-blue-400' : 'bg-red-400'
-                          }`} />
-                          {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                        </Badge>
-                      </div>
-                      <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 group-hover:bg-white/[0.04] transition-colors">
-                        <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Nicho</p>
-                        <p className="text-xs font-medium truncate">{client.niche || 'Não definido'}</p>
-                      </div>
+                    {/* Status + niche */}
+                    <div className="mt-3 flex min-w-0 items-center gap-2">
+                      <StatusBadge tone={meta.tone}>{meta.label}</StatusBadge>
+                      <span className="truncate text-[14px] text-muted-foreground">{client.niche || 'Sem nicho'}</span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 group-hover:bg-white/[0.04] transition-colors">
-                        <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Pagamento</p>
-                        <p className="text-xs font-medium">Todo dia {client.payment_day}</p>
+                    {/* Value + payment */}
+                    <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-3">
+                      <div>
+                        <dt className="text-[13px] text-muted-foreground">Valor mensal</dt>
+                        <dd className={cn("text-[17px] font-semibold tabular-nums", ended ? "text-muted-foreground line-through" : "text-foreground")}>
+                          {brl(client.monthly_value)}
+                        </dd>
                       </div>
-                      <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 group-hover:bg-white/[0.04] transition-colors">
-                        <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Valor</p>
-                        <p className="text-xs font-bold text-emerald-400">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(client.monthly_value)}
-                        </p>
+                      <div className="text-right">
+                        <dt className="text-[13px] text-muted-foreground">Pagamento</dt>
+                        <dd className="text-[15px] font-medium tabular-nums text-foreground">Dia {client.payment_day}</dd>
+                      </div>
+                    </dl>
+
+                    {/* Footer */}
+                    <div className="mt-auto pt-3">
+                      <div className="flex items-center justify-between border-t border-border pt-3 text-[14px] text-muted-foreground">
+                        {ended ? (
+                          <span>Contrato encerrado</span>
+                        ) : (
+                          <>
+                            <span className="transition-colors duration-150 group-hover:text-foreground">Abrir dashboard</span>
+                            <ArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden="true" />
+                          </>
+                        )}
                       </div>
                     </div>
-                  </CardContent>
-
-                  <CardFooter className="pt-2">
-                    <Button 
-                      className="w-full bg-white/5 text-white/60 hover:bg-purple-600 hover:text-white border border-white/5 hover:border-transparent transition-all duration-300 gap-2 rounded-xl py-5"
-                      onClick={() => navigate(`/admin/instagram/cliente/${client.id}`)}
-                    >
-                      Abrir Dashboard Individual
-                      <ArrowRight className="w-4 h-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="bg-[#0f0f0f] border-white/10 text-white sm:max-w-[500px] max-h-[90vh] overflow-y-auto custom-scrollbar">
-          <DialogHeader className="flex flex-row items-start justify-between">
-            <div>
-              <DialogTitle className="font-serif text-2xl">Editar Cliente</DialogTitle>
-              <DialogDescription className="text-white/40">
-                Atualize os dados e configurações deste cliente.
-              </DialogDescription>
-            </div>
-            <button onClick={() => setIsEditDialogOpen(false)} className="p-2 text-white/40 hover:text-white bg-white/5 rounded-sm transition-colors mt-0">
-              <X className="h-4 w-4" />
-            </button>
+      {/* API settings */}
+      <Dialog open={isSettingsModalOpen} onOpenChange={setIsSettingsModalOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="text-[20px] font-semibold">API Scrappa</DialogTitle>
+            <DialogDescription className="text-[14px]">
+              Configure sua chave de API do Scrappa.
+            </DialogDescription>
           </DialogHeader>
-          
-          {editingClient && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest text-white/40">Nome do Cliente</label>
-                  <Input 
-                    placeholder="Ex: João Silva" 
-                    value={editingClient.name}
-                    onChange={(e) => setEditingClient({...editingClient, name: e.target.value})}
-                    className="bg-white/5 border-white/10"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest text-white/40">@ do Instagram</label>
-                  <Input 
-                    placeholder="Ex: @joaosilva" 
-                    value={editingClient.username}
-                    onChange={(e) => setEditingClient({...editingClient, username: e.target.value})}
-                    className="bg-white/5 border-white/10"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest text-white/40">Nicho</label>
-                  <Input 
-                    placeholder="Ex: Moda, Gastronomia" 
-                    value={editingClient.niche}
-                    onChange={(e) => setEditingClient({...editingClient, niche: e.target.value})}
-                    className="bg-white/5 border-white/10"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest text-white/40">Valor Mensal (R$)</label>
-                  <Input 
-                    type="number"
-                    placeholder="0.00" 
-                    value={editingClient.monthly_value || ""}
-                    onChange={(e) => setEditingClient({...editingClient, monthly_value: e.target.value === "" ? 0 : Number(e.target.value)})}
-                    className="bg-white/5 border-white/10"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest text-white/40">Dia de Pagamento</label>
-                  <Input 
-                    type="number"
-                    min="1"
-                    max="31"
-                    placeholder="10" 
-                    value={editingClient.payment_day || ""}
-                    onChange={(e) => setEditingClient({...editingClient, payment_day: e.target.value === "" ? 0 : Number(e.target.value)})}
-                    className="bg-white/5 border-white/10"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest text-white/40">Status</label>
-                  <Select 
-                    value={editingClient.status} 
-                    onValueChange={(v: any) => setEditingClient({...editingClient, status: v})}
-                  >
-                    <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                      <SelectValue placeholder="Selecione o status" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
-                      <SelectItem value="ativo">Ativo</SelectItem>
-                      <SelectItem value="pendente">Pendente</SelectItem>
-                      <SelectItem value="pausado">Pausado</SelectItem>
-                      <SelectItem value="cancelado">Cancelado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-white/40">URL Foto de Perfil</label>
-                <div className="flex gap-2">
-                  <Input 
-                    placeholder="https://..." 
-                    value={editingClient.profile_picture || ""}
-                    onChange={(e) => setEditingClient({...editingClient, profile_picture: e.target.value})}
-                    className="bg-white/5 border-white/10"
-                  />
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 text-[10px] uppercase tracking-widest px-3 h-10"
-                    onClick={() => fetchInstagramPhoto(editingClient.username, true)}
-                  >
-                    Puxar Foto
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-white/40">Observações</label>
-                <Input 
-                  placeholder="Alguma nota importante..." 
-                  value={editingClient.notes}
-                  onChange={(e) => setEditingClient({...editingClient, notes: e.target.value})}
-                  className="bg-white/5 border-white/10"
-                />
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleUpdateClient} className="bg-purple-600 hover:bg-purple-700">Salvar Alterações</Button>
+          <div className="space-y-3 py-2">
+            <Field label="Chave de API" htmlFor="scrappa-key">
+              <Input id="scrappa-key" autoComplete="off" value={scrappaKeyInput} onChange={e => setScrappaKeyInput(e.target.value)} />
+            </Field>
+            <a href="https://scrappa.co" target="_blank" rel="noopener noreferrer"
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-md text-[14px] text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline">
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              Criar chave no scrappa.co
+            </a>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setIsSettingsModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveSettings}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <InstagramIntegrationsModal 
-        isOpen={isIntegrationsModalOpen} 
-        onClose={() => setIsIntegrationsModalOpen(false)} 
+      {/* Edit client */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="text-[20px] font-semibold">Editar cliente</DialogTitle>
+            <DialogDescription className="text-[14px]">Atualize os dados do cliente.</DialogDescription>
+          </DialogHeader>
+          {editingClient && clientForm(
+            { ...editingClient, notes: editingClient.notes },
+            patch => setEditingClient({ ...editingClient, ...patch } as InstagramClient),
+            () => fetchInstagramPhoto(editingClient.username, true),
+            "edit-client"
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUpdateClient}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <InstagramIntegrationsModal
+        isOpen={isIntegrationsModalOpen}
+        onClose={() => setIsIntegrationsModalOpen(false)}
         onSuccess={loadClients}
       />
-
-      {/* Style overrides for premium look */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&display=swap');
-        .font-serif { font-family: 'Bodoni Moda', serif; }
-      `}} />
-    </div>
+    </AdminPage>
   );
 };
 
