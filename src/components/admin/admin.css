@@ -1,67 +1,483 @@
 /*
- * GoFocus admin theme (Operate mode).
- * Applied to <body> while an admin screen is mounted, so overlays rendered in
- * portals (dialogs, selects, menus, toasts) pick it up too. The shadcn/ui
- * variables below make every stock component speak the admin vocabulary.
+ * GoFocus admin theme: "Studio glass" (Operate mode).
+ * Frosted panels float on one soft, fixed backdrop; a solid black rail holds
+ * navigation. Glass here is translucent fill + hairline light edge, NOT live
+ * backdrop blur, so Safari never re-blurs while the page scrolls. Every motion
+ * is transform/opacity on a short exponential ease-out.
+ * Applied to <body class="admin-ui"> so portalled dialogs, menus and toasts inherit it.
  */
 body.admin-ui {
-  /* Neutral graphite workspace: photos are judged on neutral grey, like Lightroom. */
-  --background: 220 4% 8.5%; /* #141516 canvas */
-  --foreground: 220 8% 93%; /* #ECEDEF text */
-  --card: 220 4% 11.5%; /* #1C1D1F panels */
-  --card-foreground: 220 8% 93%;
-  --popover: 220 4% 13%; /* #202123 overlays */
-  --popover-foreground: 220 8% 93%;
-  --primary: 220 6% 92%; /* #E9EAEC chrome: primary actions, selection */
-  --primary-foreground: 0 0% 8%;
-  --secondary: 220 4% 17%; /* #2a2b2e secondary buttons */
-  --secondary-foreground: 220 8% 93%;
-  --muted: 220 4% 15%;
-  --muted-foreground: 220 4% 66%; /* #A3A6AB secondary text, 7:1 on canvas */
-  --accent: 220 4% 19%; /* hover fill */
-  --accent-foreground: 220 8% 96%;
-  --destructive: 3 84% 60%; /* #EE4B43 */
+  --background: 250 6% 15%;
+  --foreground: 240 10% 96%;
+  --card: 250 6% 19%;
+  --card-foreground: 240 10% 96%;
+  --popover: 250 7% 17%;
+  --popover-foreground: 240 10% 96%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 250 10% 10%;
+  --secondary: 250 6% 24%;
+  --secondary-foreground: 240 10% 96%;
+  --muted: 250 6% 21%;
+  --muted-foreground: 245 6% 72%;
+  --accent: 250 6% 27%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 3 84% 62%;
   --destructive-foreground: 0 0% 100%;
-  --border: 220 4% 19%; /* #2E2F32 hairlines */
-  --input: 220 4% 23%; /* #39393D field borders */
-  --ring: 220 8% 72%;
-  --radius: 0.625rem;
+  --border: 250 8% 30%;
+  --input: 250 8% 34%;
+  --ring: 0 0% 100%;
+  --radius: 0.875rem;
 
-  /* Admin-only roles (status only, never decoration). */
-  --admin-sidebar: 220 5% 6.5%; /* #0F1011 a second, darker neutral layer */
-  --admin-success: 150 52% 49%; /* #3BBE7A paid, published, done */
-  --admin-warning: 37 73% 55%; /* #E0A33B pending, draft */
-  --admin-info: 212 70% 62%; /* #5B9BE6 informational */
+  --admin-sidebar: 0 0% 2%;
+  --admin-success: 150 52% 52%;
+  --admin-warning: 37 80% 58%;
+  --admin-info: 212 75% 66%;
 
-  background: hsl(var(--background));
+  --glass: rgba(255, 255, 255, 0.065);
+  --glass-strong: rgba(255, 255, 255, 0.1);
+  --glass-hover: rgba(255, 255, 255, 0.13);
+  --glass-edge: rgba(255, 255, 255, 0.11);
+  --glass-edge-hi: rgba(255, 255, 255, 0.22);
+  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.07) inset, 0 24px 48px -28px rgba(0, 0, 0, 0.6);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --t-fast: 160ms;
+  --t-med: 320ms;
+
+  background: #25242a;
   color: hsl(var(--foreground));
   font-family: "Archivo", system-ui, -apple-system, sans-serif;
   font-size: 15px;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  caret-color: #fff;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
 
-body.admin-ui ::selection {
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
+/* One fixed backdrop of soft studio light, painted once. */
+body.admin-ui::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 55% at 18% 8%, rgba(150, 140, 170, 0.32), transparent 70%),
+    radial-gradient(50% 50% at 92% 20%, rgba(120, 118, 128, 0.22), transparent 70%),
+    radial-gradient(70% 60% at 70% 105%, rgba(90, 82, 104, 0.35), transparent 70%),
+    linear-gradient(180deg, #2b2a31 0%, #232228 55%, #1d1c21 100%);
 }
 
-body.admin-ui :focus-visible {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: 2px;
-}
+body.admin-ui ::selection { background: rgba(255, 255, 255, 0.9); color: #141318; }
+body.admin-ui :focus-visible { outline: 2px solid rgba(255, 255, 255, 0.85); outline-offset: 2px; }
 
-body.admin-ui {
-  scrollbar-color: hsl(220 4% 26%) transparent;
-}
-
-/* The public site sets a display serif on every heading; the admin is one family. */
-body.admin-ui h1,
-body.admin-ui h2,
-body.admin-ui h3,
-body.admin-ui h4,
-body.admin-ui h5,
-body.admin-ui h6 {
+body.admin-ui h1, body.admin-ui h2, body.admin-ui h3,
+body.admin-ui h4, body.admin-ui h5, body.admin-ui h6 {
   font-family: inherit;
   line-height: 1.25;
 }
+
+/* ── Glass surfaces (override the opaque shadcn fills) ── */
+body.admin-ui .bg-card { background-color: var(--glass); box-shadow: var(--glass-shadow); }
+body.admin-ui .bg-muted { background-color: rgba(255, 255, 255, 0.05); }
+body.admin-ui .bg-secondary { background-color: rgba(255, 255, 255, 0.09); }
+body.admin-ui .bg-accent,
+body.admin-ui .hover\:bg-accent:hover,
+body.admin-ui .focus\:bg-accent:focus,
+body.admin-ui .focus-visible\:bg-accent:focus-visible { background-color: var(--glass-hover); }
+body.admin-ui .border-border { border-color: var(--glass-edge); }
+body.admin-ui .border-input { border-color: rgba(255, 255, 255, 0.14); }
+body.admin-ui .hover\:border-input:hover { border-color: var(--glass-edge-hi); }
+
+/* Inputs read as recessed glass */
+body.admin-ui input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+body.admin-ui textarea,
+body.admin-ui button[role="combobox"] {
+  background-color: rgba(0, 0, 0, 0.18);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+body.admin-ui input:focus-visible,
+body.admin-ui textarea:focus-visible,
+body.admin-ui button[role="combobox"]:focus-visible {
+  border-color: rgba(255, 255, 255, 0.45);
+  background-color: rgba(0, 0, 0, 0.26);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+/* Overlays sit still, so a real blur is cheap here. */
+body.admin-ui [role="dialog"],
+body.admin-ui [role="alertdialog"],
+body.admin-ui [role="menu"],
+body.admin-ui [role="listbox"] {
+  background-color: rgba(44, 42, 50, 0.9);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  border-color: var(--glass-edge);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 40px 80px -30px rgba(0, 0, 0, 0.75);
+}
+body.admin-ui [role="dialog"],
+body.admin-ui [role="alertdialog"] { border-radius: 22px; }
+body.admin-ui [role="menu"],
+body.admin-ui [role="listbox"] {
+  background-color: rgba(46, 44, 52, 0.97);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+body.admin-ui .bg-black\/80 { background-color: rgba(12, 11, 15, 0.55); }
+
+/* ── Motion: every control answers the press ── */
+body.admin-ui button,
+body.admin-ui a,
+body.admin-ui input,
+body.admin-ui textarea,
+body.admin-ui [role="tab"],
+body.admin-ui [role="menuitem"],
+body.admin-ui [role="option"] {
+  transition: transform var(--t-fast) var(--ease-out), background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out),
+    opacity var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+body.admin-ui button:not(:disabled):active,
+body.admin-ui [role="tab"]:active {
+  transform: scale(0.97);
+  transition-duration: 100ms;
+}
+body.admin-ui button.bg-primary:not(:disabled):hover { box-shadow: 0 10px 24px -12px rgba(255, 255, 255, 0.45); }
+
+/* Cards that open something lift on hover */
+body.admin-ui .glass-lift {
+  transition: transform var(--t-med) var(--ease-out), border-color var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) var(--ease-out);
+}
+body.admin-ui .glass-lift img { transition: transform 700ms var(--ease-out), opacity 200ms ease; }
+@media (hover: hover) {
+  body.admin-ui .glass-lift:hover { transform: translateY(-4px); border-color: var(--glass-edge-hi); }
+  body.admin-ui .glass-lift:hover img { transform: scale(1.04); }
+}
+
+/* Entrance: children of a staggered block rise in one after another */
+@keyframes admin-rise {
+  from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+body.admin-ui .stagger > * { animation: admin-rise 340ms var(--ease-out) both; }
+body.admin-ui .stagger > *:nth-child(2) { animation-delay: 35ms; }
+body.admin-ui .stagger > *:nth-child(3) { animation-delay: 70ms; }
+body.admin-ui .stagger > *:nth-child(4) { animation-delay: 105ms; }
+body.admin-ui .stagger > *:nth-child(5) { animation-delay: 140ms; }
+body.admin-ui .stagger > *:nth-child(6) { animation-delay: 160ms; }
+body.admin-ui .stagger > *:nth-child(7) { animation-delay: 170ms; }
+body.admin-ui .stagger > *:nth-child(8) { animation-delay: 180ms; }
+body.admin-ui .stagger > *:nth-child(n + 9) { animation-delay: 190ms; }
+
+body.admin-ui .reveal { animation: admin-rise 320ms var(--ease-out) both; }
+
+/* shadcn Tabs: dark glass track, white active pill, panel rises in */
+body.admin-ui [role="tablist"]:not(.admin-seg) {
+  background-color: rgba(0, 0, 0, 0.22);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+body.admin-ui [role="tablist"]:not(.admin-seg) [role="tab"][data-state="active"] {
+  background-color: #fafafa;
+  color: #141318;
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.6);
+}
+
+/* Click feedback: soft light that blooms where you press (see AdminShell) */
+.admin-tap {
+  position: fixed;
+  z-index: 9999;
+  width: 120px;
+  height: 120px;
+  margin: -60px 0 0 -60px;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0) 65%);
+  animation: admin-tap 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes admin-tap {
+  from { opacity: 1; transform: scale(0.2); }
+  to { opacity: 0; transform: scale(1.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Fewer and gentler, not none: keep fades that confirm state, drop movement. */
+  @keyframes admin-rise { from { opacity: 0; } to { opacity: 1; } }
+  body.admin-ui *, body.admin-ui *::before, body.admin-ui *::after {
+    animation-duration: 160ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 120ms !important;
+    scroll-behavior: auto !important;
+  }
+  body.admin-ui button:active, body.admin-ui [role="tab"]:active { transform: none !important; }
+  .admin-tap, body.admin-ui .empty-float { animation: none !important; }
+  .admin-tap { display: none; }
+}
+
+/* ───────────── Liquid glass (iOS style) ─────────────
+ * The trick that keeps Safari smooth: the backdrop is a photo blurred ONCE
+ * (a fixed layer that never repaints), so translucent glass laid over it
+ * reads exactly like live backdrop blur without re-blurring on scroll.
+ */
+.admin-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+.admin-backdrop img {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  object-fit: cover;
+  filter: blur(70px) saturate(1.5) brightness(0.55);
+  opacity: 0;
+  transition: opacity 1400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.admin-backdrop img.is-on { opacity: 1; }
+.admin-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(80% 60% at 20% 0%, rgba(255, 255, 255, 0.06), transparent 60%),
+    linear-gradient(180deg, rgba(24, 23, 28, 0.25) 0%, rgba(24, 23, 28, 0.55) 70%, rgba(20, 19, 24, 0.75) 100%);
+}
+
+/* Glass body: light from above, a little depth inside, soft drop below */
+body.admin-ui .bg-card {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.05) 45%, rgba(255, 255, 255, 0.075) 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.22),
+    inset 0 -14px 30px -22px rgba(255, 255, 255, 0.14),
+    0 30px 60px -30px rgba(0, 0, 0, 0.55);
+}
+
+/* Specular rim: bright on the top-left and bottom-right corners, gone at the sides */
+body.admin-ui .lg,
+body.admin-ui .glass-lift { isolation: isolate; border-color: transparent; }
+body.admin-ui .lg:not(.fixed):not(.absolute):not(.sticky),
+body.admin-ui .glass-lift { position: relative; }
+body.admin-ui .lg::before,
+body.admin-ui .glass-lift::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(255, 255, 255, 0.12) 22%,
+    rgba(255, 255, 255, 0) 45%,
+    rgba(255, 255, 255, 0.06) 70%,
+    rgba(255, 255, 255, 0.4) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+/* Moving sheen: a soft light that follows the pointer across the glass */
+body.admin-ui .lg::after,
+body.admin-ui .glass-lift::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), rgba(255, 255, 255, 0.13), transparent 45%);
+  opacity: 0;
+  transition: opacity 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (hover: hover) {
+  body.admin-ui .lg:hover::after,
+  body.admin-ui .glass-lift:hover::after { opacity: 1; }
+}
+
+/* The black rail keeps its rim too */
+body.admin-ui .lg-dark::before { opacity: 0.55; }
+
+/* Liquid pills: active tab and active nav item */
+body.admin-ui .liquid-pill {
+  background: linear-gradient(180deg, #ffffff 0%, #ececf1 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.08),
+    0 8px 20px -8px rgba(0, 0, 0, 0.6);
+}
+body.admin-ui .liquid-pill-dark {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.08) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+    0 6px 16px -8px rgba(0, 0, 0, 0.8);
+}
+
+/* Primary (white) buttons: a lit glass bead */
+body.admin-ui button.bg-primary {
+  background: linear-gradient(180deg, #ffffff 0%, #e8e8ee 100%);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -2px 4px rgba(0, 0, 0, 0.1), 0 8px 18px -10px rgba(0, 0, 0, 0.7);
+}
+
+/* While a screen unfolds out of the sidebar, its blocks skip the rise-in. */
+body.admin-ui .no-rise .stagger > *,
+body.admin-ui .no-rise .reveal { animation: none !important; }
+
+/* Studio hero: each new archive photo eases in over the last one, with a slow drift */
+@keyframes hero-shot {
+  from { opacity: 0; transform: scale(1.08); }
+  30% { opacity: 1; }
+  to { opacity: 1; transform: scale(1); }
+}
+body.admin-ui .hero-shot { animation: hero-shot 6200ms cubic-bezier(0.16, 1, 0.3, 1) both; will-change: transform, opacity; }
+@keyframes hero-copy {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: none; }
+}
+body.admin-ui .hero-copy { animation: hero-copy 700ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Loading placeholders stay invisible for a moment: data usually arrives first,
+   so only real cards ever show. They fade in only if loading is actually slow. */
+@keyframes admin-late-in { from { opacity: 0; } to { opacity: 1; } }
+body.admin-ui div[aria-busy="true"],
+body.admin-ui div[role="status"] {
+  animation: admin-late-in 300ms ease-out 700ms both;
+}
+
+/* Orçamentos: the "+1" that flies from a service to the quote */
+.quote-chip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #fff, #e9e9ee);
+  color: #141318;
+  font: 600 13px/1.2 "Archivo", system-ui, sans-serif;
+  box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.7);
+  will-change: transform, opacity;
+}
+
+/* Métricas: ranked bars grow from the left when they appear */
+@keyframes metric-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+body.admin-ui .metric-bar { transform-origin: left center; animation: metric-grow 900ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* ───────────── Experience layer ───────────── */
+
+/* Page titles: each word rises out of its own mask */
+@keyframes title-rise { from { transform: translate3d(0, 105%, 0); } to { transform: none; } }
+body.admin-ui .title-word { animation: title-rise 520ms var(--ease-out) both; }
+
+/* Primary buttons: a light sweep crosses the bead on hover */
+body.admin-ui button.bg-primary { position: relative; overflow: hidden; isolation: isolate; }
+body.admin-ui button.bg-primary::after {
+  content: "";
+  position: absolute;
+  inset: -20% auto -20% -60%;
+  width: 45%;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.85), transparent);
+  transform: translate3d(0, 0, 0) skewX(-18deg);
+  opacity: 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  body.admin-ui button.bg-primary:not(:disabled):hover::after {
+    animation: btn-shine 760ms var(--ease-out);
+  }
+}
+@keyframes btn-shine {
+  from { transform: translate3d(0, 0, 0) skewX(-18deg); opacity: 1; }
+  to { transform: translate3d(420%, 0, 0) skewX(-18deg); opacity: 1; }
+}
+
+/* Skeletons shimmer instead of blinking */
+body.admin-ui .animate-pulse {
+  animation: none;
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+body.admin-ui .animate-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translate3d(-100%, 0, 0);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+  animation: skel-sweep 1.4s var(--ease-in-out) infinite;
+}
+@keyframes skel-sweep { to { transform: translate3d(100%, 0, 0); } }
+
+/* Empty-state icon breathes gently */
+@keyframes empty-float { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -5px, 0); } }
+body.admin-ui .empty-float { animation: empty-float 3.2s var(--ease-in-out) infinite; }
+
+/* Cards that scroll into view rise once (see AdminShell). Content stays visible without JS. */
+body.admin-ui .sr-wait { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.985); }
+body.admin-ui .sr-in {
+  opacity: 1;
+  transform: none;
+  transition: opacity 420ms var(--ease-out), transform 520ms var(--ease-out);
+}
+
+/* Glass cards tilt toward the pointer (values set by AdminShell) */
+@media (hover: hover) and (pointer: fine) {
+  body.admin-ui .glass-lift.is-tilting {
+    transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translate3d(0, -4px, 0);
+    transition: transform 120ms linear, border-color 160ms var(--ease-out);
+  }
+}
+
+/* Sidebar icons answer the hover */
+body.admin-ui aside nav a svg { transition: transform 260ms var(--ease-out); }
+@media (hover: hover) and (pointer: fine) {
+  body.admin-ui aside nav a:hover svg { transform: translate3d(2px, 0, 0) rotate(-6deg) scale(1.08); }
+}
+body.admin-ui aside nav a[aria-current="page"] svg { animation: nav-pop 420ms var(--ease-out); }
+@keyframes nav-pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+
+/* The camera flash: every successful save fires the studio strobe */
+.admin-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 40%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.12) 60%, transparent);
+  animation: admin-flash 520ms var(--ease-out) forwards;
+}
+@keyframes admin-flash { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Sonner toasts arrive as glass beads with a check that draws itself */
+body.admin-ui [data-sonner-toast] {
+  background: rgba(44, 42, 50, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #fff !important;
+  border-radius: 18px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 24px 48px -20px rgba(0, 0, 0, 0.7) !important;
+}
+body.admin-ui [data-sonner-toast][data-type="success"] [data-icon] { animation: nav-pop 480ms var(--ease-out); color: hsl(var(--admin-success)); }
+
+/* Dropdowns and selects grow out of their trigger */
+body.admin-ui [data-radix-popper-content-wrapper] > [role="menu"] { transform-origin: var(--radix-dropdown-menu-content-transform-origin); }
+body.admin-ui [data-radix-popper-content-wrapper] > [role="listbox"] { transform-origin: var(--radix-select-content-transform-origin); }
+
+@media (prefers-reduced-motion: reduce) {
+  body.admin-ui .title-word { animation: none; }
+  body.admin-ui .sr-wait { transform: none; }
+  body.admin-ui .glass-lift.is-tilting { transform: none; }
+  .admin-flash { animation-duration: 300ms; }
+}
+
+/* Album photos (and new uploads) drop in one after another */
+@keyframes photo-in { from { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.96); } to { opacity: 1; transform: none; } }
+body.admin-ui .photo-in { animation: photo-in 360ms var(--ease-out) both; }

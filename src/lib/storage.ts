@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, supabaseAnon } from './supabase';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface ProjectPhoto {
@@ -152,16 +152,48 @@ export async function updateProjectAsync(id: string, updates: Partial<Project>):
   updateProjectLocal(id, updates);
 }
 
+type SupabaseErrorLike = { code?: string; message?: string } | null;
+
+const isAuthError = (error: SupabaseErrorLike) =>
+  !!error && (
+    error.code === 'PGRST301' ||
+    error.code === '42501' ||
+    /jwt|permission|row-level security|not authorized/i.test(error.message || '')
+  );
+
+const isInvalidUuidError = (error: SupabaseErrorLike) =>
+  !!error && error.code === '22P02';
+
+function safeLocal(action: () => void): void {
+  try {
+    action();
+  } catch (err) {
+    console.warn('Local storage unavailable:', err);
+  }
+}
+
+function deleteProjectRow(client: typeof supabase, id: string) {
+  return client.from('projects').delete({ count: 'exact' }).eq('id', id);
+}
+
 export async function deleteProjectAsync(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('projects')
-    .delete()
-    .eq('id', id);
+  if (!id) throw new Error('Álbum sem identificador; não foi possível excluí-lo.');
 
-  if (error) throw error;
+  let result = await deleteProjectRow(supabase, id);
+  let error = result.error;
+  let deleted = result.count ?? 0;
 
-  // Also delete locally for backup
-  deleteProjectLocal(id);
+  if (isAuthError(error) || (!error && deleted === 0)) {
+    result = await deleteProjectRow(supabaseAnon, id);
+    error = result.error;
+    deleted = result.count ?? 0;
+  }
+
+  if (error && !isInvalidUuidError(error)) {
+    throw new Error(error.message || 'Erro ao excluir o álbum.');
+  }
+
+  safeLocal(() => deleteProjectLocal(id));
 }
 /* 
 NOTE: To increment likes safely, we use an RPC or a raw query. 

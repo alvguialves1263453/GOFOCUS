@@ -1,10 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { EASE_OUT } from "@/lib/motion";
 import { Plus, Search, Calendar, MapPin, Image, Edit2, Trash2 } from "lucide-react";
 import { useEventos } from "@/hooks/useEventos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AdminPage, EmptyState, Segmented, StatusBadge } from "@/components/admin/ui";
+import { AdminPage, EmptyState, Segmented, StatusBadge, FlySwitch } from "@/components/admin/ui";
 
 const statusConfig: Record<string, { label: string; tone: "warning" | "success" | "neutral" }> = {
   rascunho: { label: "Rascunho", tone: "warning" },
@@ -61,6 +63,7 @@ export default function AdminEventos() {
         />
       </div>
 
+      <FlySwitch group="Filtrar por status" value={statusFilter}>
       {loading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -88,15 +91,19 @@ export default function AdminEventos() {
           }
         />
       ) : (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul data-fly className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <AnimatePresence mode="popLayout" initial={false}>
           {eventos.map((evento) => {
             const cfg = statusConfig[evento.status] || statusConfig.rascunho;
             const href = `/admin/eventos/${evento.id}`;
 
             return (
-              <li
+              <motion.li
                 key={evento.id}
-                className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors duration-150 hover:border-input"
+                layout="position"
+                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2, ease: EASE_OUT } }}
+                transition={{ layout: { duration: 0.35, ease: EASE_OUT } }}
+                className="glass-lift group flex flex-col overflow-hidden rounded-[18px] border border-border bg-card"
               >
                 <Link to={href} tabIndex={-1} aria-hidden="true" className="relative block aspect-video overflow-hidden bg-muted">
                   {evento.capa_url ? (
@@ -164,11 +171,13 @@ export default function AdminEventos() {
                     </div>
                   </div>
                 </div>
-              </li>
+              </motion.li>
             );
           })}
+          </AnimatePresence>
         </ul>
       )}
+      </FlySwitch>
     </AdminPage>
   );
 }

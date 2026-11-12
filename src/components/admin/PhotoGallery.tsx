@@ -106,8 +106,9 @@ export default function PhotoGallery({
           return (
             <li
               key={foto.id}
+              style={{ animationDelay: `${Math.min(idx, 12) * 25}ms` }}
               className={cn(
-                "group relative aspect-[3/4] overflow-hidden rounded-lg border-2 bg-muted transition-colors duration-150",
+                "photo-in group relative aspect-[3/4] overflow-hidden rounded-lg border-2 bg-muted transition-colors duration-150",
                 isSelected
                   ? "border-primary"
                   : isCapa

@@ -548,7 +548,7 @@ const AdminInstagram = () => {
                       if (e.target !== e.currentTarget) return;
                       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openClient(client.id); }
                     }}
-                    className="group flex h-full cursor-pointer flex-col rounded-xl border border-border bg-card p-4 transition-colors duration-150 hover:border-input hover:bg-accent/40"
+                    className="glass-lift group flex h-full cursor-pointer flex-col rounded-[18px] border border-border bg-card p-4 hover:bg-accent/40"
                   >
                     {/* Identity */}
                     <div className="flex items-start justify-between gap-2">

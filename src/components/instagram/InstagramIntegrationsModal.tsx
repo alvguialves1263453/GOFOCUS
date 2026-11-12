@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Search,
@@ -53,7 +53,7 @@ import {
   fetchScrappaProfile,
   fetchScrappaPosts,
 } from '@/lib/instagram';
-import { EmptyState, Field, SectionLabel, StatusBadge } from "@/components/admin/ui";
+import { EmptyState, Field, SectionLabel, StatusBadge, FlyTabs } from "@/components/admin/ui";
 import { cn } from "@/lib/utils";
 
 /* Chart styling from admin tokens (status/info colour for the data, neutrals for the frame). */
@@ -536,7 +536,7 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
                   </div>
                 </div>
 
-                <Tabs defaultValue="perfil" className="w-full">
+                <FlyTabs defaultValue="perfil" className="w-full">
                   <TabsList className="h-auto w-full justify-start overflow-x-auto sm:w-auto">
                     <TabsTrigger value="perfil" className="min-h-[36px] gap-2 px-4 text-[14px]">
                       <User className="h-4 w-4" aria-hidden="true" /> Perfil
@@ -756,7 +756,7 @@ export function InstagramIntegrationsModal({ isOpen, onClose, onSuccess }: Insta
                       ))}
                     </dl>
                   </TabsContent>
-                </Tabs>
+                </FlyTabs>
               </div>
             ) : (
               /* Welcome state */

@@ -1,0 +1,25 @@
+/* Links page: the film strip of real photos that runs across the cabinet. Transform only. */
+@keyframes links-film {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+.links-film {
+  display: flex;
+  width: max-content;
+  animation: links-film 70s linear infinite;
+  will-change: transform;
+}
+.links-film-wrap:hover .links-film { animation-play-state: paused; }
+
+/* Sprocket holes on the strip's edges, like 35mm film */
+.links-sprockets {
+  height: 10px;
+  background-image: radial-gradient(circle at 50% 50%, #A7AAAF 2.6px, transparent 3px);
+  background-size: 14px 10px;
+  background-repeat: repeat-x;
+  background-position: 0 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .links-film { animation: none; }
+}

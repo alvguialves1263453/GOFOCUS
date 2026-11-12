@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getProjectsAsync,
@@ -34,7 +34,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AdminPage, Panel, Field, StatusBadge, EmptyState, Segmented, LoadingBlock } from "@/components/admin/ui";
+import { AdminPage, Panel, Field, StatusBadge, EmptyState, Segmented, LoadingBlock, CountUp, TabPanel } from "@/components/admin/ui";
+import { AnimatePresence, motion } from "framer-motion";
+import { EASE_OUT } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -199,16 +201,16 @@ const AdminDashboard = () => {
   const handleDelete = async (id: string) => {
     const projectToDelete = projects.find((p) => p.id === id);
     try {
-      if (projectToDelete?.photos) {
-        await Promise.all(
-          projectToDelete.photos.filter((p) => !!p.publicId).map((p) => deleteFromImageKit(p.publicId))
-        );
-      }
       await deleteProjectAsync(id);
       toast.success("Projeto excluído");
       loadProjects();
-    } catch {
-      toast.error("Erro ao excluir projeto");
+      if (projectToDelete?.photos?.length) {
+        void Promise.all(
+          projectToDelete.photos.filter((p) => !!p.publicId).map((p) => deleteFromImageKit(p.publicId))
+        );
+      }
+    } catch (err) {
+      toast.error(`Erro ao excluir projeto: ${err instanceof Error ? err.message : "tente novamente."}`);
     }
   };
 
@@ -301,7 +303,15 @@ const AdminDashboard = () => {
       description="Álbuns de clientes, categorias e links de visualização."
       actions={pageActions}
     >
-      <Segmented
+      {(!projectsLoaded || projects.length > 0) && (
+        <StudioHero
+          projects={projects}
+          categories={categories}
+          onOpen={(id) => navigate(`/admin/projeto/${id}`)}
+        />
+      )}
+
+      <Segmented<"projects" | "categories">
         label="Seção"
         value={activeTab}
         onChange={setActiveTab}
@@ -313,8 +323,9 @@ const AdminDashboard = () => {
       />
 
       {/* ── PROJECTS TAB ── */}
+      <AnimatePresence mode="wait" initial={false}>
       {activeTab === "projects" && (
-        <div className="flex flex-col gap-6">
+        <TabPanel key="projects" group="Seção" value="projects" className="flex flex-col gap-6">
           {showForm && (
             <Panel title="Novo projeto" description="Crie o álbum e depois adicione as fotos.">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -427,10 +438,16 @@ const AdminDashboard = () => {
               action={<Button variant="outline" onClick={clearFilters}>Limpar filtros</Button>}
             />
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div data-fly className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              <AnimatePresence mode="popLayout" initial={false}>
               {filteredProjects.map((project) => (
-                <ProjectCard
+                <motion.div
                   key={project.id}
+                  layout="position"
+                  exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2, ease: EASE_OUT } }}
+                  transition={{ layout: { duration: 0.35, ease: EASE_OUT } }}
+                >
+                <ProjectCard
                   project={project}
                   categories={categories}
                   onOpen={() => navigate(`/admin/projeto/${project.id}`)}
@@ -442,15 +459,17 @@ const AdminDashboard = () => {
                   onOpenMobileActions={() => setMobileActionProject(project)}
                   copied={copiedId === project.id}
                 />
+                </motion.div>
               ))}
+              </AnimatePresence>
             </div>
           )}
-        </div>
+        </TabPanel>
       )}
 
       {/* ── CATEGORIES TAB ── */}
       {activeTab === "categories" && (
-        <div className="flex flex-col gap-6">
+        <TabPanel key="categories" group="Seção" value="categories" className="flex flex-col gap-6">
           {showCategoryForm && (
             <Panel title="Nova categoria">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -496,11 +515,11 @@ const AdminDashboard = () => {
               }
             />
           ) : (
-            <section aria-label="Categorias" className="overflow-hidden rounded-xl border border-border bg-card">
+            <section aria-label="Categorias" className="lg overflow-hidden rounded-[20px] border border-border bg-card">
               <p className="border-b border-border px-5 py-3 text-[13px] font-medium text-muted-foreground">
                 {categories.length} {categories.length === 1 ? "categoria" : "categorias"}
               </p>
-              <ul className="divide-y divide-border">
+              <ul data-fly className="divide-y divide-border">
                 {categories.map((cat, i) => (
                   <li key={cat.id} className="flex items-center justify-between gap-3 px-5 py-3 transition-colors duration-150 hover:bg-accent/50">
                     <div className="flex min-w-0 items-center gap-4">
@@ -539,8 +558,9 @@ const AdminDashboard = () => {
               </ul>
             </section>
           )}
-        </div>
+        </TabPanel>
       )}
+      </AnimatePresence>
 
       {/* ── MOBILE ACTIONS DIALOG ── */}
       <Dialog open={!!mobileActionProject} onOpenChange={(open) => !open && setMobileActionProject(null)}>
@@ -756,7 +776,7 @@ function ProjectCard({ project, categories, onOpen, onCopyLink, onShowQr, onDele
     "h-10 w-10 border border-border bg-card text-foreground hover:bg-accent";
 
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-border bg-card transition-colors duration-150 hover:border-input">
+    <div className="glass-lift group relative overflow-hidden rounded-[18px] border border-border bg-card">
       <button
         type="button"
         onClick={onOpen}
@@ -851,6 +871,154 @@ function ProjectCard({ project, categories, onOpen, onCopyLink, onShowQr, onDele
         </Button>
       </div>
     </div>
+  );
+}
+
+/* ─── STUDIO HERO: random photos from the whole archive, and the studio's numbers ─── */
+type HeroShot = { url: string; project: Project };
+const HERO_EVERY_MS = 6000;
+/** Last photo the hero showed, kept across visits so it is there the instant you come back. */
+let heroLast: { url: string; projectId: string } | null = null;
+const HERO_MASK = "linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.55) 30%, #000 70%)";
+
+function shuffle<T>(list: T[]) {
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function StudioHero({ projects, categories, onOpen }: {
+  projects: Project[];
+  categories: Category[];
+  onOpen: (id: string) => void;
+}) {
+  // One shuffled reel of every published photo (hidden albums left out), made once per visit.
+  const reel = useMemo<HeroShot[]>(() => {
+    const all: HeroShot[] = [];
+    projects.forEach((p) => {
+      if (p.hidden) return;
+      p.photos?.forEach((f) => { if (!f.isDivider && f.url) all.push({ url: f.url, project: p }); });
+    });
+    return shuffle(all).slice(0, 80);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects.length]);
+
+  const [idx, setIdx] = useState(0);
+  const cur = useRef(0);
+  const [layers, setLayers] = useState<{ key: number; url: string }[]>(
+    heroLast ? [{ key: -1, url: heroLast.url }] : []
+  );
+  const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const shot = reel[idx % Math.max(1, reel.length)];
+  const src = (u: string) => getOptimizedUrl(u, 1200);
+
+  // Start from the photo shown last time if it is still in the archive; else load the first.
+  useEffect(() => {
+    if (!reel.length) return;
+    const back = heroLast ? reel.findIndex((r) => src(r.url) === heroLast!.url) : -1;
+    if (back >= 0) {
+      cur.current = back;
+      setIdx(back);
+      return;
+    }
+    const url = src(reel[0].url);
+    const img = new Image();
+    img.onload = () => {
+      setLayers([{ key: 0, url }]);
+      heroLast = { url, projectId: reel[0].project.id };
+    };
+    img.src = url;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reel]);
+
+  // Every few seconds, preload the next photo, then cross-fade to it (paused while the tab is hidden).
+  useEffect(() => {
+    if (reduce || reel.length < 2) return;
+    let alive = true;
+    const t = window.setInterval(() => {
+      if (document.hidden) return;
+      const next = (cur.current + 1) % reel.length;
+      const url = src(reel[next].url);
+      const img = new Image();
+      img.onload = () => {
+        if (!alive) return;
+        cur.current = next;
+        setIdx(next);
+        setLayers((ls) => [...ls.slice(-1), { key: Date.now(), url }]);
+        heroLast = { url, projectId: reel[next].project.id };
+      };
+      img.src = url;
+    }, HERO_EVERY_MS);
+    return () => { alive = false; window.clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reel, reduce]);
+
+  const album = shot?.project;
+  const category = categories.find((c) => c.id === album?.categoryId);
+  const albumCount = album?.photos?.filter((f) => !f.isDivider).length || 0;
+  const photoCount = projects.reduce((n, p) => n + (p.photos?.filter((f) => !f.isDivider).length || 0), 0);
+  const hiddenCount = projects.filter((p) => p.hidden).length;
+
+  const stats = [
+    { label: "Álbuns", value: projects.length },
+    { label: "Fotos publicadas", value: photoCount },
+    { label: "Categorias", value: categories.length },
+    { label: "Ocultos", value: hiddenCount },
+  ];
+
+  return (
+    <section
+      aria-label="Resumo do estúdio"
+      className="lg relative mb-6 overflow-hidden rounded-[26px] border border-border bg-card"
+    >
+      <div
+        className="absolute inset-y-0 right-0 w-full sm:w-[62%]"
+        aria-hidden="true"
+        style={{ WebkitMaskImage: HERO_MASK, maskImage: HERO_MASK }}
+      >
+        {layers.map((l) => (
+          <img
+            key={l.key}
+            src={l.url}
+            alt=""
+            className={cn("absolute inset-0 h-full w-full object-cover", l.key !== -1 && "hero-shot")}
+          />
+        ))}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1f1e24]/90 via-transparent to-transparent sm:from-[#1f1e24]/50" />
+      </div>
+
+      <div className="relative flex min-h-[300px] flex-col justify-between gap-8 p-6 sm:p-8">
+        {album && (
+          <div key={album.id} className="hero-copy max-w-[26rem]">
+            <p className="text-[14px] text-muted-foreground">Do seu acervo</p>
+            <h2 className="mt-1 text-[clamp(1.9rem,4vw,2.75rem)] font-semibold leading-[1.05] tracking-[-0.025em] text-white">
+              {album.clientName}
+            </h2>
+            <p className="mt-2 text-[15px] text-white/70">
+              {albumCount} {albumCount === 1 ? "foto" : "fotos"}
+              {category ? `, ${category.name}` : ""}
+            </p>
+            <Button onClick={() => onOpen(album.id)} className="mt-5 rounded-full px-6">
+              Abrir álbum
+            </Button>
+          </div>
+        )}
+
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-[18px] border border-white/[0.1] bg-white/[0.06] sm:max-w-[640px] sm:grid-cols-4">
+          {stats.map((s) => (
+            <div key={s.label} className="bg-[#2a2930]/70 px-4 py-3.5">
+              <dt className="text-[13px] text-muted-foreground">{s.label}</dt>
+              <dd className="mt-0.5 text-[26px] font-semibold leading-tight tracking-[-0.02em] text-white">
+                <CountUp value={s.value} />
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
   );
 }
 

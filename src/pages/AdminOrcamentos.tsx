@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, type MouseEvent as RMouseEvent, type ReactNode } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrcamentos } from "@/hooks/useOrcamentos";
@@ -24,11 +25,14 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { AdminPage, Panel, Field, StatusBadge, EmptyState, Segmented, LoadingBlock, SectionLabel } from "@/components/admin/ui";
+import { AdminPage, Field, StatusBadge, EmptyState, Segmented, LoadingBlock, SectionLabel, FlySwitch, CountUp } from "@/components/admin/ui";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
@@ -182,9 +186,6 @@ export default function AdminOrcamentos() {
     if (!authLoading && !user) navigate("/admin");
   }, [authLoading, user, navigate]);
 
-  useEffect(() => {
-    if (cart.length > 0) setCartOpen(true);
-  }, [cart.length]);
 
   const filteredServicos = useMemo(() => {
     return servicos.filter(s => {
@@ -228,7 +229,6 @@ export default function AdminOrcamentos() {
         descricao: servico.descricao, quantidade: 1, valorUnitario: servico.valor, observacoes: "",
       }];
     });
-    toast.success(`"${servico.nome}" adicionado`, { duration: 2000 });
   }
 
   function addCustomItem() {
@@ -602,41 +602,124 @@ export default function AdminOrcamentos() {
     return map;
   }, [cart]);
 
+  /* ── New UI state (declared before any early return) ── */
+  const [pendingDelete, setPendingDelete] = useState<Orcamento | null>(null);
+  const [notesOpen, setNotesOpen] = useState<Record<string, boolean>>({});
+  const [stepDir, setStepDir] = useState(1);
+  const quoteTarget = useRef<HTMLElement | null>(null);
+  const reduceMotion = useReducedMotion();
+
+  const pipeline = useMemo(() => {
+    const sum = (list: Orcamento[]) => list.reduce((n, o) => n + (o.valor_final || 0), 0);
+    const aprovados = orcamentos.filter(o => o.status === "aprovado");
+    const recusados = orcamentos.filter(o => o.status === "recusado");
+    const abertos = orcamentos.filter(o => o.status === "enviado" || o.status === "rascunho");
+    const decididos = aprovados.length + recusados.length;
+    return {
+      total: sum(orcamentos),
+      aprovadosValor: sum(aprovados),
+      aprovadosQtd: aprovados.length,
+      abertosValor: sum(abertos),
+      abertosQtd: abertos.length,
+      taxa: decididos > 0 ? Math.round((aprovados.length / decididos) * 100) : null,
+    };
+  }, [orcamentos]);
+
+  const categoryCounts = useMemo(() => {
+    const map: Record<string, number> = { all: servicos.length };
+    for (const s of servicos) map[s.categoria] = (map[s.categoria] || 0) + 1;
+    return map;
+  }, []);
+
   if (authLoading) return <LoadingBlock label="Autenticando…" />;
 
   const stepIndex = STEPS.indexOf(cartStep);
   const discountLabel = descontoTipo === "percentual" ? `${descontoValor}%` : formatarValor(descontoValor);
+  const discountAmount = descontoTipo === "percentual" ? cartSubtotal * descontoValor / 100 : descontoTipo === "fixo" ? Math.min(descontoValor, cartSubtotal) : 0;
   const itemsLabel = `${cartTotalItems} ${cartTotalItems === 1 ? "item" : "itens"}`;
   const servicesLabel = `${cart.length} ${cart.length === 1 ? "serviço" : "serviços"}`;
 
-  /* ── Quote summary (desktop panel / phone sheet share this) ── */
+  const goStep = (step: CartStep) => {
+    setStepDir(STEPS.indexOf(step) >= stepIndex ? 1 : -1);
+    setCartStep(step);
+  };
+
+  /** A "+1" chip flies from the pressed button to the quote, which gives a little bump. */
+  function flyToQuote(from: HTMLElement | null) {
+    const to = quoteTarget.current;
+    if (!from || !to || reduceMotion) return;
+    const a = from.getBoundingClientRect();
+    const b = to.getBoundingClientRect();
+    if (b.width === 0) return;
+    const chip = document.createElement("div");
+    chip.className = "quote-chip";
+    chip.textContent = "+1";
+    chip.style.left = `${a.left + a.width / 2}px`;
+    chip.style.top = `${a.top + a.height / 2}px`;
+    document.body.appendChild(chip);
+    const dx = b.left + b.width / 2 - (a.left + a.width / 2);
+    const dy = b.top + b.height / 2 - (a.top + a.height / 2);
+    chip
+      .animate(
+        [
+          { transform: "translate(-50%, -50%) scale(0.6)", opacity: 0 },
+          { transform: "translate(-50%, -50%) scale(1.1)", opacity: 1, offset: 0.15 },
+          { transform: `translate(calc(-50% + ${dx * 0.55}px), calc(-50% + ${dy * 0.55 - 70}px)) scale(1)`, opacity: 1, offset: 0.55 },
+          { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.5)`, opacity: 0.2 },
+        ],
+        { duration: 720, easing: "cubic-bezier(0.45, 0, 0.25, 1)" }
+      )
+      .finished.then(() => {
+        chip.remove();
+        to.animate([{ transform: "scale(1)" }, { transform: "scale(1.14)" }, { transform: "scale(1)" }], {
+          duration: 340,
+          easing: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+        });
+      }, () => chip.remove());
+  }
+
+  const add = (servico: Servico, el: HTMLElement | null) => {
+    addToCart(servico);
+    flyToQuote(el);
+  };
+
+  const decrease = (id: string) => {
+    if ((cartQtyById[id] || 0) <= 1) removeFromCart(id);
+    else handleQuantityChange(id, -1);
+  };
+
+  /* ── Quote: stepper, steps, totals (desktop panel and phone sheet share these) ── */
 
   const summaryStepper = cart.length > 0 && (
-    <ol aria-label="Etapas do orçamento" className="flex items-center gap-1 border-b border-border px-3 py-2">
+    <ol aria-label="Etapas do orçamento" className="mx-4 mt-4 flex items-center gap-1 rounded-full border border-white/[0.08] bg-black/25 p-1">
       {STEPS.map((step, i) => {
         const isActive = cartStep === step;
-        const canGoTo = i <= stepIndex;
+        const canGoTo = i <= stepIndex || (step === "review" && !!clientData.nome.trim()) || step === "client";
+        const done = stepIndex > i;
         return (
-          <li key={step} className="flex flex-1 items-center gap-1">
+          <li key={step} className="flex-1">
             <button
               type="button"
-              onClick={() => canGoTo && setCartStep(step)}
+              onClick={() => canGoTo && goStep(step)}
               disabled={!canGoTo}
               aria-current={isActive ? "step" : undefined}
               className={cn(
-                "flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-[14px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                isActive ? "bg-secondary text-foreground" : canGoTo ? "text-muted-foreground hover:bg-accent hover:text-foreground" : "text-muted-foreground opacity-50"
+                "relative flex h-9 w-full items-center justify-center gap-1.5 rounded-full px-2 text-[13px] font-medium",
+                isActive ? "text-[#141318]" : canGoTo ? "text-muted-foreground hover:text-white" : "text-muted-foreground/50"
               )}
             >
-              <span
-                className={cn(
-                  "grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-semibold tabular-nums",
-                  isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                )}
-              >
-                {stepIndex > i ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : i + 1}
+              {isActive && (
+                <motion.span
+                  layoutId="orc-step-pill"
+                  aria-hidden="true"
+                  className="liquid-pill absolute inset-0 rounded-full"
+                  transition={{ type: "spring", stiffness: 520, damping: 38 }}
+                />
+              )}
+              <span className="relative grid h-5 w-5 place-items-center rounded-full text-[11px] font-semibold tabular-nums">
+                {done ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : i + 1}
               </span>
-              <span className="truncate">{STEP_LABELS[step]}</span>
+              <span className="relative truncate">{STEP_LABELS[step]}</span>
             </button>
           </li>
         );
@@ -644,278 +727,307 @@ export default function AdminOrcamentos() {
     </ol>
   );
 
-  const summaryBody = cart.length === 0 ? (
-    <div className="p-5">
-      <EmptyState
-        icon={<ShoppingCart />}
-        title="Carrinho vazio"
-        description="Adicione serviços do catálogo para montar o orçamento."
-        action={!isDesktop ? <Button variant="outline" onClick={() => setCartOpen(false)}>Voltar ao catálogo</Button> : undefined}
-        className="py-10"
-      />
-    </div>
-  ) : (
-    <>
-      {cartStep === "items" && (
-        <div>
-          <ul className="divide-y divide-border">
-            {cart.map((item) => (
-              <li key={item.servicoId} className="space-y-3 px-5 py-4">
+  const itemsStep = (
+    <div>
+      <ul className="space-y-2 p-4">
+        <AnimatePresence initial={false}>
+          {cart.map((item) => {
+            const showNotes = notesOpen[item.servicoId] || !!item.observacoes;
+            return (
+              <motion.li
+                key={item.servicoId}
+                layout="position"
+                initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, x: 40, transition: { duration: 0.2 } }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                className="rounded-[16px] border border-white/[0.08] bg-white/[0.04] p-3.5"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[15px] font-medium text-foreground">{item.nome}</p>
-                    <p className="text-[13px] text-muted-foreground">{item.categoria}</p>
+                    <p className="text-[14px] font-medium leading-snug text-white">{item.nome}</p>
+                    <p className="text-[12px] text-muted-foreground">{item.categoria} · {getTotalEntrega(item)}</p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                  <button
+                    type="button"
                     onClick={() => removeFromCart(item.servicoId)}
                     aria-label={`Remover ${item.nome}`}
-                    className="-mr-2 -mt-1 shrink-0 text-muted-foreground hover:text-destructive"
+                    className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
                   >
-                    <X />
-                  </Button>
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center rounded-lg border border-input">
-                    <button
-                      type="button"
-                      onClick={() => handleQuantityChange(item.servicoId, -1)}
-                      disabled={item.quantidade <= 1}
-                      aria-label={`Diminuir quantidade de ${item.nome}`}
-                      className="grid h-10 w-10 place-items-center rounded-l-lg text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </button>
-                    <span aria-live="polite" className="w-9 text-center text-[15px] font-semibold tabular-nums text-foreground">{item.quantidade}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleQuantityChange(item.servicoId, 1)}
-                      aria-label={`Aumentar quantidade de ${item.nome}`}
-                      className="grid h-10 w-10 place-items-center rounded-r-lg text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-3">
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <QtyStepper
+                    value={item.quantidade}
+                    onMinus={() => handleQuantityChange(item.servicoId, -1)}
+                    onPlus={() => handleQuantityChange(item.servicoId, 1)}
+                    minusDisabled={item.quantidade <= 1}
+                    name={item.nome}
+                  />
+                  <div className="flex items-center gap-2">
                     <div className="relative">
-                      <span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">R$</span>
+                      <span aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-muted-foreground">R$</span>
                       <Input
                         type="number"
                         inputMode="decimal"
                         value={item.valorUnitario}
                         onChange={e => updateCartItem(item.servicoId, { valorUnitario: Number(e.target.value) || 0 })}
                         aria-label={`Valor unitário de ${item.nome}`}
-                        className="w-28 pl-9 text-right tabular-nums"
+                        className="h-9 w-[92px] rounded-full pl-8 pr-3 text-right text-[13px] tabular-nums"
                       />
                     </div>
-                    <span className="min-w-[84px] text-right text-[15px] font-semibold tabular-nums text-foreground">
+                    <span className="min-w-[78px] text-right text-[14px] font-semibold tabular-nums text-white">
                       {formatarValor(item.valorUnitario * item.quantidade)}
                     </span>
                   </div>
                 </div>
-                <Input
-                  type="text"
-                  placeholder="Observações do item…"
-                  value={item.observacoes}
-                  onChange={e => updateCartItem(item.servicoId, { observacoes: e.target.value })}
-                  aria-label={`Observações de ${item.nome}`}
-                />
-              </li>
-            ))}
-          </ul>
-          <div className="border-t border-border bg-muted px-5 py-4">
-            <SectionLabel className="mb-2">Itens para entrega</SectionLabel>
-            <ul className="space-y-1.5">
-              {cart.map((item) => (
-                <li key={`entrega-${item.servicoId}`} className="flex items-center justify-between gap-3 text-[14px]">
-                  <span className="min-w-0 truncate text-muted-foreground">{item.nome}</span>
-                  <span className="whitespace-nowrap font-medium tabular-nums text-foreground">{getTotalEntrega(item)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
+                {showNotes ? (
+                  <Input
+                    type="text"
+                    placeholder="Observação deste item…"
+                    value={item.observacoes}
+                    autoFocus={notesOpen[item.servicoId] && !item.observacoes}
+                    onChange={e => updateCartItem(item.servicoId, { observacoes: e.target.value })}
+                    aria-label={`Observações de ${item.nome}`}
+                    className="mt-2.5 h-9 rounded-full text-[13px]"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setNotesOpen(n => ({ ...n, [item.servicoId]: true }))}
+                    className="mt-2 text-[12px] font-medium text-muted-foreground underline-offset-4 hover:text-white hover:underline"
+                  >
+                    + Observação
+                  </button>
+                )}
+              </motion.li>
+            );
+          })}
+        </AnimatePresence>
+      </ul>
+    </div>
+  );
 
-      {cartStep === "client" && (
-        <div className="space-y-4 p-5">
-          {([
-            ["nome", "Nome do cliente", "text"],
-            ["empresa", "Empresa", "text"],
-            ["telefone", "Telefone", "tel"],
-            ["whatsapp", "WhatsApp", "tel"],
-            ["email", "E-mail", "email"],
-          ] as const).map(([field, label, type]) => (
-            <Field key={field} label={label} htmlFor={`orc-cliente-${field}`}>
-              <Input
-                id={`orc-cliente-${field}`}
-                type={type}
-                value={(clientData as any)[field]}
-                onChange={e => setClientData(prev => ({ ...prev, [field]: e.target.value }))}
-                placeholder={label}
-                aria-required={field === "nome" ? true : undefined}
-              />
-            </Field>
-          ))}
-          <Field label="Observações" htmlFor="orc-cliente-obs">
-            <Textarea
-              id="orc-cliente-obs"
-              value={clientData.observacoes}
-              onChange={e => setClientData(prev => ({ ...prev, observacoes: e.target.value }))}
-              placeholder="Observações adicionais…"
-              rows={2}
-              className="resize-none"
-            />
-          </Field>
-        </div>
-      )}
+  const clientStep = (
+    <div className="grid grid-cols-2 gap-3 p-4">
+      {([
+        ["nome", "Nome do cliente", "text", 2],
+        ["empresa", "Empresa", "text", 2],
+        ["telefone", "Telefone", "tel", 1],
+        ["whatsapp", "WhatsApp", "tel", 1],
+        ["email", "E-mail", "email", 2],
+      ] as const).map(([field, label, type, span]) => (
+        <Field key={field} label={field === "nome" ? `${label} *` : label} htmlFor={`orc-cliente-${field}`} className={span === 2 ? "col-span-2" : undefined}>
+          <Input
+            id={`orc-cliente-${field}`}
+            type={type}
+            value={(clientData as any)[field]}
+            onChange={e => setClientData(prev => ({ ...prev, [field]: e.target.value }))}
+            placeholder={field === "whatsapp" || field === "telefone" ? "(15) 99999-9999" : label}
+            aria-required={field === "nome" ? true : undefined}
+            autoFocus={field === "nome" && !clientData.nome}
+          />
+        </Field>
+      ))}
+      <Field label="Observações do cliente" htmlFor="orc-cliente-obs" className="col-span-2">
+        <Textarea
+          id="orc-cliente-obs"
+          value={clientData.observacoes}
+          onChange={e => setClientData(prev => ({ ...prev, observacoes: e.target.value }))}
+          placeholder="O que o cliente pediu, data do evento…"
+          rows={2}
+          className="resize-none"
+        />
+      </Field>
+    </div>
+  );
 
-      {cartStep === "review" && (
-        <div className="space-y-4 p-5">
-          <div className="flex items-center gap-3 rounded-lg border border-border bg-muted px-4 py-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-secondary text-muted-foreground">
-              <User className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-[15px] font-semibold text-foreground">{clientData.nome}</p>
-              {clientData.empresa && <p className="truncate text-[14px] text-muted-foreground">{clientData.empresa}</p>}
-            </div>
-          </div>
-          <Field label="Observações gerais" htmlFor="orc-obs-gerais">
-            <Textarea
-              id="orc-obs-gerais"
-              value={observacoesGerais}
-              onChange={e => setObservacoesGerais(e.target.value)}
-              placeholder="Condições de pagamento…"
-              rows={2}
-              className="resize-none"
+  const reviewStep = (
+    <div className="space-y-4 p-4">
+      <button
+        type="button"
+        onClick={() => goStep("client")}
+        className="flex w-full items-center gap-3 rounded-[16px] border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-left hover:bg-white/[0.07]"
+      >
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-[15px] font-semibold text-[#141318]">
+          {clientData.nome.trim().charAt(0).toUpperCase() || <User className="h-4 w-4" aria-hidden="true" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-semibold text-white">{clientData.nome}</span>
+          <span className="block truncate text-[13px] text-muted-foreground">
+            {[clientData.empresa, clientData.whatsapp || clientData.email].filter(Boolean).join(" · ") || "Toque para editar o cliente"}
+          </span>
+        </span>
+        <span className="text-[12px] font-medium text-muted-foreground">Editar</span>
+      </button>
+
+      <Field label="Desconto">
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented<DescontoTipo>
+            label="Tipo de desconto"
+            value={descontoTipo}
+            onChange={(v) => { setDescontoTipo(v); if (v === "nenhum") setDescontoValor(0); }}
+            options={[
+              { value: "nenhum", label: "Sem" },
+              { value: "percentual", label: "%" },
+              { value: "fixo", label: "R$" },
+            ]}
+          />
+          {descontoTipo !== "nenhum" && (
+            <Input
+              type="number"
+              value={descontoValor || ""}
+              onChange={e => setDescontoValor(Number(e.target.value) || 0)}
+              min={0}
+              placeholder="0"
+              autoFocus
+              aria-label={descontoTipo === "percentual" ? "Desconto em %" : "Desconto em R$"}
+              className="h-10 w-28 rounded-full text-right tabular-nums"
             />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Prazo" htmlFor="orc-prazo">
-              <Input
-                id="orc-prazo"
-                type="text"
-                value={prazoEntrega}
-                onChange={e => setPrazoEntrega(e.target.value)}
-                placeholder={getMaxPrazo() || "Ex: 15 dias"}
-              />
-            </Field>
-            <Field label="Validade (dias)" htmlFor="orc-validade">
-              <Input
-                id="orc-validade"
-                type="number"
-                value={validade}
-                onChange={e => setValidade(Number(e.target.value) || 30)}
-                min={1}
-                className="tabular-nums"
-              />
-            </Field>
-          </div>
-          <Field label="Desconto" htmlFor="orc-desconto-tipo">
-            <div className="flex items-center gap-2">
-              <Select value={descontoTipo} onValueChange={(v: DescontoTipo) => { setDescontoTipo(v); if (v === "nenhum") setDescontoValor(0); }}>
-                <SelectTrigger id="orc-desconto-tipo" className="flex-1">
-                  <SelectValue placeholder="Tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="nenhum">Sem desconto</SelectItem>
-                  <SelectItem value="percentual">Percentual (%)</SelectItem>
-                  <SelectItem value="fixo">Valor fixo (R$)</SelectItem>
-                </SelectContent>
-              </Select>
-              {descontoTipo !== "nenhum" && (
-                <Input
-                  type="number"
-                  value={descontoValor}
-                  onChange={e => setDescontoValor(Number(e.target.value) || 0)}
-                  min={0}
-                  aria-label={descontoTipo === "percentual" ? "Desconto em %" : "Desconto em R$"}
-                  className="w-28 text-right tabular-nums"
-                />
-              )}
-            </div>
-          </Field>
+          )}
         </div>
-      )}
-    </>
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Prazo de entrega" htmlFor="orc-prazo">
+          <Input id="orc-prazo" type="text" value={prazoEntrega} onChange={e => setPrazoEntrega(e.target.value)} placeholder={getMaxPrazo() || "Ex: 15 dias"} />
+        </Field>
+        <Field label="Validade (dias)" htmlFor="orc-validade">
+          <Input id="orc-validade" type="number" value={validade} onChange={e => setValidade(Number(e.target.value) || 30)} min={1} className="tabular-nums" />
+        </Field>
+      </div>
+      <Field label="Condições e observações" htmlFor="orc-obs-gerais">
+        <Textarea id="orc-obs-gerais" value={observacoesGerais} onChange={e => setObservacoesGerais(e.target.value)} placeholder="Ex: 50% na assinatura, 50% na entrega" rows={2} className="resize-none" />
+      </Field>
+    </div>
+  );
+
+  const summaryBody = cart.length === 0 ? (
+    <div className="flex flex-col items-center px-6 py-12 text-center">
+      <div className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-white/[0.07] text-muted-foreground">
+        <ShoppingCart className="h-6 w-6" aria-hidden="true" />
+      </div>
+      <p className="text-[16px] font-semibold text-white">Monte a proposta</p>
+      <p className="mt-1 max-w-[30ch] text-[14px] text-muted-foreground">Toque em Adicionar nos serviços ao lado. Eles aparecem aqui com o total.</p>
+      {!isDesktop && <Button variant="outline" className="mt-5" onClick={() => setCartOpen(false)}>Voltar ao catálogo</Button>}
+    </div>
+  ) : (
+    <AnimatePresence mode="wait" initial={false} custom={stepDir}>
+      <motion.div
+        key={cartStep}
+        custom={stepDir}
+        initial={{ opacity: 0, x: stepDir * 28 }}
+        animate={{ opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
+        exit={{ opacity: 0, x: stepDir * -20, transition: { duration: 0.14, ease: [0.23, 1, 0.32, 1] } }}
+      >
+        {cartStep === "items" ? itemsStep : cartStep === "client" ? clientStep : reviewStep}
+      </motion.div>
+    </AnimatePresence>
   );
 
   const summaryFooter = cart.length > 0 && (
-    <div className="space-y-3 border-t border-border px-5 py-4">
+    <div className="space-y-3 border-t border-white/[0.08] px-5 py-4">
       <dl className="space-y-1 text-[14px]">
         <div className="flex items-center justify-between">
-          <dt className="text-muted-foreground">Subtotal</dt>
-          <dd className="tabular-nums text-foreground">{formatarValor(cartSubtotal)}</dd>
+          <dt className="text-muted-foreground">Subtotal · {itemsLabel}</dt>
+          <dd className="tabular-nums text-white/80"><Money value={cartSubtotal} /></dd>
         </div>
-        {hasDiscount && (
-          <div className="flex items-center justify-between">
-            <dt className="text-muted-foreground">Desconto</dt>
-            <dd className="tabular-nums text-muted-foreground">− {discountLabel}</dd>
-          </div>
-        )}
-        <div className="flex items-baseline justify-between pt-1">
-          <dt className="text-[15px] font-medium text-foreground">Total</dt>
-          <dd className="text-[20px] font-semibold tabular-nums text-foreground">{formatarValor(cartValorFinal)}</dd>
+        <AnimatePresence initial={false}>
+          {hasDiscount && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="flex items-center justify-between overflow-hidden"
+            >
+              <dt className="text-muted-foreground">Desconto ({discountLabel})</dt>
+              <dd className="tabular-nums text-[hsl(var(--admin-success))]">− <Money value={discountAmount} /></dd>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <div className="flex items-baseline justify-between pt-1.5">
+          <dt className="text-[15px] font-medium text-white">Total</dt>
+          <dd className="text-[28px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-white">
+            <Money value={cartValorFinal} />
+          </dd>
         </div>
       </dl>
       {cartStep === "items" && (
-        <Button className="w-full" size="lg" onClick={() => setCartStep("client")} disabled={cart.length === 0}>
-          Dados do cliente <ArrowRight />
+        <Button className="h-12 w-full rounded-full text-[15px]" onClick={() => goStep("client")}>
+          Continuar para o cliente <ArrowRight />
         </Button>
       )}
       {cartStep === "client" && (
-        <Button className="w-full" size="lg" onClick={() => setCartStep("review")} disabled={!clientData.nome.trim()}>
-          Revisar e finalizar <ArrowRight />
-        </Button>
+        <>
+          <Button className="h-12 w-full rounded-full text-[15px]" onClick={() => goStep("review")} disabled={!clientData.nome.trim()}>
+            Revisar proposta <ArrowRight />
+          </Button>
+          {!clientData.nome.trim() && <p className="text-center text-[13px] text-muted-foreground">Falta só o nome do cliente.</p>}
+        </>
       )}
       {cartStep === "review" && (
-        <div className="grid gap-2">
-          <Button className="w-full" size="lg" onClick={handleSaveOrcamento} disabled={saving || !clientData.nome.trim() || cart.length === 0}>
+        <div className="grid grid-cols-[1fr_auto] gap-2">
+          <Button className="h-12 rounded-full text-[15px]" onClick={handleSaveOrcamento} disabled={saving || !clientData.nome.trim() || cart.length === 0}>
             {saving ? <Loader2 className="animate-spin" /> : <Save />}
             {saving ? "Salvando…" : "Salvar orçamento"}
           </Button>
-          <Button className="w-full" size="lg" variant="outline" onClick={() => handleGeneratePDF()} disabled={generatingPDF || cart.length === 0}>
+          <Button variant="outline" className="h-12 rounded-full" onClick={() => handleGeneratePDF()} disabled={generatingPDF} aria-label="Baixar PDF">
             {generatingPDF ? <Loader2 className="animate-spin" /> : <Download />}
-            {generatingPDF ? "Gerando…" : "Baixar PDF"}
+            PDF
           </Button>
         </div>
-      )}
-      {cartStep === "client" && !clientData.nome.trim() && (
-        <p className="text-center text-[13px] text-muted-foreground">Informe o nome do cliente para continuar.</p>
       )}
     </div>
   );
 
-  const summaryClear = cart.length > 0 && (
-    <Button variant="ghost" size="sm" onClick={clearCart} className="text-muted-foreground hover:text-destructive">
-      <Trash2 /> Limpar
-    </Button>
+  const summaryHeader = (
+    <div className="flex items-start justify-between gap-3 px-5 pt-5">
+      <div className="min-w-0">
+        <p className="text-[13px] text-muted-foreground">Proposta {previewNextNumero()}</p>
+        <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-white">
+          Orçamento{" "}
+          <span
+            ref={(el) => { if (isDesktop) quoteTarget.current = el; }}
+            className="ml-1 inline-grid min-w-[26px] place-items-center rounded-full bg-white px-1.5 align-middle text-[13px] font-semibold tabular-nums text-[#141318]"
+          >
+            {cartTotalItems}
+          </span>
+        </h2>
+      </div>
+      {cart.length > 0 && (
+        <Button variant="ghost" size="sm" onClick={clearCart} className="rounded-full text-muted-foreground hover:text-destructive">
+          <Trash2 /> Limpar
+        </Button>
+      )}
+    </div>
   );
 
-  /* ── Saved quote actions (table row + phone card) ── */
+  /* ── Saved quote actions ── */
 
   const renderOrcActions = (orc: Orcamento) => (
-    <div className="flex items-center justify-end gap-1">
-      <Button variant="ghost" size="sm" onClick={() => setViewingOrcamento(orc)} className="h-10">
-        <Eye /> Ver
-      </Button>
-      <Button variant="ghost" size="icon" onClick={() => handleGeneratePDF(orc)} disabled={generatingPDF} aria-label={`Baixar PDF do orçamento ${orc.numero}`}>
+    <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+      <Button variant="ghost" size="icon" onClick={() => handleGeneratePDF(orc)} disabled={generatingPDF} aria-label={`Baixar PDF do orçamento ${orc.numero}`} className="rounded-full">
         <Download />
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label={`Mais ações do orçamento ${orc.numero}`}>
+          <Button variant="ghost" size="icon" aria-label={`Mais ações do orçamento ${orc.numero}`} className="rounded-full">
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onSelect={() => setViewingOrcamento(orc)}>
+            <Eye className="mr-2 h-4 w-4" /> Ver detalhes
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => handleDuplicateOrcamento(orc)}>
             <Copy className="mr-2 h-4 w-4" /> Duplicar
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => handleShareWhatsApp(orc)}>
             <MessageCircle className="mr-2 h-4 w-4" /> Enviar por WhatsApp
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => handleShareEmail(orc)}>
+            <Mail className="mr-2 h-4 w-4" /> Enviar por e-mail
           </DropdownMenuItem>
           {statusActions[orc.status].length > 0 && <DropdownMenuSeparator />}
           {statusActions[orc.status].map(newStatus => (
@@ -926,7 +1038,7 @@ export default function AdminOrcamentos() {
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => handleDeleteOrcamento(orc.id)} className="text-destructive focus:text-destructive">
+          <DropdownMenuItem onSelect={() => setPendingDelete(orc)} className="text-destructive focus:text-destructive">
             <Trash2 className="mr-2 h-4 w-4" /> Excluir
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -941,6 +1053,18 @@ export default function AdminOrcamentos() {
     count: statusCounts[key] ?? 0,
   }));
 
+  const categoryOptions = [
+    { value: "all", label: "Todos", count: categoryCounts.all },
+    ...categorias.map(cat => {
+      const Icon = CATEGORY_ICONS[cat] || Sparkles;
+      return {
+        value: cat,
+        label: <span className="inline-flex items-center gap-1.5"><Icon className="h-3.5 w-3.5" aria-hidden="true" />{cat}</span>,
+        count: categoryCounts[cat],
+      };
+    }),
+  ];
+
   const pageActions = (
     <>
       <Segmented<ViewMode>
@@ -948,190 +1072,231 @@ export default function AdminOrcamentos() {
         value={viewMode}
         onChange={setViewMode}
         options={[
-          { value: "catalog", label: "Catálogo" },
+          { value: "catalog", label: "Montar" },
           { value: "history", label: "Histórico", count: orcamentos.length > 0 ? orcamentos.length : undefined },
         ]}
       />
       {viewMode === "history" && (
-        <Button onClick={() => { clearCart(); setViewMode("catalog"); }}>
+        <Button className="rounded-full" onClick={() => { clearCart(); setViewMode("catalog"); }}>
           <Plus /> Novo orçamento
-        </Button>
-      )}
-      {viewMode === "catalog" && !isDesktop && (
-        <Button variant="outline" onClick={() => setCartOpen(!cartOpen)} aria-label={`Abrir orçamento, ${itemsLabel}`}>
-          <ShoppingCart /> Orçamento
-          {cartTotalItems > 0 && <span className="rounded-full bg-secondary px-1.5 text-[12px] tabular-nums">{cartTotalItems}</span>}
         </Button>
       )}
     </>
   );
 
+  /* ── Catalog: one service tile ── */
+  const serviceTile = (servico: Servico) => {
+    const qty = cartQtyById[servico.id] || 0;
+    const Icon = CATEGORY_ICONS[servico.categoria] || Sparkles;
+    return (
+      <li
+        key={servico.id}
+        className={cn(
+          "glass-lift group flex flex-col rounded-[20px] border border-border bg-card p-4",
+          qty > 0 && "ring-1 ring-white/35"
+        )}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/[0.08] text-white/80">
+            <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+          </span>
+          <span className="text-right">
+            <span className="block text-[20px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-white">{formatarValor(servico.valor)}</span>
+            {/\/h|hora/i.test(servico.observacoes || servico.descricao) && <span className="text-[12px] text-muted-foreground">por hora</span>}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setSelectedServico(servico)}
+          className="mt-4 text-left"
+          aria-label={`Ver detalhes de ${servico.nome}`}
+        >
+          <p className="text-[15px] font-semibold leading-snug text-white group-hover:underline group-hover:decoration-white/30 group-hover:underline-offset-4">{servico.nome}</p>
+          <p className="mt-1 line-clamp-2 text-[13px] text-muted-foreground">{servico.descricao}</p>
+        </button>
+        <div className="mt-auto flex items-center justify-between gap-2 pt-4">
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" aria-hidden="true" /> {servico.prazo}
+          </span>
+          {qty > 0 ? (
+            <QtyStepper
+              value={qty}
+              onMinus={() => decrease(servico.id)}
+              onPlus={(e) => add(servico, e.currentTarget)}
+              name={servico.nome}
+              light
+            />
+          ) : (
+            <Button size="sm" className="h-9 rounded-full px-4" onClick={(e) => add(servico, e.currentTarget)} aria-label={`Adicionar ${servico.nome}`}>
+              <Plus /> Adicionar
+            </Button>
+          )}
+        </div>
+      </li>
+    );
+  };
+
+  const shownCategories = filterCategory === "all" ? filteredCategorias : filteredCategorias.filter(c => c === filterCategory);
+
   return (
     <AdminPage
-      title={viewMode === "catalog" ? "Novo orçamento" : "Histórico de orçamentos"}
+      title={viewMode === "catalog" ? "Orçamentos" : "Histórico de orçamentos"}
       description={
         viewMode === "catalog"
-          ? cart.length > 0 ? `${itemsLabel} no orçamento` : "Escolha serviços do catálogo para montar a proposta."
+          ? "Escolha os serviços, preencha o cliente e gere a proposta em PDF."
           : "Propostas salvas, com status, PDF e envio ao cliente."
       }
       actions={pageActions}
       className={cn(viewMode === "catalog" && cart.length > 0 && !isDesktop && "pb-28")}
     >
+      <FlySwitch group="Visualização" value={viewMode}>
       {viewMode === "catalog" ? (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
           {/* ── CATALOG ── */}
-          <div className="min-w-0 space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative flex-1">
-                <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Buscar serviços…"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  aria-label="Buscar serviços"
-                  className="pl-9"
-                />
-              </div>
-              <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger aria-label="Filtrar por categoria" className="sm:w-[220px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as categorias</SelectItem>
-                  {categorias.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {filteredServicos.length === 0 ? (
-              <EmptyState
-                icon={<Search />}
-                title="Nenhum serviço encontrado"
-                description="Tente outro termo ou outra categoria."
-                action={(searchQuery || filterCategory !== "all") ? (
-                  <Button variant="outline" onClick={() => { setSearchQuery(""); setFilterCategory("all"); }}>
-                    <X /> Limpar busca
-                  </Button>
-                ) : undefined}
+          <div className="min-w-0 space-y-5">
+            <div className="relative">
+              <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Buscar serviço: reels, fotografia, identidade visual…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                aria-label="Buscar serviços"
+                className="h-12 rounded-full pl-11 text-[15px]"
               />
-            ) : (
-              filteredCategorias.map(cat => {
-                const CatIcon = CATEGORY_ICONS[cat] || Sparkles;
-                const items = filteredServicos.filter(s => s.categoria === cat);
-                return (
-                  <Panel
-                    key={cat}
-                    title={
-                      <span className="flex items-center gap-3">
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary text-muted-foreground">
-                          <CatIcon className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                        {cat}
-                      </span>
-                    }
-                    actions={<span className="text-[13px] text-muted-foreground">{items.length} {items.length === 1 ? "serviço" : "serviços"}</span>}
-                    bodyClassName="p-0"
-                  >
-                    <ul className="divide-y divide-border">
-                      {items.map(servico => {
-                        const inCart = cartQtyById[servico.id];
-                        return (
-                          <li key={servico.id} className="flex flex-col gap-3 px-5 py-4 transition-colors duration-150 hover:bg-accent/40 sm:flex-row sm:items-center sm:gap-5">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[15px] font-medium text-foreground">{servico.nome}</p>
-                              <p className="mt-0.5 line-clamp-2 text-[14px] text-muted-foreground">{servico.descricao}</p>
-                              <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
-                                <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" aria-hidden="true" /> {servico.prazo}</span>
-                                {inCart && <StatusBadge>{inCart} no orçamento</StatusBadge>}
-                              </p>
-                            </div>
-                            <div className="flex items-center justify-between gap-2 sm:justify-end">
-                              <span className="text-[15px] font-semibold tabular-nums text-foreground sm:mr-2">{formatarValor(servico.valor)}</span>
-                              <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" onClick={() => setSelectedServico(servico)} aria-label={`Ver detalhes de ${servico.nome}`}>
-                                  <Eye />
-                                </Button>
-                                <Button variant="secondary" onClick={() => addToCart(servico)} aria-label={`Adicionar ${servico.nome}`}>
-                                  <Plus /> Adicionar
-                                </Button>
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </Panel>
-                );
-              })
-            )}
+            </div>
+            <Segmented<string>
+              label="Categoria"
+              value={filterCategory}
+              onChange={setFilterCategory}
+              options={categoryOptions}
+              className="max-w-full"
+            />
 
-            {/* ── CUSTOM ITEM ── */}
-            {!showCustomItem ? (
-              <Button variant="outline" onClick={() => setShowCustomItem(true)} className="w-full border-dashed sm:w-auto">
-                <Plus /> Item personalizado
-              </Button>
-            ) : (
-              <Panel
-                title="Novo item personalizado"
-                actions={
-                  <Button variant="ghost" size="icon" onClick={() => setShowCustomItem(false)} aria-label="Fechar item personalizado" className="-my-2 -mr-2">
-                    <X />
-                  </Button>
-                }
-              >
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px_96px_auto] sm:items-end">
-                  <Field label="Nome do item" htmlFor="orc-custom-nome">
-                    <Input id="orc-custom-nome" type="text" placeholder="Nome do item" value={customItemNome} onChange={e => setCustomItemNome(e.target.value)} />
-                  </Field>
-                  <Field label="Valor unitário" htmlFor="orc-custom-valor">
-                    <Input id="orc-custom-valor" type="number" inputMode="decimal" placeholder="0,00" value={customItemValor || ""} onChange={e => setCustomItemValor(Number(e.target.value) || 0)} className="tabular-nums" />
-                  </Field>
-                  <Field label="Quantidade" htmlFor="orc-custom-qtd">
-                    <Input id="orc-custom-qtd" type="number" value={customItemQtd} onChange={e => setCustomItemQtd(Math.max(1, Number(e.target.value) || 1))} className="text-center tabular-nums" />
-                  </Field>
-                  <Button variant="secondary" onClick={addCustomItem}>Adicionar</Button>
-                </div>
-              </Panel>
-            )}
+            <FlySwitch group="Categoria" value={filterCategory} className="space-y-7">
+              {shownCategories.length === 0 ? (
+                <EmptyState
+                  icon={<Search />}
+                  title="Nenhum serviço encontrado"
+                  description="Tente outro termo ou outra categoria."
+                  action={
+                    <Button variant="outline" onClick={() => { setSearchQuery(""); setFilterCategory("all"); }}>
+                      <X /> Limpar busca
+                    </Button>
+                  }
+                />
+              ) : (
+                shownCategories.map(cat => {
+                  const items = filteredServicos.filter(s => s.categoria === cat);
+                  return (
+                    <section key={cat} aria-label={cat}>
+                      {filterCategory === "all" && (
+                        <h2 className="mb-3 flex items-baseline gap-2 text-[17px] font-semibold text-white">
+                          {cat}
+                          <span className="text-[13px] font-normal text-muted-foreground">{items.length}</span>
+                        </h2>
+                      )}
+                      <ul data-fly className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+                        {items.map(serviceTile)}
+                      </ul>
+                    </section>
+                  );
+                })
+              )}
+
+              {/* Custom item */}
+              <section aria-label="Item personalizado">
+                <AnimatePresence initial={false} mode="wait">
+                  {!showCustomItem ? (
+                    <motion.button
+                      key="open"
+                      type="button"
+                      onClick={() => setShowCustomItem(true)}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex w-full items-center justify-center gap-2 rounded-[20px] border border-dashed border-white/20 px-4 py-5 text-[14px] font-medium text-muted-foreground hover:border-white/40 hover:text-white"
+                    >
+                      <Plus className="h-4 w-4" /> Item fora do catálogo
+                    </motion.button>
+                  ) : (
+                    <motion.div
+                      key="form"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      className="lg rounded-[20px] border border-border bg-card p-5"
+                    >
+                      <div className="mb-4 flex items-center justify-between">
+                        <h2 className="text-[16px] font-semibold text-white">Item fora do catálogo</h2>
+                        <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setShowCustomItem(false)} aria-label="Fechar item personalizado">
+                          <X />
+                        </Button>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px_96px_auto] sm:items-end">
+                        <Field label="Nome do item" htmlFor="orc-custom-nome">
+                          <Input id="orc-custom-nome" type="text" placeholder="Ex: Drone, 1 hora" value={customItemNome} autoFocus onChange={e => setCustomItemNome(e.target.value)} onKeyDown={e => e.key === "Enter" && addCustomItem()} />
+                        </Field>
+                        <Field label="Valor unitário" htmlFor="orc-custom-valor">
+                          <Input id="orc-custom-valor" type="number" inputMode="decimal" placeholder="0,00" value={customItemValor || ""} onChange={e => setCustomItemValor(Number(e.target.value) || 0)} className="tabular-nums" />
+                        </Field>
+                        <Field label="Qtd." htmlFor="orc-custom-qtd">
+                          <Input id="orc-custom-qtd" type="number" value={customItemQtd} onChange={e => setCustomItemQtd(Math.max(1, Number(e.target.value) || 1))} className="text-center tabular-nums" />
+                        </Field>
+                        <Button className="rounded-full" onClick={(e) => { const el = e.currentTarget; addCustomItem(); flyToQuote(el); }}>
+                          <Plus /> Adicionar
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </section>
+            </FlySwitch>
           </div>
 
-          {/* ── QUOTE SUMMARY (desktop) ── */}
+          {/* ── QUOTE (desktop) ── */}
           {isDesktop && (
             <div ref={cartRef} className="sticky top-6">
-              <Panel
-                title="Orçamento"
-                description={cart.length > 0 ? `${servicesLabel} · ${itemsLabel}` : "Nenhum serviço adicionado"}
-                actions={summaryClear}
-                className="flex max-h-[calc(100vh-3rem)] flex-col"
-                bodyClassName="flex min-h-0 flex-1 flex-col p-0"
+              <section
+                aria-label="Orçamento"
+                className="lg flex max-h-[calc(100vh-3rem)] flex-col overflow-hidden rounded-[26px] border border-border bg-card"
               >
+                {summaryHeader}
                 {summaryStepper}
                 <div className="min-h-0 flex-1 overflow-y-auto">{summaryBody}</div>
                 {summaryFooter}
-              </Panel>
+              </section>
             </div>
           )}
         </div>
       ) : (
         /* ── HISTORY ── */
         <div className="space-y-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatTile label="Em propostas" value={<Money value={pipeline.total} />} hint={`${orcamentos.length} ${orcamentos.length === 1 ? "orçamento" : "orçamentos"}`} />
+            <StatTile label="Aprovados" value={<Money value={pipeline.aprovadosValor} />} hint={`${pipeline.aprovadosQtd} ${pipeline.aprovadosQtd === 1 ? "proposta" : "propostas"}`} tone="success" />
+            <StatTile label="Aguardando resposta" value={<Money value={pipeline.abertosValor} />} hint={`${pipeline.abertosQtd} em aberto`} tone="info" />
+            <StatTile
+              label="Taxa de aprovação"
+              value={pipeline.taxa === null ? "—" : <><CountUp value={pipeline.taxa} />%</>}
+              hint={pipeline.taxa === null ? "Nenhuma resposta ainda" : "entre as respondidas"}
+            />
+          </dl>
+
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div className="relative flex-1">
-              <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Buscar por cliente, empresa ou nº…"
                 value={historySearch}
                 onChange={e => setHistorySearch(e.target.value)}
                 aria-label="Buscar orçamentos"
-                className="pl-9"
+                className="h-11 rounded-full pl-11"
               />
             </div>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger aria-label="Filtrar por status" className="sm:hidden">
+              <SelectTrigger aria-label="Filtrar por status" className="h-11 rounded-full sm:hidden">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1140,22 +1305,23 @@ export default function AdminOrcamentos() {
                 ))}
               </SelectContent>
             </Select>
+            <Segmented<string>
+              label="Filtrar por status"
+              value={filterStatus}
+              onChange={setFilterStatus}
+              options={statusFilterOptions}
+              className="hidden sm:inline-flex"
+            />
           </div>
-          <Segmented<string>
-            label="Filtrar por status"
-            value={filterStatus}
-            onChange={setFilterStatus}
-            options={statusFilterOptions}
-            className="hidden sm:inline-flex"
-          />
 
+          <FlySwitch group="Filtrar por status" value={filterStatus}>
           {orcLoading ? (
             <LoadingBlock label="Carregando orçamentos…" />
           ) : filteredOrcamentos.length === 0 ? (
             <EmptyState
               icon={<FileText />}
               title={hasHistoryFilters ? "Nenhum resultado" : "Nenhum orçamento ainda"}
-              description={hasHistoryFilters ? "Nenhum orçamento corresponde à busca ou ao status escolhido." : "Monte um orçamento no catálogo e salve para vê-lo aqui."}
+              description={hasHistoryFilters ? "Nenhum orçamento corresponde à busca ou ao status escolhido." : "Monte um orçamento e salve para vê-lo aqui."}
               action={hasHistoryFilters ? (
                 <Button variant="outline" onClick={() => { setHistorySearch(""); setFilterStatus("all"); }}>Limpar filtros</Button>
               ) : (
@@ -1163,120 +1329,113 @@ export default function AdminOrcamentos() {
               )}
             />
           ) : (
-            <>
-              {/* Table (tablet/desktop) */}
-              <div className="hidden overflow-hidden rounded-xl border border-border bg-card md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nº</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="text-right"><span className="sr-only">Ações</span></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredOrcamentos.map(orc => (
-                      <TableRow key={orc.id}>
-                        <TableCell className="whitespace-nowrap text-[14px] font-medium tabular-nums text-muted-foreground">{orc.numero}</TableCell>
-                        <TableCell className="max-w-[260px]">
-                          <p className="truncate text-[15px] font-medium text-foreground">{orc.cliente_nome}</p>
-                          {orc.cliente_empresa && <p className="truncate text-[13px] text-muted-foreground">{orc.cliente_empresa}</p>}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-[14px] tabular-nums text-muted-foreground">{new Date(orc.created_at).toLocaleDateString("pt-BR")}</TableCell>
-                        <TableCell><StatusBadge tone={statusTone[orc.status]}>{statusLabels[orc.status]}</StatusBadge></TableCell>
-                        <TableCell className="whitespace-nowrap text-right text-[15px] font-semibold tabular-nums text-foreground">{formatarValor(orc.valor_final)}</TableCell>
-                        <TableCell className="py-2">{renderOrcActions(orc)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* List (phones) */}
-              <ul className="space-y-3 md:hidden">
-                {filteredOrcamentos.map(orc => (
-                  <li key={orc.id} className="rounded-xl border border-border bg-card p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[13px] font-medium tabular-nums text-muted-foreground">{orc.numero}</span>
-                      <StatusBadge tone={statusTone[orc.status]}>{statusLabels[orc.status]}</StatusBadge>
-                    </div>
-                    <p className="mt-2 truncate text-[15px] font-semibold text-foreground">{orc.cliente_nome}</p>
-                    {orc.cliente_empresa && <p className="truncate text-[14px] text-muted-foreground">{orc.cliente_empresa}</p>}
-                    <div className="mt-2 flex items-baseline justify-between gap-3">
-                      <span className="text-[14px] tabular-nums text-muted-foreground">{new Date(orc.created_at).toLocaleDateString("pt-BR")}</span>
-                      <span className="text-[17px] font-semibold tabular-nums text-foreground">{formatarValor(orc.valor_final)}</span>
-                    </div>
-                    <div className="mt-3 border-t border-border pt-2">{renderOrcActions(orc)}</div>
-                  </li>
-                ))}
-              </ul>
-            </>
+            <ul data-fly className="space-y-2">
+              {filteredOrcamentos.map(orc => (
+                <li
+                  key={orc.id}
+                  className="glass-lift grid cursor-pointer grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 rounded-[18px] border border-border bg-card px-4 py-3.5 md:grid-cols-[92px_minmax(0,1fr)_110px_120px_140px_auto]"
+                  onClick={() => setViewingOrcamento(orc)}
+                >
+                  <span className="hidden text-[13px] font-medium tabular-nums text-muted-foreground md:block">{orc.numero}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setViewingOrcamento(orc); }}
+                    className="flex min-w-0 items-center gap-3 text-left"
+                  >
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/[0.08] text-[15px] font-semibold text-white">
+                      {orc.cliente_nome.trim().charAt(0).toUpperCase()}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[15px] font-semibold text-white">{orc.cliente_nome}</span>
+                      <span className="block truncate text-[13px] text-muted-foreground">
+                        <span className="md:hidden">{orc.numero} · </span>
+                        {orc.cliente_empresa || `${orc.servicos.length} ${orc.servicos.length === 1 ? "serviço" : "serviços"}`}
+                      </span>
+                    </span>
+                  </button>
+                  <span className="hidden text-[14px] tabular-nums text-muted-foreground md:block">{new Date(orc.created_at).toLocaleDateString("pt-BR")}</span>
+                  <span className="order-last col-span-2 flex items-center justify-between md:order-none md:col-span-1 md:block">
+                    <StatusBadge tone={statusTone[orc.status]}>{statusLabels[orc.status]}</StatusBadge>
+                    <span className="text-[13px] tabular-nums text-muted-foreground md:hidden">{new Date(orc.created_at).toLocaleDateString("pt-BR")}</span>
+                  </span>
+                  <span className="text-right text-[16px] font-semibold tabular-nums text-white">{formatarValor(orc.valor_final)}</span>
+                  <span className="hidden md:block">{renderOrcActions(orc)}</span>
+                </li>
+              ))}
+            </ul>
           )}
+          </FlySwitch>
         </div>
       )}
+      </FlySwitch>
 
-      {/* ── PHONE: bottom bar + summary sheet ── */}
-      {!isDesktop && viewMode === "catalog" && cart.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom)]">
-          <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-3 px-4 sm:px-8">
-            <div className="min-w-0">
-              <p className="text-[13px] text-muted-foreground">{itemsLabel} · {servicesLabel}</p>
-              <p className="text-[17px] font-semibold tabular-nums text-foreground">{formatarValor(cartValorFinal)}</p>
+      {/* ── PHONE: floating quote bar + sheet ── */}
+      <AnimatePresence>
+        {!isDesktop && viewMode === "catalog" && cart.length > 0 && (
+          <motion.div
+            initial={{ y: 120, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 120, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 380, damping: 34 }}
+            className="fixed inset-x-3 bottom-3 z-40 pb-[env(safe-area-inset-bottom)]"
+          >
+            <div className="lg flex items-center justify-between gap-3 rounded-full border border-border bg-[#2a2930]/95 py-2 pl-5 pr-2 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.8)]">
+              <div className="min-w-0" ref={(el) => { if (!isDesktop) quoteTarget.current = el; }}>
+                <p className="text-[12px] text-muted-foreground">{itemsLabel} · {servicesLabel}</p>
+                <p className="text-[18px] font-semibold leading-tight tabular-nums text-white"><Money value={cartValorFinal} /></p>
+              </div>
+              <Button className="h-11 rounded-full px-5" onClick={() => setCartOpen(true)}>
+                Ver orçamento <ArrowRight />
+              </Button>
             </div>
-            <Button onClick={() => setCartOpen(true)}>
-              Ver orçamento <ArrowRight />
-            </Button>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Sheet open={!isDesktop && cartOpen} onOpenChange={setCartOpen}>
         <SheetContent
           side="bottom"
-          className="flex max-h-[90dvh] flex-col gap-0 rounded-t-xl border-border bg-card p-0 data-[state=closed]:duration-150 data-[state=open]:duration-200"
+          className="flex max-h-[92dvh] flex-col gap-0 rounded-t-[26px] border-border p-0"
         >
-          <div className="flex items-start justify-between gap-3 border-b border-border py-4 pl-5 pr-14">
-            <div className="min-w-0">
-              <SheetTitle className="text-[17px] font-semibold text-foreground">Orçamento</SheetTitle>
-              <SheetDescription className="text-[14px] text-muted-foreground">
-                {cart.length > 0 ? `${servicesLabel} · ${itemsLabel}` : "Nenhum serviço adicionado"}
-              </SheetDescription>
-            </div>
-            {summaryClear}
-          </div>
+          <SheetTitle className="sr-only">Orçamento</SheetTitle>
+          <SheetDescription className="sr-only">
+            {cart.length > 0 ? `${servicesLabel} · ${itemsLabel}` : "Nenhum serviço adicionado"}
+          </SheetDescription>
+          <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-white/20" aria-hidden="true" />
+          {summaryHeader}
           {summaryStepper}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{summaryBody}</div>
           {summaryFooter && <div className="pb-[env(safe-area-inset-bottom)]">{summaryFooter}</div>}
         </SheetContent>
       </Sheet>
 
-      {/* ── SERVICE DETAIL DIALOG ── */}
+      {/* ── SERVICE DETAIL ── */}
       <Dialog open={!!selectedServico} onOpenChange={open => !open && setSelectedServico(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-[20px] font-semibold">{selectedServico?.nome}</DialogTitle>
+            <DialogTitle className="pr-6 text-[20px] font-semibold">{selectedServico?.nome}</DialogTitle>
             <DialogDescription className="sr-only">Detalhes do serviço</DialogDescription>
           </DialogHeader>
           {selectedServico && (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <StatusBadge>{selectedServico.categoria}</StatusBadge>
-                <span className="text-[24px] font-semibold tabular-nums text-foreground">{formatarValor(selectedServico.valor)}</span>
+                <span className="text-[28px] font-semibold tracking-[-0.02em] tabular-nums text-white">{formatarValor(selectedServico.valor)}</span>
               </div>
               <p className="text-[15px] leading-relaxed text-muted-foreground">{selectedServico.descricao}</p>
               <p className="flex items-center gap-2 text-[14px] text-muted-foreground">
                 <Clock className="h-4 w-4" aria-hidden="true" /> Prazo: {selectedServico.prazo}
               </p>
               {selectedServico.observacoes && (
-                <div className="rounded-lg border border-border bg-muted p-4">
+                <div className="rounded-[16px] border border-white/[0.08] bg-white/[0.04] p-4">
                   <SectionLabel className="mb-1">Observações</SectionLabel>
-                  <p className="text-[14px] text-foreground">{selectedServico.observacoes}</p>
+                  <p className="text-[14px] text-white">{selectedServico.observacoes}</p>
                 </div>
               )}
-              <Button size="lg" className="w-full" onClick={() => { addToCart(selectedServico); setSelectedServico(null); }}>
+              <Button
+                className="h-12 w-full rounded-full text-[15px]"
+                onClick={(e) => { add(selectedServico, e.currentTarget); setSelectedServico(null); }}
+              >
                 <Plus /> Adicionar ao orçamento
               </Button>
             </div>
@@ -1284,92 +1443,229 @@ export default function AdminOrcamentos() {
         </DialogContent>
       </Dialog>
 
-      {/* ── VIEW ORCAMENTO DIALOG ── */}
+      {/* ── SAVED QUOTE ── */}
       <Dialog open={!!viewingOrcamento} onOpenChange={open => !open && setViewingOrcamento(null)}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex flex-wrap items-center gap-3 text-[20px] font-semibold">
-              Orçamento {viewingOrcamento?.numero}
+              Proposta {viewingOrcamento?.numero}
               {viewingOrcamento && (
                 <StatusBadge tone={statusTone[viewingOrcamento.status]}>{statusLabels[viewingOrcamento.status]}</StatusBadge>
               )}
             </DialogTitle>
-            <DialogDescription className="sr-only">Detalhes do orçamento salvo</DialogDescription>
+            <DialogDescription>
+              {viewingOrcamento && `Criada em ${new Date(viewingOrcamento.created_at).toLocaleDateString("pt-BR")} · válida por ${viewingOrcamento.validade} dias`}
+            </DialogDescription>
           </DialogHeader>
           {viewingOrcamento && (
             <div className="space-y-5">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border border-border p-4">
-                  <SectionLabel className="mb-2">Dados do cliente</SectionLabel>
-                  <p className="text-[15px] font-medium text-foreground">{viewingOrcamento.cliente_nome}</p>
-                  {viewingOrcamento.cliente_empresa && <p className="mt-0.5 text-[14px] text-muted-foreground">{viewingOrcamento.cliente_empresa}</p>}
-                  {viewingOrcamento.cliente_email && <p className="mt-2 break-all text-[14px] text-muted-foreground">{viewingOrcamento.cliente_email}</p>}
-                  {viewingOrcamento.cliente_whatsapp && <p className="text-[14px] tabular-nums text-muted-foreground">{viewingOrcamento.cliente_whatsapp}</p>}
+              <div className="flex flex-col gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.04] p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-[16px] font-semibold text-[#141318]">
+                    {viewingOrcamento.cliente_nome.trim().charAt(0).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-[16px] font-semibold text-white">{viewingOrcamento.cliente_nome}</p>
+                    <p className="truncate text-[13px] text-muted-foreground">
+                      {[viewingOrcamento.cliente_empresa, viewingOrcamento.cliente_whatsapp, viewingOrcamento.cliente_email].filter(Boolean).join(" · ") || "Sem contato salvo"}
+                    </p>
+                  </div>
                 </div>
-                <div className="rounded-lg border border-border p-4">
-                  <SectionLabel className="mb-2">Resumo financeiro</SectionLabel>
-                  <dl className="space-y-1 text-[14px]">
-                    <div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd className="tabular-nums text-foreground">{formatarValor(viewingOrcamento.subtotal)}</dd></div>
-                    {viewingOrcamento.desconto_tipo !== "nenhum" && viewingOrcamento.desconto_valor > 0 && (
-                      <div className="flex justify-between"><dt className="text-muted-foreground">Desconto</dt><dd className="tabular-nums text-muted-foreground">{viewingOrcamento.desconto_tipo === "percentual" ? `${viewingOrcamento.desconto_valor}%` : formatarValor(viewingOrcamento.desconto_valor)}</dd></div>
-                    )}
-                  </dl>
-                  <p className="mt-3 text-[24px] font-semibold tabular-nums text-foreground">{formatarValor(viewingOrcamento.valor_final)}</p>
+                <div className="sm:text-right">
+                  <p className="text-[13px] text-muted-foreground">Total</p>
+                  <p className="text-[28px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-white">{formatarValor(viewingOrcamento.valor_final)}</p>
                 </div>
               </div>
 
               <div>
                 <SectionLabel className="mb-2">Serviços</SectionLabel>
-                <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+                <ul className="divide-y divide-white/[0.06] overflow-hidden rounded-[16px] border border-white/[0.08]">
                   {viewingOrcamento.servicos.map((item, i) => (
                     <li key={i} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                       <div className="min-w-0 flex-1">
-                        <p className="text-[15px] font-medium text-foreground">{item.nome}</p>
+                        <p className="text-[15px] font-medium text-white">{item.nome}</p>
                         {item.observacoes && <p className="mt-0.5 text-[13px] text-muted-foreground">{item.observacoes}</p>}
                       </div>
                       <div className="flex shrink-0 items-center gap-4 text-right tabular-nums">
                         <span className="text-[14px] text-muted-foreground">×{item.quantidade}</span>
                         <span className="w-[84px] text-[14px] text-muted-foreground">{formatarValor(item.valorUnitario)}</span>
-                        <span className="w-[96px] text-[15px] font-semibold text-foreground">{formatarValor(item.valorUnitario * item.quantidade)}</span>
+                        <span className="w-[96px] text-[15px] font-semibold text-white">{formatarValor(item.valorUnitario * item.quantidade)}</span>
                       </div>
                     </li>
                   ))}
                 </ul>
+                <dl className="mt-3 space-y-1 px-1 text-[14px]">
+                  <div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd className="tabular-nums text-white/80">{formatarValor(viewingOrcamento.subtotal)}</dd></div>
+                  {viewingOrcamento.desconto_tipo !== "nenhum" && viewingOrcamento.desconto_valor > 0 && (
+                    <div className="flex justify-between"><dt className="text-muted-foreground">Desconto</dt><dd className="tabular-nums text-[hsl(var(--admin-success))]">{viewingOrcamento.desconto_tipo === "percentual" ? `${viewingOrcamento.desconto_valor}%` : formatarValor(viewingOrcamento.desconto_valor)}</dd></div>
+                  )}
+                  <div className="flex justify-between"><dt className="text-muted-foreground">Prazo de entrega</dt><dd className="text-white/80">{viewingOrcamento.prazo_entrega || "—"}</dd></div>
+                </dl>
               </div>
 
               {viewingOrcamento.observacoes && (
-                <div className="rounded-lg border border-border p-4">
-                  <SectionLabel className="mb-1">Observações</SectionLabel>
-                  <p className="text-[14px] text-foreground">{viewingOrcamento.observacoes}</p>
+                <div className="rounded-[16px] border border-white/[0.08] bg-white/[0.04] p-4">
+                  <SectionLabel className="mb-1">Condições e observações</SectionLabel>
+                  <p className="text-[14px] text-white">{viewingOrcamento.observacoes}</p>
                 </div>
               )}
 
-              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] text-muted-foreground">
-                <span>Prazo: {viewingOrcamento.prazo_entrega || "—"}</span>
-                <span aria-hidden="true">·</span>
-                <span>Validade: {viewingOrcamento.validade} dias</span>
-                <span aria-hidden="true">·</span>
-                <span>Criado em {new Date(viewingOrcamento.created_at).toLocaleDateString("pt-BR")}</span>
-              </p>
+              {statusActions[viewingOrcamento.status].length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[13px] text-muted-foreground">Mudar status:</span>
+                  {statusActions[viewingOrcamento.status].map(s => (
+                    <Button
+                      key={s}
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => { handleStatusChange(viewingOrcamento, s); setViewingOrcamento({ ...viewingOrcamento, status: s }); }}
+                    >
+                      {s === "aprovado" ? <CheckCircle2 /> : s === "recusado" ? <Ban /> : <Send />}
+                      {statusLabels[s]}
+                    </Button>
+                  ))}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                <Button className="col-span-2" onClick={() => { handleGeneratePDF(viewingOrcamento); setViewingOrcamento(null); }} disabled={generatingPDF}>
+                <Button className="col-span-2 rounded-full" onClick={() => { handleGeneratePDF(viewingOrcamento); setViewingOrcamento(null); }} disabled={generatingPDF}>
                   <Download /> Baixar PDF
                 </Button>
-                <Button variant="outline" onClick={() => { handleDuplicateOrcamento(viewingOrcamento); setViewingOrcamento(null); }}>
+                <Button variant="outline" className="rounded-full" onClick={() => { handleDuplicateOrcamento(viewingOrcamento); setViewingOrcamento(null); }}>
                   <Copy /> Duplicar
                 </Button>
-                <Button variant="outline" onClick={() => handleShareWhatsApp(viewingOrcamento)}>
+                <Button variant="outline" className="rounded-full" onClick={() => handleShareWhatsApp(viewingOrcamento)}>
                   <MessageCircle /> WhatsApp
                 </Button>
-                <Button variant="outline" className="col-span-2 sm:col-span-1" onClick={() => handleShareEmail(viewingOrcamento)}>
+                <Button variant="outline" className="rounded-full" onClick={() => handleShareEmail(viewingOrcamento)}>
                   <Mail /> E-mail
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="rounded-full text-destructive hover:bg-destructive/15 hover:text-destructive"
+                  onClick={() => { setPendingDelete(viewingOrcamento); setViewingOrcamento(null); }}
+                >
+                  <Trash2 /> Excluir
                 </Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ── DELETE CONFIRM ── */}
+      <AlertDialog open={!!pendingDelete} onOpenChange={open => !open && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir a proposta {pendingDelete?.numero}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O orçamento de {pendingDelete?.cliente_nome} será apagado e não dá para desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-full">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (pendingDelete) deleteOrcamento.mutate(pendingDelete.id); setPendingDelete(null); }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminPage>
+  );
+}
+
+/* ── Small pieces ── */
+
+/** Money that glides to its new value. */
+function Money({ value, className }: { value: number; className?: string }) {
+  const reduce = useReducedMotion();
+  const [shown, setShown] = useState(value);
+  const shownRef = useRef(value);
+  useEffect(() => {
+    if (reduce) { shownRef.current = value; setShown(value); return; }
+    const from = shownRef.current;
+    if (from === value) return;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - start) / 600);
+      const v = from + (value - from) * (1 - Math.pow(1 - p, 4));
+      shownRef.current = v;
+      setShown(v);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, reduce]);
+  return <span className={className}>{formatarValor(Math.round(shown * 100) / 100)}</span>;
+}
+
+/** − qty + pill. */
+function QtyStepper({ value, onMinus, onPlus, minusDisabled, name, light }: {
+  value: number;
+  onMinus: () => void;
+  onPlus: (e: RMouseEvent<HTMLButtonElement>) => void;
+  minusDisabled?: boolean;
+  name: string;
+  light?: boolean;
+}) {
+  return (
+    <div className={cn("flex h-9 items-center rounded-full", light ? "liquid-pill text-[#141318]" : "border border-white/[0.12] bg-black/20 text-white")}>
+      <button
+        type="button"
+        onClick={onMinus}
+        disabled={minusDisabled}
+        aria-label={`Diminuir quantidade de ${name}`}
+        className="grid h-9 w-9 place-items-center rounded-full disabled:opacity-35"
+      >
+        <Minus className="h-4 w-4" />
+      </button>
+      <motion.span
+        key={value}
+        initial={{ y: -6, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+        aria-live="polite"
+        className="w-7 text-center text-[14px] font-semibold tabular-nums"
+      >
+        {value}
+      </motion.span>
+      <button
+        type="button"
+        onClick={onPlus}
+        aria-label={`Aumentar quantidade de ${name}`}
+        className="grid h-9 w-9 place-items-center rounded-full"
+      >
+        <Plus className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+/** One figure in the history summary. */
+function StatTile({ label, value, hint, tone }: {
+  label: string;
+  value: ReactNode;
+  hint?: string;
+  tone?: "success" | "info";
+}) {
+  return (
+    <div className="lg rounded-[20px] border border-border bg-card px-4 py-4">
+      <dt className="flex items-center gap-2 text-[13px] text-muted-foreground">
+        {tone && (
+          <span
+            aria-hidden="true"
+            className={cn("h-2 w-2 rounded-full", tone === "success" ? "bg-[hsl(var(--admin-success))]" : "bg-[hsl(var(--admin-info))]")}
+          />
+        )}
+        {label}
+      </dt>
+      <dd className="mt-1 text-[24px] font-semibold leading-tight tracking-[-0.02em] tabular-nums text-white">{value}</dd>
+      {hint && <dd className="mt-0.5 text-[13px] text-muted-foreground">{hint}</dd>}
+    </div>
   );
 }

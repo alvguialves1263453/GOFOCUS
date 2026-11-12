@@ -13,6 +13,12 @@ import AdminInstagramClient from "./pages/AdminInstagramClient";
 import AdminOrcamentos from "./pages/AdminOrcamentos";
 import AdminEventos from "./pages/AdminEventos";
 import AdminEventoEdit from "./pages/AdminEventoEdit";
+import AdminMetricas from "./pages/AdminMetricas";
+import AdminNotas from "./pages/AdminNotas";
+import AdminAgenda from "./pages/AdminAgenda";
+import AdminFinanceiro from "./pages/AdminFinanceiro";
+import AdminMensagens from "./pages/AdminMensagens";
+import AdminLinks from "./pages/AdminLinks";
 import ClientPreview from "./pages/ClientPreview";
 import NotFound from "./pages/NotFound";
 import Links from "./pages/Links";
@@ -69,6 +75,54 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminOrcamentos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/agenda"
+              element={
+                <ProtectedRoute>
+                  <AdminAgenda />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/financeiro"
+              element={
+                <ProtectedRoute>
+                  <AdminFinanceiro />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/mensagens"
+              element={
+                <ProtectedRoute>
+                  <AdminMensagens />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/links"
+              element={
+                <ProtectedRoute>
+                  <AdminLinks />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/notas"
+              element={
+                <ProtectedRoute>
+                  <AdminNotas />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/metricas"
+              element={
+                <ProtectedRoute>
+                  <AdminMetricas />
                 </ProtectedRoute>
               }
             />

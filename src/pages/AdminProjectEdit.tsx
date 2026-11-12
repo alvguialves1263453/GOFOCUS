@@ -740,7 +740,7 @@ const AdminProjectEdit = () => {
       {uploadStatus.isUploading && (
         <div
           role="status"
-          className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-center gap-3 border-t border-border bg-card px-4 py-3 text-[14px] font-medium text-foreground lg:left-[232px]"
+          className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-center gap-3 border-t border-border bg-card px-4 py-3 text-[14px] font-medium text-foreground lg:left-[256px]"
         >
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
           Enviando arquivos — {uploadPct}%

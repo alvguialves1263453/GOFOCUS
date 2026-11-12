@@ -37,17 +37,22 @@ export async function uploadToImageKit(file: File, folder: string = "gofocus"): 
 
 export async function deleteFromImageKit(fileId: string): Promise<boolean> {
     if (!fileId) return false;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     try {
         const response = await fetch(`https://api.imagekit.io/v1/files/${fileId}`, {
             method: "DELETE",
             headers: {
                 "Authorization": `Basic ${btoa(PRIVATE_KEY + ":")}`
-            }
+            },
+            signal: controller.signal
         });
         return response.ok;
     } catch (error) {
         console.error("ImageKit delete error:", error);
         return false;
+    } finally {
+        clearTimeout(timeout);
     }
 }
 

@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,7 +75,7 @@ import {
 import { uploadToImageKit } from "@/lib/imagekit";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AdminPage, Panel, Field, StatusBadge, EmptyState, Segmented, LoadingBlock } from "@/components/admin/ui";
+import { AdminPage, Panel, Field, StatusBadge, EmptyState, Segmented, LoadingBlock, FlyTabs, FlySwitch } from "@/components/admin/ui";
 import { cn } from "@/lib/utils";
 
 // ── Presentation helpers (visual only) ──
@@ -1179,7 +1179,7 @@ const AdminInstagramClient = () => {
             </dl>
           </section>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <FlyTabs value={activeTab} onValueChange={setActiveTab}>
             <div className="-mx-4 mb-6 overflow-x-auto px-4 sm:mx-0 sm:px-0">
               <TabsList className="h-auto w-max justify-start gap-1 rounded-lg border border-border bg-muted p-1">
                 <TabsTrigger value="overview" className={tabTrigger}>Geral</TabsTrigger>
@@ -1197,7 +1197,7 @@ const AdminInstagramClient = () => {
                 title="Crescimento"
                 description="Seguidores e likes no período escolhido"
                 actions={
-                  <Segmented
+                  <Segmented<"hoje" | "semanal" | "mensal" | "total">
                     label="Período"
                     value={followerPeriod}
                     onChange={setFollowerPeriod}
@@ -1210,7 +1210,8 @@ const AdminInstagramClient = () => {
                   />
                 }
               >
-                <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+<FlySwitch group="Período" value={followerPeriod}>
+                <dl data-fly className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                   <Metric
                     label="Seguidores ganhos"
                     value={`${followerGains[followerPeriod] >= 0 ? '+' : ''}${followerGains[followerPeriod].toLocaleString('pt-BR')}`}
@@ -1222,6 +1223,7 @@ const AdminInstagramClient = () => {
                     hint={periodLikesLabel}
                   />
                 </dl>
+                </FlySwitch>
               </Panel>
 
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -2583,7 +2585,7 @@ const AdminInstagramClient = () => {
                 )}
               </Panel>
             </TabsContent>
-          </Tabs>
+          </FlyTabs>
         </AdminPage>
       </div>
 
