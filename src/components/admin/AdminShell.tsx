@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { AnimatePresence, motion, MotionConfig, usePresence, useReducedMotion } from "framer-motion";
-import { BarChart3, NotebookPen, CalendarClock, Wallet, MessageSquareText, Calendar, ExternalLink, FolderKanban, Instagram, Link2, LogOut, Menu, Receipt, X } from "lucide-react";
+import { BarChart3, NotebookPen, CalendarClock, Wallet, MessageSquareText, Calendar, ExternalLink, FolderKanban, Instagram, Link2, LogOut, Menu, Receipt, Sparkles, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ const NAV = [
   { to: "/admin/orcamentos", label: "Orçamentos", icon: Receipt, match: ["/admin/orcamentos"] },
   { to: "/admin/financeiro", label: "Financeiro", icon: Wallet, match: ["/admin/financeiro"] },
   { to: "/admin/instagram", label: "Instagram", icon: Instagram, match: ["/admin/instagram"] },
+  { to: "/admin/instagram-studio", label: "IG Studio", icon: Sparkles, match: ["/admin/instagram-studio"] },
   { to: "/admin/mensagens", label: "Mensagens", icon: MessageSquareText, match: ["/admin/mensagens"] },
   { to: "/admin/notas", label: "Anotações", icon: NotebookPen, match: ["/admin/notas"] },
   { to: "/admin/metricas", label: "Métricas", icon: BarChart3, match: ["/admin/metricas"] },
@@ -219,7 +220,8 @@ function Backdrop() {
 /* ── Page switch: a screen's cards fold back into its sidebar item, the next screen's cards
    unfold out of theirs. ── */
 const routeFly = { from: null as string | null, to: null as string | null, at: 0 };
-const sectionOf = (path: string) => NAV.find((n) => n.match.some((m) => path.startsWith(m)))?.to ?? null;
+const matchesPath = (path: string, prefix: string) => path === prefix || path.startsWith(`${prefix}/`);
+const sectionOf = (path: string) => NAV.find((n) => n.match.some((m) => matchesPath(path, m)))?.to ?? null;
 const navItem = (section: string | null) =>
   section ? document.querySelector<HTMLElement>(`aside [data-nav="${section}"]`) : null;
 
@@ -340,7 +342,7 @@ export default function AdminShell() {
   const nav = (layoutId: string) => (
     <nav aria-label="Painel" className="flex flex-1 flex-col gap-1">
       {NAV.map(({ to, label, icon: Icon, match }) => {
-        const active = match.some((m) => location.pathname.startsWith(m));
+        const active = match.some((m) => matchesPath(location.pathname, m));
         return (
           <NavLink
             key={to}

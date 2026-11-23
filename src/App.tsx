@@ -10,6 +10,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminProjectEdit from "./pages/AdminProjectEdit";
 import AdminInstagram from "./pages/AdminInstagram";
 import AdminInstagramClient from "./pages/AdminInstagramClient";
+import AdminInstagramStudio from "./pages/AdminInstagramStudio";
 import AdminOrcamentos from "./pages/AdminOrcamentos";
 import AdminEventos from "./pages/AdminEventos";
 import AdminEventoEdit from "./pages/AdminEventoEdit";
@@ -67,6 +68,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminInstagramClient />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/instagram-studio"
+              element={
+                <ProtectedRoute>
+                  <AdminInstagramStudio />
                 </ProtectedRoute>
               }
             />
