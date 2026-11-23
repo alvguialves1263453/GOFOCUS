@@ -12,12 +12,13 @@ import {
   type Project,
 } from "@/lib/storage";
 import {
-  ArrowLeft, Copy, Download, Heart, Instagram, Loader2, MessageCircle, QrCode, Share2, X, ChevronLeft, ChevronRight, ZoomOut,
+  ArrowLeft, ArrowRight, Copy, Download, Heart, Instagram, Loader2, MessageCircle, QrCode, Share2, X, ChevronLeft, ChevronRight, ZoomOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import logo from "@/assets/logo.png";
+import logoStar from "@/assets/logo-star.png";
+import "@/components/inicio/inicio.css";
 import { prefersReducedMotion, thumb } from "@/components/home/homeData";
 import { INSTAGRAM_URL } from "@/components/home/HomeSections";
 
@@ -109,6 +110,16 @@ export default function ClientPreview() {
     return { items, frames, dates };
   }, [photos]);
 
+  // Photos grouped under each date line the album marks.
+  const sections = useMemo(() => {
+    const out: { key: string; label: string | null; frames: Frame[] }[] = [{ key: "start", label: null, frames: [] }];
+    items.forEach((it) => {
+      if (it.kind === "tear") out.push({ key: it.key, label: it.label, frames: [] });
+      else out[out.length - 1].frames.push(it.frame);
+    });
+    return out.filter((sec) => sec.frames.length);
+  }, [items]);
+
   // Deep link: ?photo=<index> opens that photo.
   useEffect(() => {
     if (!project) return;
@@ -122,7 +133,7 @@ export default function ClientPreview() {
   // Signature motion: the roll feeds out of the slot in printer steps, once.
   useEffect(() => {
     if (!roll.current || !frames.length || prefersReducedMotion()) return;
-    const t = gsap.fromTo(roll.current, { y: -80, opacity: 0.001 }, { y: 0, opacity: 1, duration: 1.4, ease: "steps(10)", delay: 0.15 });
+    const t = gsap.fromTo(roll.current, { y: 60, opacity: 0.001 }, { y: 0, opacity: 1, duration: 1.2, ease: "expo.out", delay: 0.5 });
     return () => {
       t.kill();
     };
@@ -159,20 +170,21 @@ export default function ClientPreview() {
 
   if (loading) {
     return (
-      <div className="grid min-h-[100svh] place-items-center bg-[#0B0B0B]" role="status">
-        <p className="font-archivo text-[15px] text-[#C9C4BA]">Imprimindo o álbum…</p>
+      <div className="inicio grid min-h-[100svh] place-items-center bg-[#0a0a0a]" role="status">
+        <img src={logoStar} alt="" width={256} height={262} className="inicio-spin h-10 w-auto opacity-80" />
+        <span className="sr-only">Carregando o álbum</span>
       </div>
     );
   }
 
   if (notFound || !project) {
     return (
-      <div className="grid min-h-[100svh] place-items-center bg-[#A7AAAF] px-6 text-center text-[#141414]">
+      <div className="inicio grid min-h-[100svh] place-items-center bg-[#0a0a0a] px-6 text-center text-[#f5f4f0]">
         <div>
-          <h1 className="font-marquee text-[clamp(3rem,10vw,6rem)] font-black uppercase leading-[0.86]">Álbum não encontrado</h1>
-          <p className="mx-auto mt-5 max-w-[40ch] font-archivo text-[17px] text-[#23252A]">O link pode estar errado ou o álbum foi retirado. Veja todas as tiras na página inicial.</p>
-          <Link to="/#portfolio" className="mt-8 inline-flex rounded-full bg-[#141414] px-6 py-3.5 font-archivo text-[15px] font-semibold text-[#E9EAEC] hover:bg-black">
-            Ver todas as tiras
+          <h1 className="font-display text-[clamp(2.8rem,8vw,6rem)] font-medium leading-[0.95] tracking-[-0.03em]">Álbum não encontrado</h1>
+          <p className="mx-auto mt-5 max-w-[40ch] font-body text-[17px] text-white/60">O link pode estar errado ou o álbum foi retirado. Veja todos os trabalhos na página inicial.</p>
+          <Link to="/#portfolio" className={`mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 font-body text-[15px] font-semibold text-black ${ring}`}>
+            Ver todos os trabalhos <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
       </div>
@@ -181,147 +193,154 @@ export default function ClientPreview() {
 
   const meta = [category, `${frames.length} ${frames.length === 1 ? "foto" : "fotos"}`, dates.length ? (dates.length > 1 ? `${dates[0]} a ${dates[dates.length - 1]}` : dates[0]) : null]
     .filter(Boolean)
-    .join(", ");
+    .join(" · ");
+  const cover = frames[0];
 
   return (
-    <div className="min-h-[100svh] bg-[#0B0B0B] font-archivo selection:bg-[#141414] selection:text-[#E9EAEC]">
-      {/* ── Booth front: sign, details, actions ── */}
-      <header className="bg-[#A7AAAF] text-[#141414]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 pt-5 sm:px-10 sm:pt-7">
-          <Link to="/" aria-label="GoFocus, página inicial" className="flex items-center gap-3 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#141414]">
-            <img src={logo} alt="" width={1024} height={1024} className="h-8 w-auto" style={{ filter: "brightness(0)" }} />
-            <span className="font-marquee text-[1.5rem] font-black uppercase leading-none">GoFocus</span>
+    <div className="inicio min-h-[100svh] bg-[#0a0a0a] font-body text-[#f5f4f0] antialiased selection:bg-white selection:text-black">
+      {/* ── Top bar ── */}
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#0a0a0a]/90">
+        <div className={`${wrap} flex h-16 items-center justify-between md:h-20`}>
+          <Link to="/" aria-label="GoFocus, página inicial" className={`flex items-center gap-3 ${ring}`}>
+            <img src={logoStar} alt="" width={256} height={262} className="h-7 w-auto" />
+            <span className="font-display text-[1.35rem] font-semibold tracking-tight">GoFocus</span>
           </Link>
-          <nav aria-label="Principal" className="flex items-center gap-1 text-[15px] font-medium">
-            <Link to="/#portfolio" className="flex items-center gap-1.5 rounded-full px-3 py-2 transition-colors hover:bg-[#141414]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#141414]">
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Todas as tiras
+          <nav aria-label="Principal" className="flex items-center gap-2 text-[14px]">
+            <Link to="/#portfolio" className={`hidden items-center gap-1.5 rounded-full px-4 py-2 text-white/70 transition-colors hover:text-white sm:inline-flex ${ring}`}>
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Todos os trabalhos
             </Link>
-            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hidden rounded-full bg-[#141414] px-4 py-2 text-[#E9EAEC] transition-colors hover:bg-black sm:inline-block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#141414]">
-              Instagram
+            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-2 rounded-full border border-white/30 px-4 py-2 font-medium transition-colors hover:bg-white hover:text-black ${ring}`}>
+              <Instagram className="h-4 w-4" aria-hidden="true" /> Contato
             </a>
           </nav>
         </div>
+      </header>
 
-        <div className="mx-auto max-w-6xl px-5 pb-10 pt-12 sm:px-10 md:pt-16">
-          <h1 className="text-balance font-marquee text-[clamp(3.2rem,9vw,6rem)] font-black uppercase leading-[0.86] tracking-[-0.01em]">{project.clientName}</h1>
-          <p className="mt-4 text-[17px] text-[#23252A]">{meta}</p>
+      {/* ── Album title over a dimmed cover ── */}
+      <section className="relative overflow-hidden pt-16 md:pt-20">
+        {cover && (
+          <img
+            src={thumb(cover.url, 1600)}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover opacity-30"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a]/40 via-[#0a0a0a]/60 to-[#0a0a0a]" aria-hidden="true" />
+        <div className={`${wrap} relative pb-14 pt-20 md:pb-20 md:pt-32`}>
+          <Link to="/#portfolio" className={`mb-8 inline-flex items-center gap-1.5 text-[14px] text-white/60 transition-colors hover:text-white sm:hidden ${ring}`}>
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Todos os trabalhos
+          </Link>
+          <p className="inicio-fade mb-5 font-body text-[13px] uppercase tracking-[0.22em] text-white/60" style={{ ["--d" as string]: "0.05s" }}>
+            {meta}
+          </p>
+          <h1 className="font-display text-[clamp(3rem,9vw,8rem)] font-medium leading-[0.92] tracking-[-0.03em] text-balance">
+            <span className="inicio-word">
+              <span className="inicio-char" style={{ ["--i" as string]: 0 }}>{project.clientName}</span>
+            </span>
+          </h1>
 
-          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <div className="inicio-fade mt-10 flex flex-wrap items-center gap-3" style={{ ["--d" as string]: "0.6s" }}>
             <button
               type="button"
               onClick={like}
               disabled={liked}
               aria-pressed={liked}
-              className="inline-flex items-center gap-2.5 rounded-full bg-[#141414] py-3 pl-4 pr-5 text-[15px] font-semibold text-[#E9EAEC] transition-colors hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#141414] disabled:cursor-default"
+              className={`inline-flex items-center gap-2.5 rounded-full bg-white py-3 pl-4 pr-5 text-[15px] font-semibold text-black transition-transform hover:-translate-y-0.5 disabled:cursor-default disabled:hover:translate-y-0 ${ring}`}
             >
-              <Heart className={`h-[18px] w-[18px] ${liked ? "fill-[#FF4D3D] text-[#FF4D3D]" : ""}`} aria-hidden="true" />
+              <Heart className={`h-[18px] w-[18px] ${liked ? "fill-[#ff4d3d] text-[#ff4d3d]" : ""}`} aria-hidden="true" />
               {liked ? "Curtido" : "Curtir álbum"}
-              {likeCount > 0 && <span className="border-l border-white/20 pl-2.5 tabular-nums text-[#C9CCD1]">{likeCount}</span>}
+              {likeCount > 0 && <span className="border-l border-black/15 pl-2.5 tabular-nums text-black/60">{likeCount}</span>}
             </button>
             <ToolButton icon={Share2} label="Compartilhar" onClick={shareAlbum} />
             <ToolButton icon={QrCode} label="QR code" onClick={() => setQrOpen(true)} />
             <ToolButton icon={Copy} label="Apoiar com PIX" onClick={() => setPixOpen(true)} />
           </div>
         </div>
+      </section>
 
-        {/* Print slot the roll feeds out of. */}
-        <div className="mx-auto max-w-6xl px-5 sm:px-10">
-          <div className="relative mx-auto h-5 w-full max-w-[940px] translate-y-1/2 rounded-full bg-[linear-gradient(180deg,#e2e4e6,#8f9398)] p-[4px] shadow-[0_3px_6px_rgba(0,0,0,0.55)]">
-            <div className="h-full w-full rounded-full bg-[linear-gradient(180deg,#000,#1b1b1d)] shadow-[inset_0_2px_3px_rgba(0,0,0,0.95)]" />
+      {/* ── Photos: whole, never cropped ── */}
+      <main className={`${wrap} pb-24`}>
+        <h2 className="sr-only">Fotos do álbum</h2>
+        <div ref={roll}>
+          {sections.map((sec) => (
+            <section key={sec.key} aria-label={sec.label ? `Fotos de ${sec.label}` : undefined} className="mt-6 first:mt-0">
+              {sec.label && (
+                <div className="mb-6 mt-10 flex items-center gap-5">
+                  <span className="font-display text-[clamp(1.6rem,3vw,2.4rem)] italic">{sec.label}</span>
+                  <span aria-hidden="true" className="h-px flex-1 bg-white/15" />
+                </div>
+              )}
+              <ol className="columns-2 gap-3 md:columns-3 md:gap-4">
+                {sec.frames.map((frame) => (
+                  <li key={frame.index} className="mb-3 break-inside-avoid md:mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setSelected(frame.index)}
+                      aria-label={`Abrir foto ${frame.number} de ${frames.length}`}
+                      className={`group block w-full overflow-hidden rounded-sm bg-[#141414] ${ring}`}
+                    >
+                      <img
+                        src={thumb(frame.url, 800)}
+                        alt=""
+                        loading={frame.number <= 6 ? "eager" : "lazy"}
+                        decoding="async"
+                        className="block h-auto w-full transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]"
+                      />
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ))}
+        </div>
+
+        {/* ── Foot ── */}
+        <div className="mt-24 border-t border-white/15 pt-16 text-center">
+          <img src={logoStar} alt="" width={256} height={262} className="inicio-spin mx-auto h-10 w-auto opacity-80" />
+          <p className="mt-6 font-display text-[clamp(2rem,5vw,3.5rem)] leading-tight">Gostou do resultado?</p>
+          <p className="mx-auto mt-3 max-w-[44ch] text-[16px] text-white/60">
+            A GoFocus faz vídeos e marketing para empresas, filma eventos e casamentos, e fotografa. Chame a gente no Instagram.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-[15px] font-semibold text-black transition-transform hover:-translate-y-0.5 ${ring}`}>
+              <Instagram className="h-4 w-4" aria-hidden="true" /> Falar no Instagram
+            </a>
+            <Link to="/#portfolio" className={`inline-flex items-center gap-2 rounded-full border border-white/30 px-6 py-3.5 text-[15px] font-medium transition-colors hover:border-white ${ring}`}>
+              Ver outros trabalhos <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
           </div>
         </div>
-      </header>
-
-      {/* ── The roll ── */}
-      <main className="overflow-hidden px-3 pb-24 sm:px-10">
-        <div ref={roll} className="mx-auto max-w-[900px] bg-[#FBFAF7] px-3 pb-10 pt-6 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.9)] sm:px-6 sm:pt-8">
-          <h2 className="sr-only">Fotos do álbum</h2>
-          <ol className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3">
-            {items.map((item) =>
-              item.kind === "tear" ? (
-                <li key={item.key} className="col-span-full my-3 flex items-center gap-4 sm:my-5" aria-label={`Fotos de ${item.label}`}>
-                  <span aria-hidden="true" className="h-0 flex-1 border-t-2 border-dashed border-[#B9B5AD]" />
-                  <span className="font-marquee text-[1.25rem] font-extrabold uppercase leading-none text-[#141414] sm:text-[1.5rem]">{item.label}</span>
-                  <span aria-hidden="true" className="h-0 flex-1 border-t-2 border-dashed border-[#B9B5AD]" />
-                </li>
-              ) : (
-                <li key={item.frame.index}>
-                  <button
-                    type="button"
-                    onClick={() => setSelected(item.frame.index)}
-                    aria-label={`Abrir foto ${item.frame.number} de ${frames.length}`}
-                    className="group block w-full overflow-hidden bg-[#1a1a1a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#141414]"
-                  >
-                    <img
-                      src={thumb(item.frame.url, 520)}
-                      alt=""
-                      width={520}
-                      height={650}
-                      loading={item.frame.number <= 6 ? "eager" : "lazy"}
-                      decoding="async"
-                      className="aspect-[4/5] w-full object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.035]"
-                    />
-                  </button>
-                </li>
-              )
-            )}
-          </ol>
-
-          {/* Printed foot of the roll. */}
-          <div className="mt-10 border-t-2 border-dashed border-[#B9B5AD] pt-8 text-center text-[#141414]">
-            <p className="font-marquee text-[1.9rem] font-extrabold uppercase leading-none">{project.clientName}</p>
-            <p className="mt-2 text-[14px] text-[#55524C]">
-              {frames.length} fotos, GoFocus, cabine de fotos
-            </p>
-            <div className="mt-7 flex flex-wrap justify-center gap-3">
-              <button
-                type="button"
-                onClick={like}
-                disabled={liked}
-                className="inline-flex items-center gap-2 rounded-full bg-[#141414] px-5 py-3 text-[15px] font-semibold text-[#E9EAEC] transition-colors hover:bg-black disabled:cursor-default"
-              >
-                <Heart className={`h-4 w-4 ${liked ? "fill-[#FF4D3D] text-[#FF4D3D]" : ""}`} aria-hidden="true" />
-                {liked ? "Você curtiu este álbum" : "Curtir álbum"}
-              </button>
-              <Link to="/#portfolio" className="rounded-full px-5 py-3 text-[15px] font-semibold ring-2 ring-[#141414] transition-colors hover:bg-[#141414] hover:text-[#E9EAEC]">
-                Ver outras tiras
-              </Link>
-              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-[15px] font-semibold ring-2 ring-[#141414] transition-colors hover:bg-[#141414] hover:text-[#E9EAEC]">
-                <Instagram className="h-4 w-4" aria-hidden="true" /> Falar no Instagram
-              </a>
-            </div>
-          </div>
-        </div>
-        <p className="mt-10 text-center text-[13px] text-[#8F8A80]">© {new Date().getFullYear()} GoFocus. Todos os direitos reservados.</p>
+        <p className="mt-16 text-center text-[13px] text-white/40">© {new Date().getFullYear()} GoFocus. Todos os direitos reservados.</p>
       </main>
 
       {/* ── QR code ── */}
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>
-        <DialogContent className="max-w-sm border-0 bg-[#A7AAAF] text-[#141414]">
+        <DialogContent className="max-w-sm border border-white/15 bg-[#111] text-[#f5f4f0]">
           <DialogHeader>
-            <DialogTitle className="font-marquee text-[1.8rem] font-black uppercase leading-none">QR code do álbum</DialogTitle>
+            <DialogTitle className="font-display text-[1.8rem] font-medium leading-tight">QR code do álbum</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-2">
-            <div className="rounded-[3px] bg-[#FBFAF7] p-4 shadow-[0_18px_40px_-18px_rgba(0,0,0,0.55)]">
+            <div className="rounded-sm bg-white p-4">
               <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(window.location.href)}`} alt={`QR code para abrir o álbum ${project.clientName}`} width={200} height={200} className="h-[200px] w-[200px]" />
             </div>
-            <p className="text-center text-[15px] text-[#23252A]">Aponte a câmera do celular para abrir este álbum.</p>
+            <p className="text-center text-[15px] text-white/60">Aponte a câmera do celular para abrir este álbum.</p>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* ── PIX support ── */}
       <Dialog open={pixOpen} onOpenChange={setPixOpen}>
-        <DialogContent className="max-w-sm border-0 bg-[#A7AAAF] text-[#141414]">
+        <DialogContent className="max-w-sm border border-white/15 bg-[#111] text-[#f5f4f0]">
           <DialogHeader>
-            <DialogTitle className="font-marquee text-[1.8rem] font-black uppercase leading-none">Apoie nosso trabalho</DialogTitle>
+            <DialogTitle className="font-display text-[1.8rem] font-medium leading-tight">Apoie nosso trabalho</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col items-center gap-5 py-2">
-            <div className="rounded-[3px] bg-[#FBFAF7] p-4 shadow-[0_18px_40px_-18px_rgba(0,0,0,0.55)]">
+            <div className="rounded-sm bg-white p-4">
               <img src={PIX_QR} alt="QR code PIX da GoFocus" width={200} height={200} className="h-[200px] w-[200px]" />
             </div>
             <div className="text-center">
-              <p className="text-[14px] text-[#23252A]">Chave PIX (CNPJ)</p>
+              <p className="text-[14px] text-white/60">Chave PIX (CNPJ)</p>
               <p className="mt-1 text-[17px] font-semibold tabular-nums">{PIX_KEY_LABEL}</p>
             </div>
             <button
@@ -330,7 +349,7 @@ export default function ClientPreview() {
                 navigator.clipboard.writeText(PIX_KEY);
                 toast.success("Chave PIX copiada");
               }}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#141414] py-3.5 text-[15px] font-semibold text-[#E9EAEC] hover:bg-black"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-white py-3.5 text-[15px] font-semibold text-black"
             >
               <Copy className="h-4 w-4" aria-hidden="true" /> Copiar chave PIX
             </button>
@@ -355,12 +374,15 @@ export default function ClientPreview() {
   );
 }
 
+const wrap = "mx-auto w-full max-w-[1400px] px-5 sm:px-10";
+const ring = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white";
+
 function ToolButton({ icon: Icon, label, onClick }: { icon: typeof Share2; label: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-full px-4 py-3 text-[15px] font-semibold text-[#141414] ring-2 ring-[#141414]/80 transition-colors hover:bg-[#141414] hover:text-[#E9EAEC] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#141414]"
+      className={`inline-flex items-center gap-2 rounded-full border border-white/30 px-4 py-3 text-[15px] font-medium transition-colors hover:bg-white hover:text-black ${ring}`}
     >
       <Icon className="h-4 w-4" aria-hidden="true" /> {label}
     </button>
@@ -461,7 +483,7 @@ function Viewer({
   };
 
   const iconButton =
-    "grid h-11 w-11 place-items-center rounded-full bg-[#1c1c1c] text-[#E9EAEC] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-colors hover:bg-[#2a2a2a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#A7AAAF]";
+    "grid h-11 w-11 place-items-center rounded-full bg-[#1c1c1c] text-[#E9EAEC] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-colors hover:bg-[#2a2a2a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
   return (
     <motion.div
@@ -476,8 +498,8 @@ function Viewer({
     >
       <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
         <div className="min-w-0">
-          <p className="truncate font-marquee text-[1.35rem] font-extrabold uppercase leading-none text-[#E9EAEC]">{album}</p>
-          <p className="mt-1 text-[13px] tabular-nums text-[#A7AAAF]">
+          <p className="truncate font-display text-[1.35rem] leading-none text-[#f5f4f0]">{album}</p>
+          <p className="mt-1 text-[13px] tabular-nums text-white/50">
             {String(current.number).padStart(2, "0")} / {String(frames.length).padStart(2, "0")}
           </p>
         </div>
