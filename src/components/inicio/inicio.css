@@ -1,0 +1,139 @@
+/* Home page: black and white, lots of movement, smooth in Safari.
+   Everything that moves is a transform or opacity animation; no animated filters or blur. */
+
+.inicio {
+  --ink: #0a0a0a;
+  --ink-2: #141414;
+  --line: rgba(255, 255, 255, 0.14);
+  --paper: #f5f4f0;
+  --muted: #a3a3a0;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ---------- Hero headline: each letter rises out of a mask ---------- */
+.inicio-word {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+.inicio-char {
+  display: inline-block;
+  transform: translateY(105%);
+  animation: inicio-rise 1.1s var(--ease-out) forwards;
+  animation-delay: calc(0.25s + var(--i) * 0.035s);
+}
+@keyframes inicio-rise {
+  to { transform: translateY(0); }
+}
+
+.inicio-fade {
+  opacity: 0;
+  animation: inicio-fade-in 1s var(--ease-out) forwards;
+  animation-delay: var(--d, 1s);
+}
+@keyframes inicio-fade-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* The star turns slowly next to the headline. */
+.inicio-spin {
+  animation: inicio-spin 18s linear infinite;
+}
+@keyframes inicio-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Marquees (photo strips and the big word band) ---------- */
+.inicio-marquee {
+  display: flex;
+  width: max-content;
+  animation: inicio-marquee var(--speed, 60s) linear infinite;
+  will-change: transform;
+}
+.inicio-marquee[data-reverse="true"] {
+  animation-direction: reverse;
+}
+.inicio-marquee-wrap:hover .inicio-marquee {
+  animation-play-state: paused;
+}
+@keyframes inicio-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* Photos in full colour; a slow zoom on hover. */
+.inicio-bw {
+  transition: transform 1.2s var(--ease-out);
+}
+
+/* Outlined giant words in the band. */
+.inicio-outline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--paper);
+}
+
+/* ---------- Service rows: white fill sweeps up on hover ---------- */
+.inicio-service {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.inicio-service::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--paper);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.6s var(--ease-out);
+}
+.inicio-service:hover::before,
+.inicio-service:focus-visible::before {
+  transform: scaleY(1);
+}
+.inicio-service:hover,
+.inicio-service:focus-visible {
+  color: var(--ink);
+}
+.inicio-service:hover .inicio-service-text,
+.inicio-service:focus-visible .inicio-service-text {
+  color: #3a3a38;
+}
+.inicio-service .inicio-arrow {
+  transition: transform 0.6s var(--ease-out);
+}
+.inicio-service:hover .inicio-arrow {
+  transform: translateX(10px) rotate(-45deg);
+}
+
+/* ---------- Reveal on scroll (content stays visible if JS never runs) ---------- */
+.inicio-reveal {
+  transition: opacity 0.9s var(--ease-out), transform 0.9s var(--ease-out);
+}
+.inicio-reveal[data-hidden="true"] {
+  opacity: 0;
+  transform: translateY(40px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inicio-char,
+  .inicio-fade {
+    animation: none;
+    transform: none;
+    opacity: 1;
+  }
+  .inicio-marquee,
+  .inicio-spin {
+    animation: none;
+  }
+  .inicio-reveal[data-hidden="true"] {
+    opacity: 1;
+    transform: none;
+  }
+}
